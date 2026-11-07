@@ -373,7 +373,10 @@ local function Remove(uf)
         for _, point in ipairs(entry.points) do entry.frame:SetPoint(unpack(point)) end
         entry.frame:SetFrameLevel(entry.frameLevel)
     end
-    if CompactUnitFrame_UpdateHealthColor then
+    -- Removed plates may have no unit by the time deferred cleanup runs.
+    -- Blizzard's color updater requires a live unit; otherwise restore our snapshot.
+    if CompactUnitFrame_UpdateHealthColor and Public(uf.unit)
+        and type(uf.unit) == "string" and Safe(UnitExists, uf.unit) then
         CompactUnitFrame_UpdateHealthColor(uf)
     elseif state.bar and state.originalColor then
         state.bar:SetStatusBarColor(unpack(state.originalColor))
