@@ -4,7 +4,7 @@ local combat = false
 InCombatLockdown = function() return combat end
 local driver
 CreateFrame = function()
-    driver = {SetScript=function(self, event, callback) self[event]=callback end}
+    driver = {RegisterEvent=function() end, SetScript=function(self, event, callback) self[event]=callback end}
     return driver
 end
 assert(loadfile("TisteltiPlates/HoverWidth.lua"))()
@@ -96,26 +96,24 @@ InputUtil=nil
 print("PASS: short names, independent text scaling and legacy/current hover APIs")
 
 local locked=Plate(180)
-locked.HealthBarsContainer.hover=true
+locked.protected=true; locked.HealthBarsContainer.hover=true
 Hover.Track(locked,122,100)
-near(locked.width,214)
-locked.protected=true; combat=true
-locked.HealthBarsContainer.hover=false; tick()
-near(locked.width,214)
+near(locked.width,122)
+combat=true; tick(); near(locked.width,122)
 Hover.Release(locked)
-near(locked.width,214)
-combat=false; tick()
-near(locked.width,100)
+combat=false; tick(); near(locked.width,100)
 
 local fighting=Plate(180)
-combat=true
 Hover.Track(fighting,100,100)
 fighting.HealthBarsContainer.hover=true; tick()
 near(fighting.width,214)
-fighting.HealthBarsContainer.hover=false; tick()
+combat=true; driver:OnEvent("PLAYER_REGEN_DISABLED")
 near(fighting.width,100)
-Hover.Release(fighting); combat=false
-print("PASS: protected combat frames wait; unprotected combat plates expand and restore")
+tick(); near(fighting.width,100)
+combat=false; tick(); near(fighting.width,214)
+fighting.HealthBarsContainer.hover=false; tick(); near(fighting.width,100)
+Hover.Release(fighting)
+print("PASS: entering combat immediately restores width; no expansion in combat or on protected plates")
 
 local recycled=Plate(180)
 recycled.HealthBarsContainer.hover=true
@@ -142,3 +140,78 @@ Hover.Release(hidden)
 Hover.Track(hidden,secret,100)
 near(hidden.width,100)
 print("PASS: recycled/removed units, secret or forbidden metrics and invalid widths")
+
+-- Simulate Blizzard's opposing anchors: SetWidth alone cannot change the width.
+local anchored=Plate(180)
+local parent={}
+anchored.points={{"TOPLEFT",parent,"TOPLEFT",0,-2},{"BOTTOMRIGHT",parent,"BOTTOMRIGHT",0,3}}
+function anchored:GetNumPoints() return #self.points end
+function anchored:GetPoint(i) return table.unpack(self.points[i]) end
+function anchored:SetPoint(point, relative, relativePoint, x, y)
+    for i, old in ipairs(self.points) do
+        if old[1]==point then self.points[i]={point,relative,relativePoint,x,y} end
+    end
+    self.width=100+self.points[2][4]-self.points[1][4]
+end
+function anchored:SetWidth() end
+anchored.HealthBarsContainer.hover=true
+Hover.Track(anchored,122,100)
+near(anchored.width,214)
+near(anchored.points[1][4],-57); near(anchored.points[2][4],57)
+assert(anchored.points[1][5]==-2 and anchored.points[2][5]==3, "Vertical offsets must never change")
+for i=1,20 do tick(); Hover.Track(anchored,122,100) end
+near(anchored.width,214)
+anchored.HealthBarsContainer.hover=false; tick(); near(anchored.width,122)
+Hover.Release(anchored); near(anchored.width,100)
+assert(anchored.points[1][4]==0 and anchored.points[2][4]==0)
+print("PASS: opposing native anchors widen horizontally, retain height and restore exactly")
+
+local native=Plate(180)
+native.name.GetEffectiveScale=nil
+native.name.GetParent=function() return native end
+UnitIsUnit=function(unit,other) return unit==native.unit and other=="mouseover" end
+Hover.Track(native,100,100)
+near(native.width,214)
+UnitIsUnit=function() return false end
+tick(); near(native.width,100)
+Hover.Release(native)
+print("PASS: mouseover unit detects native plates without mouse events; font scale falls back to parent")
+
+-- Exercise Core's real refresh/event paths; decoration settings must not filter hover.
+local hoverDriver=driver
+SlashCmdList={}
+local f=assert(io.open("TisteltiPlates/Core.lua","rb"))
+local source=f:read("*a"); f:close()
+local core=assert(load(source .. [[
+return {refresh=Refresh, driver=driver, setDB=function(value) db=value end}
+]]))("TisteltiPlates")
+local config={enabled=true,group=false,guild=false}
+core.setDB(config)
+local instance=false
+IsInInstance=function() return instance end
+UnitIsPlayer=function(unit) return unit~="npc" end
+UnitIsFriend=function(_,unit) return unit~="enemy" end
+UnitInParty=function(unit) return unit=="party" end
+UnitIsInMyGuild=function(unit) return unit=="guild" end
+local plates={}
+C_NamePlate={GetNamePlateForUnit=function(unit) return plates[unit] end}
+for _,unit in ipairs({"party","guild","stranger","enemy","npc"}) do
+    local uf=Plate(180); uf.unit=unit; uf.HealthBarsContainer.hover=true
+    plates[unit]={UnitFrame=uf}
+    core.driver:OnEvent("NAME_PLATE_UNIT_ADDED",unit)
+    near(uf.width,unit=="npc" and 100 or 214)
+end
+for i=1,10 do core.refresh(); hoverDriver:OnUpdate(.05) end
+for unit,plate in pairs(plates) do near(plate.UnitFrame.width,unit=="npc" and 100 or 214) end
+instance=true; core.refresh(); near(plates.enemy.UnitFrame.width,214)
+combat=true; core.refresh(); hoverDriver:OnEvent("PLAYER_REGEN_DISABLED")
+for _,plate in pairs(plates) do near(plate.UnitFrame.width,100) end
+combat=false; core.refresh(); near(plates.enemy.UnitFrame.width,214)
+config.enabled=false; core.refresh()
+for _,plate in pairs(plates) do near(plate.UnitFrame.width,100) end
+config.enabled=true; core.refresh()
+core.driver:OnEvent("NAME_PLATE_UNIT_REMOVED","enemy")
+near(plates.enemy.UnitFrame.width,100)
+hoverDriver:OnUpdate(.05); near(plates.enemy.UnitFrame.width,100)
+for unit in pairs(plates) do core.driver:OnEvent("NAME_PLATE_UNIT_REMOVED",unit) end
+print("PASS: real Core enrollment covers party, guild, strangers and enemies; excludes NPCs; handles instances, disable and removal")

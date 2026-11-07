@@ -26,9 +26,9 @@ Los marcos protegidos no se recolocan durante el combate: se actualizan al termi
 
 ## Nombre completo al pasar el cursor
 
-En las placas decoradas de grupo y hermandad, pasar el cursor por la barra o el nombre amplía el ancho lo necesario para que quepa el nombre completo. Mantiene el tamaño de las letras, el espacio de los textos de salud y los anclajes de las alas, el nivel y los controles. Al retirar el cursor recupera el ancho habitual. Los nombres que ya caben no amplían la placa.
+En las placas de todos los jugadores (grupo, hermandad, desconocidos y enemigos), pasar el cursor por la barra o el nombre amplía el ancho lo necesario para que quepa el nombre completo. Solo cambia el ancho, manteniendo la altura, el tamaño de las letras, el espacio de los textos de salud y los anclajes de las alas, el nivel y los controles. Al retirar el cursor recupera el ancho habitual. Los nombres que ya caben no amplían la placa. No afecta a PNJ ni depende de activar las alas de grupo/hermandad; también funciona en instancias. El interruptor general del addon desactiva la ampliación.
 
-Durante el combate solo se redimensionan los marcos que el cliente permite modificar. Si una placa está protegida, la ampliación o restauración pendiente espera hasta que termine el bloqueo. Si las medidas del nombre son secretas o no están disponibles, se conserva el ancho habitual.
+La ampliación solo se activa fuera de combate y se restaura al entrar en combate. Las placas protegidas no se amplían, porque el cliente podría impedir restaurarlas al comenzar el combate. Si las medidas del nombre son secretas o no están disponibles, se conserva el ancho habitual.
 
 Prueba simulada específica: `lua tests/test_hover.lua`. Pendiente de verificar dentro del juego con nombres largos y distintos tamaños de interfaz.
 

@@ -360,7 +360,7 @@ local function Layout(state)
 end
 
 local function Remove(uf)
-    TisteltiPlatesHover.Release(uf)
+    if active[uf] or combatArt[uf] then TisteltiPlatesHover.Release(uf) end
     if combatArt[uf] then combatArt[uf]:Hide(); combatArt[uf] = nil end
     if guildLabels[uf] then guildLabels[uf]:Hide() end
     local state = active[uf]
@@ -450,7 +450,7 @@ local function Update(unit, plate)
     if not state then
         local art = uf.TisteltiArt or Ornament(uf)
         uf.TisteltiArt = art
-        state = {art = art, bar = bar, baseScale = uf:GetScale(), baseWidth = uf:GetWidth(), originalColor = {bar:GetStatusBarColor()},
+        state = {art = art, bar = bar, baseScale = uf:GetScale(), baseWidth = TisteltiPlatesHover.GetBaseWidth(uf), originalColor = {bar:GetStatusBarColor()},
             levels = {}, levelSeen = {}, cc = {}}
         -- Both exist in Forever. PlayerLevelDiffFrame is the extra native box
         -- visible beside the custom badge in the reported screenshot.
@@ -510,7 +510,7 @@ local function UpdateCombat(unit, plate)
         return
     end
     -- Existing decorated plates retain their layout. New plates get only
-    -- addon-owned artwork; hover resizing only touches unprotected frames.
+    -- addon-owned artwork; hover expansion stays disabled during combat.
     local state = active[uf]
     if state and not state.pendingRemoval then return end
     if guildLabels[uf] then guildLabels[uf]:Hide() end
@@ -520,7 +520,7 @@ local function UpdateCombat(unit, plate)
     local art = uf.TisteltiCombatArt or Ornament(uf)
     uf.TisteltiCombatArt = art
     if not combatArt[uf] then
-        local baseWidth = state and state.baseWidth or Safe(uf.GetWidth, uf)
+        local baseWidth = state and state.baseWidth or TisteltiPlatesHover.GetBaseWidth(uf)
         TisteltiPlatesHover.Track(uf, baseWidth, baseWidth)
     end
     combatArt[uf] = art
@@ -530,6 +530,16 @@ local function UpdateCombat(unit, plate)
     if type(guild) ~= "string" or guild == "" then guild = nil end
     Paint(art, bar, style, color, level, Rank(unit), db.scale, guild)
     art.guildRole:SetText("")
+end
+
+local function RefreshHover()
+    for _, plate in pairs(tracked) do
+        local uf = plate and plate.UnitFrame
+        if uf then
+            if db.enabled then TisteltiPlatesHover.TrackPlayer(uf)
+            else TisteltiPlatesHover.Release(uf) end
+        end
+    end
 end
 
 Refresh = function()
@@ -542,6 +552,7 @@ Refresh = function()
                 Message("Error al dibujar en combate: " .. tostring(err))
             end
         end
+        RefreshHover()
         return
     end
     for uf, art in pairs(combatArt) do
@@ -560,6 +571,7 @@ Refresh = function()
     if not Allowed() then
         for uf in pairs(active) do Remove(uf) end
         for _, label in pairs(guildLabels) do label:Hide() end
+        RefreshHover()
         return
     end
     for unit, plate in pairs(tracked) do
@@ -569,6 +581,7 @@ Refresh = function()
             Message("Error al dibujar la placa: " .. tostring(err))
         end
     end
+    RefreshHover()
 end
 
 local function Preview()
@@ -816,7 +829,10 @@ driver:SetScript("OnEvent", function(_, event, unit)
         tracked[unit] = C_NamePlate.GetNamePlateForUnit(unit)
     elseif event == "NAME_PLATE_UNIT_REMOVED" then
         local plate = tracked[unit]
-        if plate and plate.UnitFrame then Remove(plate.UnitFrame) end
+        if plate and plate.UnitFrame then
+            Remove(plate.UnitFrame)
+            TisteltiPlatesHover.Release(plate.UnitFrame)
+        end
         tracked[unit] = nil
     end
     Refresh()
