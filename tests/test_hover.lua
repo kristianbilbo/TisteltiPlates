@@ -177,6 +177,35 @@ near(shortSecret.HealthBarsContainer:GetWidth(),120)
 Hover.Release(shortSecret)
 print("PASS: restricted name geometry leaves short names unchanged; medium/long names and health labels produce proportional widths")
 
+-- Blizzard's TextStatusBar clears the two unused labels. Their geometry may
+-- still be secret because they anchor to the populated health label. Empty
+-- GetText results must not be confused with failed/secret text reads.
+local emptyLabels=Plate(184)
+emptyLabels.name.secretGeometry=true
+emptyLabels.HealthBarsContainer.hover=true
+for _,key in ipairs({"RightText","LeftText"}) do
+    local label=emptyLabels.HealthBarsContainer.healthBar[key]
+    label.width=secret
+    label.GetText=function() return nil end
+    label.GetParent=function() return nil end -- zero text needs no scale/font
+end
+Hover.TrackPlayer(emptyLabels)
+driver:OnUpdate(.03)
+assert(emptyLabels.HealthBarsContainer:GetWidth()>120,"Empty health labels must not cancel the animation")
+for i=1,20 do driver:OnUpdate(.01) end
+near(emptyLabels.HealthBarsContainer:GetWidth(),228)
+local empty=emptyLabels.HealthBarsContainer.healthBar.LeftText
+empty.GetText=function() return "" end
+tick(); near(emptyLabels.HealthBarsContainer:GetWidth(),228)
+empty.GetText=function() return secret end
+tick(); near(emptyLabels.HealthBarsContainer:GetWidth(),120)
+empty.GetText=function() error("restricted") end
+tick(); near(emptyLabels.HealthBarsContainer:GetWidth(),120)
+empty.GetText=nil
+tick(); near(emptyLabels.HealthBarsContainer:GetWidth(),120)
+Hover.Release(emptyLabels)
+print("PASS: empty anchored health labels allow fitting/animation; secret, failed and missing reads do not become zero")
+
 local animated=Plate(180)
 animated.HealthBarsContainer.hover=true
 Hover.TrackPlayer(animated)

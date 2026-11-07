@@ -13,7 +13,8 @@ end
 local function Read(fn, ...)
     if type(fn) ~= "function" then return nil end
     local ok, value = pcall(fn, ...)
-    if ok and Public(value) then return value end
+    -- A successful nil (empty FontString) differs from a secret/failed read.
+    if ok and Public(value) then return value, true end
 end
 local function Number(value)
     return Public(value) and type(value) == "number" and value > 0 and value < math.huge
@@ -40,10 +41,11 @@ local function FullWidth(name)
     if width == 0 or Number(width) then return width end
     -- Native measurements can inherit secret geometry from the health text
     -- even outside combat. Measure only public text on an unanchored string.
-    local text = Read(name.GetText, name)
+    local text, readable = Read(name.GetText, name)
+    if not readable then return nil end
+    if text == nil or text == "" then return 0 end
     local font = Read(name.GetFontObject, name)
     local height = Read(name.GetFontHeight, name)
-    if text == "" then return 0 end
     if type(text) ~= "string" or not font or not Number(height) then return nil end
     if not measure then
         local owner = CreateFrame("Frame", nil, UIParent)
@@ -145,9 +147,11 @@ local function AvailableWidth(uf, layout, nameScale, barScale)
     for _, key in ipairs({"Text", "RightText", "LeftText"}) do
         local label = health[key]
         local labelWidth = FullWidth(label)
-        local labelScale = label and Scale(label)
-        if (labelWidth ~= 0 and not Number(labelWidth)) or not Number(labelScale) then return nil end
-        used = used + labelWidth * labelScale / barScale
+        if labelWidth ~= 0 then
+            local labelScale = label and Scale(label)
+            if not Number(labelWidth) or not Number(labelScale) then return nil end
+            used = used + labelWidth * labelScale / barScale
+        end
     end
     return math.max(0, width - used)
 end

@@ -34,6 +34,8 @@ La ampliación actúa sobre `HealthBarsContainer`, sin recolocar `UnitFrame` sob
 
 Prueba simulada específica: `lua tests/test_hover.lua`. Pendiente de verificar dentro del juego con nombres largos y distintos tamaños de interfaz.
 
+Referencias de compatibilidad: [InvurseUI](https://github.com/InvurseStudio/InvurseUI/blob/main/InvurseUI/Nameplates.lua) modifica los anclajes de `HealthBarsContainer` en Forever; [ForeverPlusPlus](https://github.com/xIGBClutchIx/ForeverPlusPlus/blob/main/ForeverPlusPlus/Lib/Text.lua) mide texto con `GetUnboundedStringWidth`. La [API de FontString de Forever](https://github.com/Gethe/wow-ui-source/blob/forever/Interface/AddOns/Blizzard_APIDocumentationGenerated/SimpleFontStringAPIDocumentation.lua) marca esa medida como restringida cuando depende de anclajes restringidos. [TextStatusBar](https://github.com/Gethe/wow-ui-source/blob/forever/Interface/AddOns/Blizzard_TextStatusBar/TextStatusBar.lua) vacía los textos de salud que no usa. La medición alternativa distingue un texto vacío de una lectura fallida o secreta y no necesita medir la fuente ni la escala de un texto vacío. La prueba cubre tanto `nil` como `""` en esa situación; no confirma por sí sola la causa del fallo observado en el cliente.
+
 ## Código y datos
 
 `TisteltiPlates/Honor.lua`, `TisteltiPlates/CCPosition.lua`, `TisteltiPlates/HoverWidth.lua` y `TisteltiPlates/Core.lua` contienen el código; el manifiesto TOC define el orden de carga. Las texturas necesarias están en `TisteltiPlates/Media/`.
