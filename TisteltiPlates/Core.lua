@@ -128,9 +128,10 @@ local function Ornament(parent)
         light:SetAllPoints(wing)
         light:SetBlendMode("ADD")
         light:SetAlpha(.62)
+        return light
     end
     illuminateWing(o.wings, 0, .40)
-    illuminateWing(o.rightWing, .60, 1)
+    o.rightWingLight = illuminateWing(o.rightWing, .60, 1)
     o.halo = FrameBorder(o, 12, false)
     o.halo:SetPoint("TOPLEFT",o.body,"TOPLEFT",-1.5,1.5)
     o.halo:SetPoint("BOTTOMRIGHT",o.body,"BOTTOMRIGHT",1.5,-1.5)
@@ -201,6 +202,7 @@ local function Ornament(parent)
         o.stars[i] = star
     end
     o:Hide()
+    TisteltiPlatesCC.AttachArt(o, parent)
     return o
 end
 
@@ -345,12 +347,16 @@ local function Layout(state)
     for _, entry in ipairs(state.levels) do entry.frame:SetAlpha(0) end
     local previous
     for _, entry in ipairs(state.cc) do
-        local frame = entry.frame
-        frame:ClearAllPoints()
-        frame:SetPoint("BOTTOM", previous or state.art.ccAnchor, "TOP", 0, previous and 6 * db.scale or 0)
-        frame:SetFrameLevel(state.art.badge:GetFrameLevel() + 10)
-        if frame:IsShown() then previous = frame end
+        -- CC stays beside the level badge; only buffs/debuffs stack above it.
+        if entry.row == 0 then
+            local frame = entry.frame
+            frame:ClearAllPoints()
+            frame:SetPoint("BOTTOM", previous or state.art.ccAnchor, "TOP", 0, previous and 6 * db.scale or 0)
+            frame:SetFrameLevel(state.art.badge:GetFrameLevel() + 10)
+            if frame:IsShown() then previous = frame end
+        end
     end
+    TisteltiPlatesCC.Position(state.art:GetParent())
 end
 
 local function Remove(uf)
@@ -640,7 +646,7 @@ local function RegisterOptions()
     local style, rank = "group", 0
     local color = RAID_CLASS_COLORS.MAGE
     local bar = CreateFrame("StatusBar", nil, panel)
-    bar:SetPoint("TOPLEFT", 56, -285)
+    bar:SetPoint("TOPLEFT", 56, -315)
     bar:SetSize(180, 19)
     bar:SetStatusBarTexture(WHITE)
     bar:SetMinMaxValues(0, 100)
@@ -697,8 +703,21 @@ local function RegisterOptions()
     dropdown(250,-100,"Insignia",{"animales"},
         function() return db.appearance[style].icon end,function(v) db.appearance[style].icon=v end)
     dropdown(20,-145,"Ejemplo mérito",{0,1,2,3,4,5,6,7,8,9,10,11,12,13,14},function() return rank end,function(v) rank=v; style="guild" end)
+    local hideWing = CreateFrame("CheckButton", nil, panel, "UICheckButtonTemplate")
+    hideWing:SetSize(26, 26)
+    hideWing:SetPoint("TOPLEFT", 20, -185)
+    local hideWingLabel = hideWing:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    hideWingLabel:SetPoint("LEFT", hideWing, "RIGHT", 4, 0)
+    hideWingLabel:SetText("Ocultar ala derecha al mostrar controles")
+    hideWing:SetChecked(db.hideRightWingOnCC ~= false)
+    hideWing:SetScript("OnShow", function(self)
+        self:SetChecked(db.hideRightWingOnCC ~= false)
+    end)
+    hideWing:SetScript("OnClick", function(self)
+        db.hideRightWingOnCC = self:GetChecked() and true or false
+    end)
     local caption=panel:CreateFontString(nil,"OVERLAY","GameFontNormal")
-    caption:SetPoint("TOPLEFT",20,-205); caption:SetText("Vista previa")
+    caption:SetPoint("TOPLEFT",20,-235); caption:SetText("Vista previa")
     panel:SetScript("OnShow",redraw)
     panel:SetScript("OnHide",function() popup:Hide() end)
     local category = Settings.RegisterCanvasLayoutCategory(panel, "TisteltiPlates")
@@ -710,6 +729,7 @@ SlashCmdList.TISTELTIPLATES = function(text)
     if not db then return end
     local cmd, value = text:match("^%s*(%S*)%s*(.-)%s*$")
     cmd = cmd:lower()
+    if cmd == "cc" then TisteltiPlatesCC.Report(); return end
     if cmd == "vista" then Preview(); return end
     if cmd == "on" or cmd == "off" then db.enabled = cmd == "on"
     elseif cmd == "borde" or cmd == "icono" or cmd == "color" then
@@ -744,7 +764,7 @@ SlashCmdList.TISTELTIPLATES = function(text)
         local unit = Safe(UnitIsPlayer, "target") and "target" or "player"
         Message(Safe(TisteltiHonorTexto, unit) or "Mérito: sin datos")
     else
-        Message("/tistelti vista | on/off | grupo on/off | guild on/off | tamano 0.8–1.8")
+        Message("/tistelti cc | vista | on/off | grupo on/off | guild on/off | tamano 0.8–1.8")
         Message("/tistelti merito: consulta el mérito del objetivo o de tu personaje")
         Message("borde grupo/guild oroazul/oro/plata/clase/rango | Insignia: animales por mérito")
         Message("color grupo/guild R G B (valores de 0 a 1). Vista incluye botones de personalización.")
@@ -762,6 +782,7 @@ driver:SetScript("OnEvent", function(_, event, unit)
         if db.enabled == nil then db.enabled = true end
         if db.group == nil then db.group = true end
         if db.guild == nil then db.guild = true end
+        if type(db.hideRightWingOnCC) ~= "boolean" then db.hideRightWingOnCC = true end
         if type(db.scale) ~= "number" or db.scale < .8 or db.scale > 1.8 then db.scale = 1 end
         if type(db.ranks) ~= "table" then db.ranks = {} end
         if type(db.appearance) ~= "table" then db.appearance = {} end

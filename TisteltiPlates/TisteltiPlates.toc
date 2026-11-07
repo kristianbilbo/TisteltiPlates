@@ -5,6 +5,7 @@
 ## Version: 0.7.8
 ## SavedVariables: TisteltiPlatesDB
 Honor.lua
+CCPosition.lua
 Core.lua
 
 
