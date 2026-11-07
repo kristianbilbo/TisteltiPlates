@@ -18,4 +18,6 @@ El addon se mantiene separado de TisteltiGuild y no lo requiere. La configuraci�
 
 ## Estado
 
-Código importado del paquete `TisteltiPlates-0.7.8-para-compartir.zip` sin modificar su comportamiento. La comprobación de archivos y manifiesto no sustituye las pruebas dentro del juego.
+Base importada del paquete `TisteltiPlates-0.7.8-para-compartir.zip`. Incluye la corrección de restauración de color cuando una placa se retira y su unidad ya no está disponible, también tras una limpieza aplazada durante el combate.
+
+Comprobado en Lua 5.1 con unidades ausentes, inexistentes, secretas y válidas, y con restauración aplazada tras el combate. Queda comprobar el resultado dentro del juego.
