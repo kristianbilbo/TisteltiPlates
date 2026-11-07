@@ -45,7 +45,7 @@ UnitIsInMyGuild=function() return false end
 local file=assert(io.open('TisteltiPlates/Core.lua','rb'))
 local source=file:read('*a'); file:close()
 local core=assert((loadstring or load)(source .. [[
-return {driver=driver, membership=Membership, wings=PaintWings}
+return {driver=driver, membership=Membership, rosterMembership=RosterMembership, wings=PaintWings}
 ]]))('TisteltiPlates')
 local function initialize(db)
     TisteltiPlatesDB=db
@@ -111,3 +111,28 @@ end
 initialize(TisteltiPlatesDB)
 assert(TisteltiPlatesDB.appearance.raid.border=='cobre', 'Reload must preserve raid customization')
 print('PASS: three options styles, correct previews while in raid, independent settings, migration and membership')
+
+-- Guild takes priority in both direct/combat membership and roster identity.
+local sameGuild = {}
+UnitIsInMyGuild=function(unit) return sameGuild[unit] or false end
+for _,isRaid in ipairs({false,true}) do
+    raid=isRaid
+    local fallback=raid and 'raid' or 'group'
+    TisteltiPlatesDB.group=true; TisteltiPlatesDB.raid=true; TisteltiPlatesDB.guild=true
+    sameGuild={nameplate1=true}
+    assert(core.membership('nameplate1')=='guild')
+    assert(core.rosterMembership('nameplate1','roster1',fallback)=='guild')
+    sameGuild={roster1=true}
+    assert(core.rosterMembership('nameplate1','roster1',fallback)=='guild')
+    assert(core.rosterMembership('nameplate1','roster1',nil)=='guild', 'Guild still applies with group/raid disabled')
+    TisteltiPlatesDB.guild=false
+    assert(core.rosterMembership('nameplate1','roster1',fallback)==fallback)
+    sameGuild={}
+    assert(core.membership('nameplate1')==fallback)
+    assert(core.rosterMembership('nameplate1','roster1',fallback)==fallback)
+    assert(core.rosterMembership('nameplate1','roster1',nil)==nil)
+end
+TisteltiPlatesDB.guild=true; sameGuild={nameplate1=true}
+UnitIsFriend=function() return false end
+assert(core.membership('nameplate1')==nil, 'Hostile players must remain excluded')
+print('PASS: guild priority in party/raid, direct and roster identities, disabled styles and hostile exclusion')

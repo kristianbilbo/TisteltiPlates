@@ -56,12 +56,23 @@ end
 local function Membership(unit)
     if not Safe(UnitIsPlayer, unit) or Safe(UnitIsUnit, unit, "player") then return nil end
     if not Safe(UnitIsFriend, "player", unit) then return nil end
+    if db.guild and Safe(UnitIsInMyGuild, unit) then return "guild" end
     if Safe(IsInRaid) then
         if db.raid and Safe(UnitInRaid, unit) then return "raid" end
     elseif db.group and Safe(UnitInParty, unit) then
         return "group"
     end
-    if db.guild and Safe(UnitIsInMyGuild, unit) then return "guild" end
+end
+
+local function RosterMembership(unit, roster, rosterStyle)
+    if roster then
+        -- Forever can expose guild membership through either unit token.
+        if db.guild and (Safe(UnitIsInMyGuild, roster) or Safe(UnitIsInMyGuild, unit)) then
+            return "guild"
+        end
+        return rosterStyle
+    end
+    return Membership(unit)
 end
 
 local function Rank(unit)
@@ -447,7 +458,7 @@ local function Update(unit, plate)
     -- Use the roster identity when Forever exposes more data through it.
     local roster
     local rosterStyle = Safe(IsInRaid) and "raid" or "group"
-    if Allowed() and db[rosterStyle] then
+    if Allowed() and (db[rosterStyle] or db.guild) then
         local prefix = rosterStyle == "raid" and "raid" or "party"
         local count = prefix == "raid" and GetNumGroupMembers() or GetNumSubgroupMembers()
         for i = 1, count do
@@ -458,7 +469,7 @@ local function Update(unit, plate)
             end
         end
     end
-    local style = roster and rosterStyle or (Allowed() and Membership(unit))
+    local style = Allowed() and RosterMembership(unit, roster, db[rosterStyle] and rosterStyle)
     if not style then
         Remove(uf)
         PlainGuildName(uf, unit)
