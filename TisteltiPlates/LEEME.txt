@@ -1,0 +1,235 @@
+TISTELTI - ALAS DE GRUPO · v0.7.10 · Forever 1.60.1 / interfaz 16001
+
+OPCIONES DE GRUPO Y BANDA 0.7.10
+- Opciones incluye Grupo, Banda y Hermandad con ajustes independientes.
+- La vista de Grupo siempre muestra turquesa/violeta, incluso estando en banda.
+- Banda muestra naranja/grafito y hereda inicialmente los ajustes anteriores de Grupo.
+- Comandos: banda on/off; borde banda ...; color banda R G B.
+- Comprobados menus reales simulados, migracion y ajustes independientes en Lua 5.1.
+
+ALAS DE GRUPO Y BANDA 0.7.9
+- Grupo: plumas turquesa y detalles violeta suave, inspirado en el chat de grupo.
+- Banda: plumas naranja ambar y detalles grafito/acero.
+- Hermandad conserva las alas principales azul/oro.
+- Cambian automaticamente al convertir grupo/banda, tambien en combate.
+- /tistelti vista incluye ambos ejemplos independientes.
+- Desde 0.7.10, grupo y banda tienen interruptores y configuracion independientes.
+- Nuevas texturas RGBA transparentes creadas con ImageGen integrado.
+- Pendiente comprobacion visual dentro de WoW Forever.
+
+PLACAS NUEVAS EN COMBATE 0.7.8
+- Se procesan también las placas nuevas en combate, al aparecer y cada 0.35 s.
+- Grupo/propia guild reciben arte del addon; demás jugadores, solo su guild.
+- En placas nuevas se mantiene el tamaño y color nativo durante combate;
+  escala, color y recolocación completa se aplican al terminar.
+- El arte temporal se oculta al desaparecer la placa o salir de combate.
+- Se mantiene la exclusión de instancias. Pendiente prueba real en Forever.
+
+COMBATE 0.7.7
+- Las placas ya decoradas y sus nombres de guild se conservan al entrar en combate.
+- Durante combate se pausan actualizaciones, escalado y recolocación nativa.
+  Las placas que aparezcan entonces se actualizarán al salir del combate.
+- Si desaparece una placa, se oculta su arte y se aplaza la restauración de
+  tamaño y anclajes hasta PLAYER_REGEN_ENABLED, evitando reutilizar ese arte.
+- Se mantiene la exclusión de instancias. Pendiente comprobar en el juego.
+
+LEÓN ELEGIDO 0.7.6
+- Se utiliza directamente la imagen adjunta del usuario (LeonElegido-v5.png),
+  cuadrante superior izquierdo, mediante textura TGA nueva para evitar caché.
+- Emblema con proporciones cuadradas, sin estirarlo en vertical, dibujado
+  explícitamente por encima del escudo (subnivel 7 frente a 6).
+- Se mantiene en categorías de mérito 8–9. Pendiente confirmar en el juego.
+
+LEÓN Y ANIMALES 0.7.5 (prevalece sobre las progresiones anteriores)
+- El león correcto es el original azul/dorado de melena ornamentada, primera
+  celda de Heraldica.tga. Se superpone sin redibujarlo a un escudo azul vacío
+  con reborde plateado y espadas cruzadas. Se abandona la máscara geométrica.
+- Progresión fija por categoría de mérito:
+  1–2 caballo de perfil; 3 carnero; 4 segundo caballo encabritado;
+  5 oso; 6 dientes de sable; 7 lobo auténtico; 8–9 león ornamentado;
+  10 águila; 11–12 búho; 13–14 hipogrifo completo.
+- El lobo tiene hocico canino y orejas puntiagudas, sin colmillos de sable.
+- Se conservan ambos caballos. Bronce: 1–4; plata: 5–9; oro: 10–14.
+- Nuevos escudos: Media/EscudosExtra-v4.png y .tga, creados con ImageGen
+  integrado. Prompt en Media/EscudosExtra-v4.txt.
+- Sin cambios en el alcance: decoración solo en grupo/propia hermandad;
+  demás jugadores con placa nativa y únicamente nombre de guild debajo.
+- Pendiente revisar legibilidad a tamaño real dentro del juego.
+
+ESCUDOS 0.7.4
+- Insignias con fondo de esmalte azul, relieve metálico y espadas detrás
+  del escudo, siguiendo la referencia del usuario. Se retira el marco cuadrado.
+- Mérito 1–2: cabeza de caballo en bronce; 3–4: caballo encabritado en bronce;
+  5–6: oso en plata; 7–9: león heráldico de la Alianza en plata;
+  10–12: búho en oro; 13–14: hipogrifo completo en oro.
+- Bronce: una espada; plata: dos cruzadas; oro: tres integradas.
+- Las marcas de Maestro/Oficial se mantienen aparte. Miembro/Alter sin marca.
+- El resto de jugadores mantiene la placa nativa con solo la guild debajo.
+- Imagen generada con ImageGen integrado: Media/EscudosAlianza-v3.png.
+  Textura TGA y prompt documentado en la misma carpeta.
+- Para el león se utiliza directamente el cuadrante inferior izquierdo de la
+  referencia del usuario, conservada en Media/LeonReferencia-v3.png y .tga.
+  No se usa el león reinterpretado por el generador.
+- Pendiente comprobación visual dentro del juego.
+
+ALCANCE CORREGIDO 0.7.3
+- Alas, anchura, escala, insignias y color de clase solo para grupo/banda
+  y miembros de tu propia hermandad, según los interruptores de cada estilo.
+- Para el resto de jugadores únicamente se añade el nombre de su hermandad
+  debajo de la placa nativa, sin cambiar tamaño, color, nivel ni adornos.
+- Sin hermandad no se añade texto. Al reciclar la placa se oculta la etiqueta.
+- Se mantienen las restricciones actuales: fuera de combate e instancias.
+- Pendiente comprobar en juego grupo, propia guild, otra guild y sin guild.
+
+ANIMALES 0.7.2
+- Nueva colección azul y dorada: caballo (mérito 1–2), ciervo (3–4), oso (5–6),
+  león (7–9), búho (10–12) e hipogrifo de cuerpo entero (13–14).
+- El ciervo pasa a un tramo anterior y se redibuja con astas reconocibles.
+- Se conservan espadas, rebordes bronce/plata/oro y marcas Maestro/Oficial.
+- Arte generado con la herramienta integrada ImageGen; fuente PNG y textura TGA
+  en Media/AnimalesAlianza-v2. Detalles de generación en Media/AnimalesAlianza-v2.txt.
+- Pendiente verificación visual dentro del cliente.
+
+DISEÑO 0.7.1 (sustituye las insignias oficiales usadas en 0.7.0)
+- Un único animal en color bajo el nivel, con marco metálico y espadas.
+- Mérito 1–2: caballo; 3–4: carnero; 5–6: lobo; 7–9: león;
+  10–12: águila; 13–14: ciervo. Sin mérito no aparece insignia.
+- Mérito 1–4: reborde bronce y una espada; 5–9: plata y dos espadas;
+  10–14: oro y tres espadas. Se conservan los colores originales del animal.
+- Cargo de hermandad aparte: Maestro para rango cero y Oficial si el rango
+  se llama Oficial. Miembro y Alter no reciben marca de cargo.
+- Pendiente verificación visual en el juego.
+
+MÉRITO AUTOMÁTICO 0.7.0 (sustituye los rangos manuales de versiones anteriores)
+Un solo icono desaturado bajo el nivel representa mérito del addon, no rango oficial.
+Puntos = bajas con honor (máximo 100000) + 20 por campo de batalla jugado
+(máximo 1000) + 4 por duelo ganado (máximo 500) + 250 x rango oficial al cuadrado.
+Se usa el rango actual devuelto por el cliente y convertido con GetPVPRankInfo.
+No se usa el nivel de honor ni el rango manual guardado como rango oficial.
+Si el cliente no ofrece rango oficial, se calcula con las estadísticas disponibles.
+Umbrales de mérito 1 a 14: 100, 300, 700, 1500, 3000, 5500, 9000,
+14000, 21000, 30000, 42000, 58000, 80000, 110000 puntos.
+Sin datos o por debajo de 100 puntos no hay insignia.
+/tistelti merito muestra puntos, categoría, rango oficial y aviso de datos parciales
+para el objetivo jugador o, si no hay uno, para tu personaje.
+Las estadísticas propias se leen al entrar y tras eventos de bajas/logros.
+Las ajenas se consultan al seleccionar un jugador amistoso, con caché de 5 minutos,
+fuera de combate e instancias. Dependen de las API que exponga Forever.
+No se comparten datos por mensajes ni se inventan valores ausentes.
+Pendiente probar en el cliente: disponibilidad de estadísticas y rango e insignias.
+
+CAMBIOS 0.6.4
+- Gema inferior eliminada, incluido su borde amarillo. En su lugar se muestra
+  la insignia de honor si el jugador tiene rango JcJ manual configurado.
+- Placa un 22 % más ancha; se restaura la anchura original al desactivarla.
+- Halo luminoso en el recuadro del nivel y números más claros.
+- Pendiente comprobar en juego nombres largos, insignias y brillo.
+
+CAMBIOS 0.6.3
+- El estilo guild se aplica a todos los demás jugadores amistosos, incluso
+  sin hermandad. El estilo de grupo/banda conserva la prioridad.
+- Alas un 30 % mayores respecto a 0.6.2.
+- El nombre de hermandad compensa cada fotograma la escala de la placa
+  para mantener un tamaño estable al moverse. Sin hermandad no muestra texto.
+- Pendiente comprobar movimiento y proporciones dentro del juego.
+
+CORRECCIONES 0.3.0
+- Un único nivel decorativo: se ocultan LevelFrame y PlayerLevelDiffFrame,
+  restaurando su alfa original al desactivar el estilo o reciclar la placa.
+- Marco sobre HealthBarsContainer con nivel de dibujo explícito, para que
+  no quede detrás de la barra. El preset oroazul combina oro y azul real.
+- Incapacitaciones nativas (CrowdControlListFrame y LossOfControlFrame)
+  por encima del conjunto y en filas separadas, también por delante al dibujar.
+  Se restauran posición y capa al retirar el diseño.
+- Reaplicación tras UpdateAnchors del cliente y color de clase persistente.
+- Se mantienen ajustes personalizados. El antiguo preset oro se migra una
+  sola vez a oroazul; después puedes seleccionar oro si prefieres un solo tono.
+- La decoración sigue limitada al mundo abierto fuera de combate. En combate
+  se restaura la distribución nativa porque el propio addon deja de decorar.
+
+PRUEBA DE ESTA ACTUALIZACIÓN
+Paquete y sintaxis del instalador comprobados. Los casos simulados de Lua
+se han ampliado para estos cambios, pero no han podido ejecutarse en esta
+sesión por no disponer de acceso al intérprete de pruebas. Pendiente verificar
+en el juego: nivel único, marco, dos filas CC y restauración con /tistelti off.
+
+INSTALAR
+1. Cierra el juego o sal a la selección de personajes.
+2. Extrae TisteltiPlates.zip dentro de _forever_/Interface/AddOns/.
+3. Debe quedar AddOns/TisteltiPlates/TisteltiPlates.toc, sin carpeta doble.
+4. Activa el addon y las placas amistosas en los ajustes del juego.
+5. Entra y ejecuta /tistelti vista para revisar el arte y las proporciones.
+
+DISEÑO
+Un único addon con dos estilos. Prioridad: grupo/banda > demás amistosos.
+Grupo: doble borde de oro, alas azul/dorado, nivel ampliado, gema de clase.
+Hermandad: borde plateado inicial, alas por rango manual y gema de clase.
+La vista incluye botones para cambiar borde e icono por grupo/hermandad.
+Bordes: oroazul, oro, plata, clase o rango (plata, azul, oro, oro luminoso por tramo).
+También se permite RGB personalizado. Alas y capucha conservan su arte azul/oro;
+el selector cambia el borde de la placa, nivel y engaste, no recolorea las alas.
+Iconos: asesino de Tistelti (inicial), rombos, estrella o ninguno.
+Una sola capucha se amplía con el rango; no se apilan varias cabezas.
+La capucha básica no acredita rango: sirve como emblema de pertenencia.
+Vida: conserva la barra real de Blizzard y la colorea según la clase.
+No sustituye el valor de vida, el nombre ni el área de clic de las placas.
+El nivel decorativo ocupa una posición algo más a la derecha para reservar
+espacio a las alas y evitar cubrir el nombre; el original se restaura al salir.
+Nivel de grupo 27 px; hermandad 25 px, frente al recuadro original más pequeño.
+
+COMANDOS
+/tistelti vista          Muestra/oculta ejemplos de grupo y hermandad.
+/tistelti on             Activa el addon.
+/tistelti off            Desactiva y restaura la apariencia original.
+/tistelti grupo on       Resalta miembros de grupo/banda.
+/tistelti grupo off      Desactiva ese estilo.
+/tistelti guild on       Resalta a los demás jugadores amistosos.
+/tistelti guild off      Desactiva ese estilo.
+/tistelti tamano 1.2     Aumenta nivel y alas; acepta 0.8–1.8, normal 1.
+/tistelti rango 8        Guarda rango JcJ MANUAL para el jugador seleccionado.
+/tistelti rango borrar   Elimina ese ajuste del jugador seleccionado.
+/tistelti borde grupo plata    Borde plateado solo para el grupo.
+/tistelti borde grupo oroazul  Marco de oro con línea interior azul.
+/tistelti borde guild oroazul  Mismo marco para la hermandad.
+/tistelti borde guild rango    Borde por tramo JcJ manual para hermandad.
+/tistelti borde grupo clase    Borde del color de clase.
+/tistelti color guild 0.3 0.8 1 Borde RGB personalizado (cada canal de 0 a 1).
+/tistelti icono guild asesino  Capucha de Tistelti.
+/tistelti icono guild rombos   Recupera los rombos por rango.
+/tistelti icono grupo estrella Estrellas (en grupo no hay rango, no se muestran).
+/tistelti icono guild ninguno  Oculta el adorno superior.
+
+RANGO JCJ: LIMITACIÓN CONOCIDA
+El cliente Forever no documenta UnitPVPRank, la función antigua para leer
+rangos JcJ. UnitHonorLevel no equivale al rango Soldado/Cabo/etc.
+Esta versión NO afirma detectar rangos automáticamente. Permite asignar
+un rango 0–14 a un jugador de tu hermandad seleccionado, guardado por GUID.
+Desconocido/sin asignar: alas básicas, sin marcas de rango.
+Rangos 1–3: alas básicas. 4–7: primer tramo; 8–11: segundo; 12–14: máximo.
+Con rombos/estrellas: una, dos o tres marcas. Con asesino: una capucha mayor.
+Los rangos de la vista de prueba son datos ficticios para comparar estilos.
+Si el cliente ofrece otra fuente fiable de rango, se podrá añadir después.
+
+ALCANCE Y PRUEBA EN JUEGO
+Prototipo para ciudad y mundo abierto FUERA de combate.
+Se retira en combate e instancias; no intenta saltarse restricciones.
+No fuerza CVars ni modifica placas de jugadores ajenos a grupo/hermandad.
+No dispone todavía de validación dentro del cliente 70790.
+Comprobar: grupo, hermandad, jugador ajeno, cambios de objetivo, entrar/salir
+del grupo, placas recicladas y transición de combate. Revisa también la
+vista de prueba a tu escala de interfaz y con nombres largos.
+Si no aparece: confirma placas amistosas y barras de vida activadas.
+Si hay un error Lua, copia el mensaje junto con la versión/build del cliente.
+
+ARTE
+Alas y capucha creadas con la herramienta integrada ImageGen, inspiradas en el emblema
+aportado por el usuario. PNG fuente incluido; TGA con alfa para el juego.
+Prompt: par simétrico de alas de esmalte azul con bordes de oro, tres plumas,
+centro transparente para el nivel, legible a tamaño pequeño, sin texto ni gema.
+Prompt capucha: icono simétrico de asesino con capucha azul noche, borde de oro,
+ojos luminosos, silueta legible a 16 px, fondo transparente, sin alas ni texto.
+El boceto conceptual inicial no es una captura de este addon ejecutándose.
+
+REFERENCIAS TÉCNICAS
+https://github.com/Gethe/wow-ui-source/tree/forever
+https://github.com/xIGBClutchIx/ForeverPlusPlus/blob/main/docs/forever-api.md

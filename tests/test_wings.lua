@@ -1,0 +1,113 @@
+-- Run from the repository root with Lua 5.1 or later.
+unpack = unpack or table.unpack
+local frames, panel = {}, nil
+local raid = true
+local function Frame(parent)
+    local f = {parent=parent, shown=true, height=19, frameLevel=1, scripts={}}
+    function f:CreateTexture() return Frame(self) end
+    function f:CreateFontString() return Frame(self) end
+    function f:SetScript(k,v) self.scripts[k]=v end
+    function f:SetText(v) self.text=v end
+    function f:SetTexture(v) self.texture=v end
+    function f:SetAlpha(v) self.alpha=v end
+    function f:SetHeight(v) self.height=v end
+    function f:SetSize(w,h) self.width=w; self.height=h end
+    function f:GetHeight() return self.height end
+    function f:GetFrameLevel() return self.frameLevel end
+    function f:SetFrameLevel(v) self.frameLevel=v end
+    function f:SetShown(v) self.shown=v end
+    function f:IsShown() return self.shown end
+    function f:Show() self.shown=true end
+    function f:Hide() self.shown=false end
+    function f:EnableMouse() end
+    function f:RegisterEvent() end
+    setmetatable(f, {__index=function(_,k)
+        if k:match('^Set') or k=='ClearAllPoints' then return function() end end
+    end})
+    frames[#frames+1]=f
+    return f
+end
+CreateFrame=function(_,_,parent) return Frame(parent) end
+UIParent=Frame()
+SlashCmdList={}
+RAID_CLASS_COLORS={MAGE={r=.2,g=.6,b=1}}
+TisteltiPlatesCC={AttachArt=function() end}
+Settings={RegisterCanvasLayoutCategory=function(p) panel=p; return p end, RegisterAddOnCategory=function() end}
+IsInRaid=function() return raid end
+IsInInstance=function() return false end
+InCombatLockdown=function() return false end
+UnitIsPlayer=function() return true end
+UnitIsUnit=function() return false end
+UnitIsFriend=function() return true end
+UnitInParty=function() return true end -- Raid subgroup members can also match.
+UnitInRaid=function() return raid end
+UnitIsInMyGuild=function() return false end
+local file=assert(io.open('TisteltiPlates/Core.lua','rb'))
+local source=file:read('*a'); file:close()
+local core=assert((loadstring or load)(source .. [[
+return {driver=driver, membership=Membership, wings=PaintWings}
+]]))('TisteltiPlates')
+local function initialize(db)
+    TisteltiPlatesDB=db
+    core.driver.scripts.OnEvent(core.driver,'ADDON_LOADED','TisteltiPlates')
+end
+initialize({group=false, guild=true, appearance={group={border='color',color={.1,.2,.3}}}})
+assert(TisteltiPlatesDB.raid==false, 'Migration must preserve the old disabled group setting')
+assert(TisteltiPlatesDB.appearance.raid.border=='color')
+assert(TisteltiPlatesDB.appearance.raid.color[1]==.1)
+assert(TisteltiPlatesDB.appearance.raid~=TisteltiPlatesDB.appearance.group)
+assert(TisteltiPlatesDB.appearance.raid.color~=TisteltiPlatesDB.appearance.group.color)
+initialize({group=true,guild=true})
+assert(TisteltiPlatesDB.raid==true)
+local function menu(caption)
+    for i=#frames,1,-1 do if frames[i].caption==caption then return frames[i] end end
+    error('Missing menu: '..caption)
+end
+local function choose(caption, text)
+    local button=menu(caption)
+    button.scripts.OnClick()
+    for i=#frames,1,-1 do
+        local row=frames[i]
+        if row.parent and row.parent.owner==button and row.text==text and row.shown then
+            row.scripts.OnClick(); return
+        end
+    end
+    error('Missing choice: '..text)
+end
+local function displayedTexture()
+    for i=#frames,1,-1 do
+        local texture=frames[i].texture
+        if type(texture)=='string' and texture:find('Wings',1,true) then return texture end
+    end
+end
+-- Regression: the options preview must remain turquoise even while in a raid.
+panel.scripts.OnShow()
+assert(displayedTexture():find('Wings-Grupo-v1.tga',1,true))
+choose('Estilo','Banda')
+assert(displayedTexture():find('Wings-Banda-v1.tga',1,true))
+choose('Borde','Cobre')
+assert(TisteltiPlatesDB.appearance.raid.border=='cobre')
+assert(TisteltiPlatesDB.appearance.group.border=='oroazul')
+choose('Estilo','Grupo')
+assert(displayedTexture():find('Wings-Grupo-v1.tga',1,true))
+choose('Mostrar','Desactivado')
+assert(not TisteltiPlatesDB.group and TisteltiPlatesDB.raid)
+assert(core.membership('nameplate1')=='raid')
+choose('Estilo','Banda'); choose('Mostrar','Desactivado')
+assert(core.membership('nameplate1')==nil, 'Disabled raid must not fall back to party style')
+raid=false; TisteltiPlatesDB.group=true
+assert(core.membership('nameplate1')=='group')
+raid=true; TisteltiPlatesDB.raid=true
+assert(core.membership('nameplate1')=='raid')
+choose('Estilo','Hermandad')
+assert(displayedTexture():find('Media\\Wings.tga',1,true))
+-- Explicit styles must also work for plates and their two light layers.
+local o={wings=Frame(),rightWing=Frame(),leftWingLight=Frame(),rightWingLight=Frame()}
+for _,style in ipairs({'group','raid','guild','group'}) do
+    core.wings(o,style)
+    assert(o.wings.texture==o.rightWing.texture and o.wings.texture==o.leftWingLight.texture
+        and o.wings.texture==o.rightWingLight.texture)
+end
+initialize(TisteltiPlatesDB)
+assert(TisteltiPlatesDB.appearance.raid.border=='cobre', 'Reload must preserve raid customization')
+print('PASS: three options styles, correct previews while in raid, independent settings, migration and membership')

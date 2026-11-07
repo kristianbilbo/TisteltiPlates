@@ -1,0 +1,4 @@
+Generado con ImageGen integrado. Referencia: Wings-source.png y propuesta aprobada.
+Prompt: conservar silueta simetrica de tres plumas y hueco central; recolorear: Plumas turquesa; metal violeta suave azulado #AAAAFF, sombras #55558A, reflejos #D8D8FF.
+Fondo transparente, sin texto ni adornos nuevos.
+PNG fuente conservado; TGA RGBA sin compresion, 512x256, como textura original.

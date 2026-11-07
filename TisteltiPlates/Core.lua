@@ -8,6 +8,8 @@ local db, preview
 local GOLD = {1, .73, .22}
 local WHITE = "Interface\\Buttons\\WHITE8X8"
 local WINGS = "Interface\\AddOns\\TisteltiPlates\\Media\\Wings.tga"
+local PARTY_WINGS = "Interface\\AddOns\\TisteltiPlates\\Media\\Wings-Grupo-v1.tga"
+local RAID_WINGS = "Interface\\AddOns\\TisteltiPlates\\Media\\Wings-Banda-v1.tga"
 local ASSASSIN = "Interface\\AddOns\\TisteltiPlates\\Media\\Assassin.tga"
 local SILVER = {.78, .85, .94}
 local BLUE = {.12, .36, .82}
@@ -54,7 +56,11 @@ end
 local function Membership(unit)
     if not Safe(UnitIsPlayer, unit) or Safe(UnitIsUnit, unit, "player") then return nil end
     if not Safe(UnitIsFriend, "player", unit) then return nil end
-    if db.group and (Safe(UnitInParty, unit) or Safe(UnitInRaid, unit)) then return "group" end
+    if Safe(IsInRaid) then
+        if db.raid and Safe(UnitInRaid, unit) then return "raid" end
+    elseif db.group and Safe(UnitInParty, unit) then
+        return "group"
+    end
     if db.guild and Safe(UnitIsInMyGuild, unit) then return "guild" end
 end
 
@@ -130,7 +136,7 @@ local function Ornament(parent)
         light:SetAlpha(.62)
         return light
     end
-    illuminateWing(o.wings, 0, .40)
+    o.leftWingLight = illuminateWing(o.wings, 0, .40)
     o.rightWingLight = illuminateWing(o.rightWing, .60, 1)
     o.halo = FrameBorder(o, 12, false)
     o.halo:SetPoint("TOPLEFT",o.body,"TOPLEFT",-1.5,1.5)
@@ -206,9 +212,28 @@ local function Ornament(parent)
     return o
 end
 
+local function PaintWings(o, style)
+    local texture = WINGS
+    if style == "group" then
+        texture = PARTY_WINGS
+    elseif style == "raid" then
+        texture = RAID_WINGS
+    end
+    if o.wingTexture == texture then return end
+    for _, wing in ipairs({o.wings, o.rightWing, o.leftWingLight, o.rightWingLight}) do
+        wing:SetTexture(texture)
+    end
+    -- The original blue/gold art keeps its existing additive illumination.
+    local lightAlpha = texture == WINGS and .62 or .18
+    o.leftWingLight:SetAlpha(lightAlpha)
+    o.rightWingLight:SetAlpha(lightAlpha)
+    o.wingTexture = texture
+end
+
 local function Paint(o, anchor, style, color, level, rank, scale, guildName)
+    PaintWings(o, style)
     local tier = Tier(rank)
-    local size = (style == "group" and 27 or 25) * scale
+    local size = (style ~= "guild" and 27 or 25) * scale
     local border = BorderColor(style, color, tier)
     local icon = "ninguno" -- One heraldic merit emblem below the level.
     -- Nameplate children have different frame levels; the base UnitFrame level
@@ -421,8 +446,9 @@ local function Update(unit, plate)
     -- A party token and a nameplate token can refer to the same character.
     -- Use the roster identity when Forever exposes more data through it.
     local roster
-    if Allowed() and db.group then
-        local prefix = IsInRaid() and "raid" or "party"
+    local rosterStyle = Safe(IsInRaid) and "raid" or "group"
+    if Allowed() and db[rosterStyle] then
+        local prefix = rosterStyle == "raid" and "raid" or "party"
         local count = prefix == "raid" and GetNumGroupMembers() or GetNumSubgroupMembers()
         for i = 1, count do
             local candidate = prefix .. i
@@ -432,7 +458,7 @@ local function Update(unit, plate)
             end
         end
     end
-    local style = roster and "group" or (Allowed() and Membership(unit))
+    local style = roster and rosterStyle or (Allowed() and Membership(unit))
     if not style then
         Remove(uf)
         PlainGuildName(uf, unit)
@@ -512,7 +538,10 @@ local function UpdateCombat(unit, plate)
     -- Existing decorated plates retain their layout. New plates get only
     -- addon-owned artwork; never resize/recolor/reanchor native regions here.
     local state = active[uf]
-    if state and not state.pendingRemoval then return end
+    if state and not state.pendingRemoval then
+        PaintWings(state.art, style)
+        return
+    end
     if guildLabels[uf] then guildLabels[uf]:Hide() end
     local bar = uf.HealthBarsContainer or uf.healthBar
     local color = Color(unit)
@@ -566,7 +595,7 @@ end
 local function Preview()
     if preview then preview:SetShown(not preview:IsShown()); return end
     preview = FrameBorder(UIParent, 16, true)
-    preview:SetSize(720, 470)
+    preview:SetSize(720, 543)
     preview:SetPoint("CENTER")
     preview:SetFrameStrata("DIALOG")
     preview:EnableMouse(true)
@@ -580,7 +609,8 @@ local function Preview()
     local close = CreateFrame("Button", nil, preview, "UIPanelCloseButton")
     close:SetPoint("TOPRIGHT", -3, -3)
     local samples = {
-        {"GRUPO · Mago", "group", "MAGE", 0},
+        {"GRUPO · Turquesa y violeta suave · Mago", "group", "MAGE", 0},
+        {"BANDA · Naranja y grafito · Mago", "raid", "MAGE", 0},
         {"HERMANDAD · Sacerdote · sin rango", "guild", "PRIEST", 0},
         {"HERMANDAD · Druida · rango 8", "guild", "DRUID", 8},
         {"HERMANDAD · Guerrero · rango 14", "guild", "WARRIOR", 14},
@@ -612,15 +642,15 @@ local function Preview()
     end
     local borders = {"oroazul", "oro", "plata", "clase", "rango"}
     local icons = {"animales"}
-    for i, style in ipairs({"group", "guild"}) do
+    for i, style in ipairs({"group", "raid", "guild"}) do
         local key = style
         for j, field in ipairs({"border", "icon"}) do
             local property = field
             local button = CreateFrame("Button", nil, preview, "UIPanelButtonTemplate")
-            button:SetSize(310, 24)
-            button:SetPoint("BOTTOMLEFT", 30 + (i - 1) * 345, 46 + (2 - j) * 28)
+            button:SetSize(220, 24)
+            button:SetPoint("BOTTOMLEFT", 15 + (i - 1) * 235, 46 + (2 - j) * 28)
             local function Label()
-                button:SetText((key == "group" and "Grupo" or "Hermandad") ..
+                button:SetText(({group="Grupo", raid="Banda", guild="Hermandad"})[key] ..
                     (property == "border" and " · borde: " or " · icono: ") .. db.appearance[key][property])
             end
             button:SetScript("OnClick", function()
@@ -657,7 +687,7 @@ local function RegisterOptions()
     local name = bar:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     name:SetPoint("LEFT", 5, 0); name:SetText("Mago de muestra")
     local art = Ornament(bar)
-    local labels = {group="Grupo", guild="Hermandad", oroazul="Oro y azul", oro="Oro", plata="Plata",
+    local labels = {group="Grupo", raid="Banda", guild="Hermandad", oroazul="Oro y azul", oro="Oro", plata="Plata",
         clase="Clase", rango="Por rango", color="RGB personalizado", cobre="Cobre", bronce="Bronce",
         platino="Platino", zafiro="Zafiro", esmeralda="Esmeralda", amatista="Amatista", rubi="Rubí",
         alianza="León de la Alianza", animales="Animales de la Alianza", asesino="Capucha de Tistelti", rombos="Rombos", estrella="Estrellas", ninguno="Ninguno",
@@ -696,7 +726,7 @@ local function RegisterOptions()
             popup:Show()
         end)
     end
-    dropdown(20,-60,"Estilo",{"group","guild"},function() return style end,function(v) style=v end)
+    dropdown(20,-60,"Estilo",{"group","raid","guild"},function() return style end,function(v) style=v end)
     dropdown(250,-60,"Mostrar",{"on","off"},function() return db[style] and "on" or "off" end,function(v) db[style]=v=="on" end)
     dropdown(20,-100,"Borde",{"oroazul","oro","plata","cobre","bronce","platino","zafiro","esmeralda","amatista","rubi","clase","rango","color"},
         function() return db.appearance[style].border end,function(v) db.appearance[style].border=v end)
@@ -734,8 +764,8 @@ SlashCmdList.TISTELTIPLATES = function(text)
     if cmd == "on" or cmd == "off" then db.enabled = cmd == "on"
     elseif cmd == "borde" or cmd == "icono" or cmd == "color" then
         local scope, choice = value:match("^(%S+)%s+(.+)$")
-        local style = scope == "grupo" and "group" or scope == "guild" and "guild"
-        if not style then Message("Indica grupo o guild; ejemplo: borde guild plata."); return end
+        local style = scope == "grupo" and "group" or scope == "banda" and "raid" or scope == "guild" and "guild"
+        if not style then Message("Indica grupo, banda o guild; ejemplo: borde banda plata."); return end
         local config = db.appearance[style]
         if cmd == "borde" then
             if not metals[choice] and choice ~= "oroazul" and choice ~= "oro" and choice ~= "plata" and choice ~= "clase" and choice ~= "rango" then
@@ -753,9 +783,9 @@ SlashCmdList.TISTELTIPLATES = function(text)
             end
             config.border, config.color = "color", {r, g, b}
         end
-    elseif cmd == "grupo" or cmd == "guild" then
+    elseif cmd == "grupo" or cmd == "banda" or cmd == "guild" then
         if value ~= "on" and value ~= "off" then Message("Usa " .. cmd .. " on/off."); return end
-        db[cmd == "grupo" and "group" or "guild"] = value == "on"
+        db[({grupo="group", banda="raid", guild="guild"})[cmd]] = value == "on"
     elseif cmd == "tamano" then
         local n = tonumber(value)
         if not n or n < .8 or n > 1.8 then Message("Tamaño: entre 0.8 y 1.8; normal 1."); return end
@@ -764,10 +794,10 @@ SlashCmdList.TISTELTIPLATES = function(text)
         local unit = Safe(UnitIsPlayer, "target") and "target" or "player"
         Message(Safe(TisteltiHonorTexto, unit) or "Mérito: sin datos")
     else
-        Message("/tistelti cc | vista | on/off | grupo on/off | guild on/off | tamano 0.8–1.8")
+        Message("/tistelti cc | vista | on/off | grupo/banda/guild on/off | tamano 0.8–1.8")
         Message("/tistelti merito: consulta el mérito del objetivo o de tu personaje")
-        Message("borde grupo/guild oroazul/oro/plata/clase/rango | Insignia: animales por mérito")
-        Message("color grupo/guild R G B (valores de 0 a 1). Vista incluye botones de personalización.")
+        Message("borde grupo/banda/guild oroazul/oro/plata/clase/rango | Insignia: animales por mérito")
+        Message("color grupo/banda/guild R G B (valores de 0 a 1). Vista incluye botones de personalización.")
         Message("Diseño para ciudad/mundo abierto fuera de combate. Mérito automático; no es rango oficial.")
         return
     end
@@ -781,16 +811,22 @@ driver:SetScript("OnEvent", function(_, event, unit)
         db = TisteltiPlatesDB
         if db.enabled == nil then db.enabled = true end
         if db.group == nil then db.group = true end
+        if db.raid == nil then db.raid = db.group end
         if db.guild == nil then db.guild = true end
         if type(db.hideRightWingOnCC) ~= "boolean" then db.hideRightWingOnCC = true end
         if type(db.scale) ~= "number" or db.scale < .8 or db.scale > 1.8 then db.scale = 1 end
         if type(db.ranks) ~= "table" then db.ranks = {} end
         if type(db.appearance) ~= "table" then db.appearance = {} end
-        for _, style in ipairs({"group", "guild"}) do
+        if type(db.appearance.raid) ~= "table" then
+            local group = type(db.appearance.group) == "table" and db.appearance.group or {}
+            local rgb = type(group.color) == "table" and group.color or GOLD
+            db.appearance.raid = {border=group.border, icon=group.icon, color={rgb[1], rgb[2], rgb[3]}}
+        end
+        for _, style in ipairs({"group", "raid", "guild"}) do
             if type(db.appearance[style]) ~= "table" then db.appearance[style] = {} end
             local config = db.appearance[style]
             local valid = {oroazul=true, oro=true, plata=true, clase=true, rango=true, color=true}
-            if not valid[config.border or ""] and not metals[config.border] then config.border = style == "group" and "oroazul" or "plata" end
+            if not valid[config.border or ""] and not metals[config.border] then config.border = style ~= "guild" and "oroazul" or "plata" end
             if not db.frameFixVersion and config.border == "oro" then config.border = "oroazul" end
             config.icon = "animales"
             local rgb = config.color
