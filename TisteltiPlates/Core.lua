@@ -360,6 +360,7 @@ local function Layout(state)
 end
 
 local function Remove(uf)
+    TisteltiPlatesHover.Release(uf)
     if combatArt[uf] then combatArt[uf]:Hide(); combatArt[uf] = nil end
     if guildLabels[uf] then guildLabels[uf]:Hide() end
     local state = active[uf]
@@ -478,8 +479,7 @@ local function Update(unit, plate)
     end
     local desiredScale = state.baseScale * 1.25
     if math.abs(uf:GetScale()-desiredScale) > .001 then uf:SetScale(desiredScale) end
-    local desiredWidth = state.baseWidth * 1.22
-    if math.abs(uf:GetWidth()-desiredWidth) > .01 then uf:SetWidth(desiredWidth) end
+    TisteltiPlatesHover.Track(uf, state.baseWidth * 1.22, state.baseWidth)
     state.color = color
     -- Enclose the whole native name/health rectangle, not just its colored fill.
     local guildName = Safe(GetGuildInfo, roster or unit) or Safe(GetGuildInfo, unit)
@@ -510,7 +510,7 @@ local function UpdateCombat(unit, plate)
         return
     end
     -- Existing decorated plates retain their layout. New plates get only
-    -- addon-owned artwork; never resize/recolor/reanchor native regions here.
+    -- addon-owned artwork; hover resizing only touches unprotected frames.
     local state = active[uf]
     if state and not state.pendingRemoval then return end
     if guildLabels[uf] then guildLabels[uf]:Hide() end
@@ -519,6 +519,10 @@ local function UpdateCombat(unit, plate)
     if not bar or Safe(bar.IsForbidden, bar) or not bar:IsShown() or not color then return end
     local art = uf.TisteltiCombatArt or Ornament(uf)
     uf.TisteltiCombatArt = art
+    if not combatArt[uf] then
+        local baseWidth = state and state.baseWidth or Safe(uf.GetWidth, uf)
+        TisteltiPlatesHover.Track(uf, baseWidth, baseWidth)
+    end
     combatArt[uf] = art
     local level = Safe(UnitLevel, unit)
     if type(level) ~= "number" or level < 1 then level = "?" end
@@ -540,7 +544,11 @@ Refresh = function()
         end
         return
     end
-    for uf, art in pairs(combatArt) do art:Hide(); combatArt[uf] = nil end
+    for uf, art in pairs(combatArt) do
+        TisteltiPlatesHover.Release(uf)
+        art:Hide()
+        combatArt[uf] = nil
+    end
     for uf, state in pairs(active) do
         if state.pendingRemoval then Remove(uf) end
     end

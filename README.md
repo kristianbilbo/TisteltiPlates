@@ -24,9 +24,17 @@ No necesita ForeverCCPosition. Desactiva el addon original para evitar que dos a
 
 Los marcos protegidos no se recolocan durante el combate: se actualizan al terminar. Si el cliente restringe la lectura de visibilidad de un icono, el ala permanece visible.
 
+## Nombre completo al pasar el cursor
+
+En las placas decoradas de grupo y hermandad, pasar el cursor por la barra o el nombre amplía el ancho lo necesario para que quepa el nombre completo. Mantiene el tamaño de las letras, el espacio de los textos de salud y los anclajes de las alas, el nivel y los controles. Al retirar el cursor recupera el ancho habitual. Los nombres que ya caben no amplían la placa.
+
+Durante el combate solo se redimensionan los marcos que el cliente permite modificar. Si una placa está protegida, la ampliación o restauración pendiente espera hasta que termine el bloqueo. Si las medidas del nombre son secretas o no están disponibles, se conserva el ancho habitual.
+
+Prueba simulada específica: `lua tests/test_hover.lua`. Pendiente de verificar dentro del juego con nombres largos y distintos tamaños de interfaz.
+
 ## Código y datos
 
-`TisteltiPlates/Honor.lua`, `TisteltiPlates/CCPosition.lua` y `TisteltiPlates/Core.lua` contienen el código; el manifiesto TOC define el orden de carga. Las texturas necesarias están en `TisteltiPlates/Media/`.
+`TisteltiPlates/Honor.lua`, `TisteltiPlates/CCPosition.lua`, `TisteltiPlates/HoverWidth.lua` y `TisteltiPlates/Core.lua` contienen el código; el manifiesto TOC define el orden de carga. Las texturas necesarias están en `TisteltiPlates/Media/`.
 
 El addon se mantiene separado de TisteltiGuild y no lo requiere. La configuración se guarda en `TisteltiPlatesDB`. Este repositorio no incluye SavedVariables, datos de jugadores ni credenciales.
 

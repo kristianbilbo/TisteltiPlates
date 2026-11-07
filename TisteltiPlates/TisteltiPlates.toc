@@ -6,6 +6,7 @@
 ## SavedVariables: TisteltiPlatesDB
 Honor.lua
 CCPosition.lua
+HoverWidth.lua
 Core.lua
 
 
