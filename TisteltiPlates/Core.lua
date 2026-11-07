@@ -646,7 +646,7 @@ local function RegisterOptions()
     local style, rank = "group", 0
     local color = RAID_CLASS_COLORS.MAGE
     local bar = CreateFrame("StatusBar", nil, panel)
-    bar:SetPoint("TOPLEFT", 56, -285)
+    bar:SetPoint("TOPLEFT", 56, -315)
     bar:SetSize(180, 19)
     bar:SetStatusBarTexture(WHITE)
     bar:SetMinMaxValues(0, 100)
@@ -703,8 +703,21 @@ local function RegisterOptions()
     dropdown(250,-100,"Insignia",{"animales"},
         function() return db.appearance[style].icon end,function(v) db.appearance[style].icon=v end)
     dropdown(20,-145,"Ejemplo mérito",{0,1,2,3,4,5,6,7,8,9,10,11,12,13,14},function() return rank end,function(v) rank=v; style="guild" end)
+    local hideWing = CreateFrame("CheckButton", nil, panel, "UICheckButtonTemplate")
+    hideWing:SetSize(26, 26)
+    hideWing:SetPoint("TOPLEFT", 20, -185)
+    local hideWingLabel = hideWing:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    hideWingLabel:SetPoint("LEFT", hideWing, "RIGHT", 4, 0)
+    hideWingLabel:SetText("Ocultar ala derecha al mostrar controles")
+    hideWing:SetChecked(db.hideRightWingOnCC ~= false)
+    hideWing:SetScript("OnShow", function(self)
+        self:SetChecked(db.hideRightWingOnCC ~= false)
+    end)
+    hideWing:SetScript("OnClick", function(self)
+        db.hideRightWingOnCC = self:GetChecked() and true or false
+    end)
     local caption=panel:CreateFontString(nil,"OVERLAY","GameFontNormal")
-    caption:SetPoint("TOPLEFT",20,-205); caption:SetText("Vista previa")
+    caption:SetPoint("TOPLEFT",20,-235); caption:SetText("Vista previa")
     panel:SetScript("OnShow",redraw)
     panel:SetScript("OnHide",function() popup:Hide() end)
     local category = Settings.RegisterCanvasLayoutCategory(panel, "TisteltiPlates")
@@ -769,6 +782,7 @@ driver:SetScript("OnEvent", function(_, event, unit)
         if db.enabled == nil then db.enabled = true end
         if db.group == nil then db.group = true end
         if db.guild == nil then db.guild = true end
+        if type(db.hideRightWingOnCC) ~= "boolean" then db.hideRightWingOnCC = true end
         if type(db.scale) ~= "number" or db.scale < .8 or db.scale > 1.8 then db.scale = 1 end
         if type(db.ranks) ~= "table" then db.ranks = {} end
         if type(db.appearance) ~= "table" then db.appearance = {} end

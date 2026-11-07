@@ -84,6 +84,12 @@ assert(loss.points[1][2]==art.badge and loss.points[1][4]==8)
 assert(art.rightWing.shown and art.rightWingLight.shown, "Empty visible container must not hide wing")
 loss.AuraItemFrame:Show(); tick(art)
 assert(not art.rightWing.shown and not art.rightWingLight.shown and art.wings.shown)
+TisteltiPlatesDB={hideRightWingOnCC=false}
+tick(art)
+assert(art.rightWing.shown and art.rightWingLight.shown, "Opt-out restores both textures while CC remains active")
+assert(loss.points[1][2]==art.badge, "Opt-out must not change control positioning")
+TisteltiPlatesDB.hideRightWingOnCC=true; tick(art)
+assert(not art.rightWing.shown and not art.rightWingLight.shown)
 loss.AuraItemFrame:Hide(); tick(art)
 assert(art.rightWing.shown and art.rightWingLight.shown)
 crowdIcon:Show(); tick(art)
@@ -109,6 +115,10 @@ assert(art.rightWing.shown)
 art:Hide()
 local combatArt=artFor("TisteltiCombatArt")
 loss.AuraItemFrame:Show(); tick(combatArt)
+assert(not combatArt.rightWing.shown and not combatArt.rightWingLight.shown)
+TisteltiPlatesDB.hideRightWingOnCC=false; tick(combatArt)
+assert(combatArt.rightWing.shown and combatArt.rightWingLight.shown, "Preference must also apply in combat")
+TisteltiPlatesDB.hideRightWingOnCC=true; tick(combatArt)
 assert(not combatArt.rightWing.shown and not combatArt.rightWingLight.shown)
 loss.protected=false; crowd.protected=false
 CC.Position(uf)
@@ -136,8 +146,9 @@ print("PASS: icon visibility, glow, empty containers, parents, combat, reuse, pr
 local f=assert(io.open("TisteltiPlates/Core.lua","rb"))
 local source=f:read("*a"); f:close()
 local core=assert(loadChunk(source .. [[
-return {layout=Layout, remove=Remove, active=active, setDB=function(value) db=value end}
-]]))()
+return {layout=Layout, remove=Remove, active=active, driver=driver, options=RegisterOptions,
+    setDB=function(value) db=value end}
+]]))("TisteltiPlates")
 core.setDB({enabled=true,scale=1})
 IsInInstance=function() return false end
 local buff=Frame(auras)
@@ -160,6 +171,48 @@ CompactUnitFrame_UpdateHealthColor=function() error("Native color update on miss
 core.remove(uf)
 assert(core.active[uf]==nil)
 print("PASS: removed plates without a unit still clean up safely")
+
+-- Initialization must retain an explicit opt-out across reloads.
+CompactUnitFrame_UpdateHealthColor=nil
+TisteltiPlatesDB={}
+core.driver.scripts.OnEvent(core.driver,"ADDON_LOADED","TisteltiPlates")
+assert(TisteltiPlatesDB.hideRightWingOnCC==true)
+TisteltiPlatesDB.hideRightWingOnCC=false
+core.driver.scripts.OnEvent(core.driver,"ADDON_LOADED","TisteltiPlates")
+assert(TisteltiPlatesDB.hideRightWingOnCC==false)
+print("PASS: wing preference defaults on, toggles live and persists when disabled")
+
+-- Build the real options panel and exercise the checkbox's actual callbacks.
+local checkbox
+local function UIFrame(parent)
+    local frame=Frame(parent)
+    frame.CreateTexture=function(self) return UIFrame(self) end
+    frame.CreateFontString=function(self) return UIFrame(self) end
+    frame.SetText=function(self,text) self.text=text end
+    frame.SetChecked=function(self,value) self.checked=value end
+    frame.GetChecked=function(self) return self.checked end
+    return setmetatable(frame,{__index=function(_,key)
+        if key:match("^Set") or key:match("^Enable") then return function() end end
+    end})
+end
+CreateFrame=function(kind,_,parent)
+    local frame=UIFrame(parent)
+    if kind=="CheckButton" then checkbox=frame end
+    return frame
+end
+RAID_CLASS_COLORS={MAGE={r=0.2,g=0.6,b=1}}
+Settings={RegisterCanvasLayoutCategory=function(panel) return panel end, RegisterAddOnCategory=function() end}
+core.options()
+assert(checkbox and checkbox.checked==false, "Options must reflect the saved opt-out")
+checkbox:SetChecked(true); checkbox.scripts.OnClick(checkbox)
+assert(TisteltiPlatesDB.hideRightWingOnCC==true)
+loss.AuraItemFrame:Show(); art:Show(); tick(art)
+assert(not art.rightWing.shown and not art.rightWingLight.shown)
+checkbox:SetChecked(false); checkbox.scripts.OnClick(checkbox); tick(art)
+assert(TisteltiPlatesDB.hideRightWingOnCC==false and art.rightWing.shown and art.rightWingLight.shown)
+checkbox:SetChecked(true); checkbox.scripts.OnShow(checkbox)
+assert(checkbox.checked==false, "Reopening must resync the saved preference")
+print("PASS: config checkbox changes live wings and reflects the saved preference")
 
 local message
 local oldPrint=print
