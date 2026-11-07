@@ -28,7 +28,9 @@ Los marcos protegidos no se recolocan durante el combate: se actualizan al termi
 
 En las placas de todos los jugadores (grupo, hermandad, desconocidos y enemigos), pasar el cursor por la barra o el nombre amplía el ancho lo necesario para que quepa el nombre completo. Solo cambia el ancho, manteniendo la altura, el tamaño de las letras, el espacio de los textos de salud y los anclajes de las alas, el nivel y los controles. Al retirar el cursor recupera el ancho habitual. Los nombres que ya caben no amplían la placa. No afecta a PNJ ni depende de activar las alas de grupo/hermandad; también funciona en instancias. El interruptor general del addon desactiva la ampliación.
 
-La ampliación solo se activa fuera de combate y se restaura al entrar en combate. Las placas protegidas no se amplían, porque el cliente podría impedir restaurarlas al comenzar el combate. Si las medidas del nombre son secretas o no están disponibles, se conserva el ancho habitual.
+La ampliación solo se activa fuera de combate y se restaura al entrar en combate. Las placas protegidas no se amplían, porque el cliente podría impedir restaurarlas al comenzar el combate. Si la geometría del texto nativo está restringida, mide el nombre público por separado y reserva espacio adicional. Si el propio nombre no es accesible, conserva el ancho habitual.
+
+La ampliación actúa sobre `HealthBarsContainer`, sin recolocar `UnitFrame` sobre el marco nativo `NamePlateN`. Los anclajes y el espacio del nivel se restauran al salir del área, al entrar en combate y cuando Blizzard reutiliza o reorganiza la placa.
 
 Prueba simulada específica: `lua tests/test_hover.lua`. Pendiente de verificar dentro del juego con nombres largos y distintos tamaños de interfaz.
 

@@ -1,184 +1,212 @@
+-- Regression model of Forever's native hierarchy, based on:
+-- Gethe/wow-ui-source/forever/Interface/AddOns/Blizzard_NamePlates/Blizzard_NamePlateUnitFrame.lua
+-- The engine-owned base rejects addon anchors; the name/bar are child regions.
+unpack = unpack or table.unpack
 local secret = {}
 issecretvalue = function(value) return value == secret end
-local combat = false
+local combat, mouseUnit = false, nil
 InCombatLockdown = function() return combat end
-local driver
+UnitIsUnit = function(unit, other) return other == "mouseover" and unit == mouseUnit end
+UnitIsPlayer = function(unit) return unit ~= "npc" end
+NamePlateSetupOptions = {castBarToHealthBarSpacing=2}
+UIParent = {}
+local drivers = {}
 CreateFrame = function()
-    driver = {RegisterEvent=function() end, SetScript=function(self, event, callback) self[event]=callback end}
+    local driver = {SetScript=function(self, event, callback) self[event]=callback end, RegisterEvent=function() end, Hide=function() end}
+    function driver:CreateFontString()
+        local text = {}
+        function text:SetWordWrap() end
+        function text:SetFontObject(font) self.font=font end
+        function text:SetFontHeight(height) self.height=height end
+        function text:SetTextScale(scale) self.scale=scale end
+        function text:SetText(value) assert(value ~= secret); self.text=value end
+        function text:GetUnboundedStringWidth() return #self.text*self.height/2*self.scale end
+        return text
+    end
+    drivers[#drivers+1]=driver
     return driver
 end
+hooksecurefunc = function(object, method, hook)
+    local old=object[method]
+    object[method]=function(self, ...) old(self, ...); hook(self, ...) end
+end
 assert(loadfile("TisteltiPlates/HoverWidth.lua"))()
-local Hover = TisteltiPlatesHover
+local Hover, driver = TisteltiPlatesHover, drivers[1]
 local function tick() driver:OnUpdate(.05) end
 local function near(a,b) assert(math.abs(a-b)<.01, tostring(a).." ~= "..tostring(b)) end
-
 local function Plate(textWidth)
-    local plate={unit="nameplate1", width=100, scale=1, writes=0, visible=true}
-    function plate:IsForbidden() return self.forbidden or false end
-    function plate:IsProtected() return self.protected or false end
-    function plate:GetWidth() return self.width end
-    function plate:GetEffectiveScale() return self.scale end
-    function plate:SetWidth(width)
-        assert(not self.forbidden and (not combat or not self.protected))
-        assert(width==width and width<math.huge)
-        self.width=width; self.writes=self.writes+1
-    end
-    local bar={hover=false}
-    function bar:IsForbidden() return false end
-    function bar:IsVisible() return plate.visible end
+    local uf={unit="nameplate1",width=160,scale=1,visible=true,levelGap=24,height=48}
+    function uf:IsForbidden() return self.forbidden or false end
+    function uf:IsProtected() return false end
+    function uf:GetWidth() return self.width end
+    function uf:GetEffectiveScale() return self.scale end
+    -- SetAllPoints on the native root makes explicit SetWidth ineffective.
+    function uf:SetWidth() end
+    function uf:SetPoint() error("SetPoint would result in anchor family connection") end
+    function uf:GetPoint() error("Can't measure restricted regions") end
+    function uf:GetNumPoints() return 2 end
+    local cast={}
+    function cast:GetWidth() return uf.width-16 end
+    uf.CastBarsContainer=cast
+    local bar={hover=false,points={},height=18,writes=0}
+    function bar:IsForbidden() return self.forbidden or false end
+    function bar:IsProtected() return self.protected or false end
+    function bar:IsVisible() return uf.visible end
     function bar:IsMouseOver() return self.hover end
-    plate.HealthBarsContainer=bar
-    local name={textWidth=textWidth, padding=30, hover=false, scale=1}
+    function bar:GetEffectiveScale() return uf.scale end
+    function bar:GetWidth() return cast:GetWidth()+self.points[2][4]-self.points[1][4] end
+    function bar:GetNumPoints() return 2 end
+    function bar:GetPoint(i)
+        if self.restrictedPoints then error("Can't measure restricted regions") end
+        return unpack(self.points[i])
+    end
+    function bar:SetPoint(point, relative, relativePoint, x, y)
+        assert(not self.forbidden and (not combat or not self.protected))
+        assert(relative==cast, "Must not anchor to the engine-owned NamePlate root")
+        assert(x==x and math.abs(x)<math.huge)
+        if self.failRight and point=="BOTTOMRIGHT" then error("Anchor unavailable") end
+        local index=point=="BOTTOMLEFT" and 1 or 2
+        self.points[index]={point,relative,relativePoint,x,y}
+        self.writes=self.writes+1
+    end
+    uf.HealthBarsContainer=bar
+    local name={textWidth=textWidth,padding=40,hover=false,scale=1}
     function name:IsForbidden() return self.forbidden or false end
-    function name:IsVisible() return plate.visible end
+    function name:IsVisible() return uf.visible end
     function name:IsMouseOver() return self.hover end
-    function name:GetUnboundedStringWidth() return self.textWidth end
-    function name:GetWidth() return (plate.width-self.padding)*plate.scale/self.scale end
-    function name:GetEffectiveScale() return self.scale end
-    plate.name=name
-    return plate
+    function name:GetUnboundedStringWidth() return self.secretGeometry and secret or self.textWidth end
+    function name:GetWidth() return self.secretGeometry and secret or (bar:GetWidth()-self.padding)*uf.scale/self.scale end
+    function name:GetParent() return uf end -- FontString has no GetEffectiveScale in this model.
+    function name:GetText() return self.secretText and secret or string.rep("A",self.textWidth/8) end
+    function name:GetFontObject() return "SystemFont_NamePlate" end
+    function name:GetFontHeight() return 16 end
+    function name:GetTextScale() return 1 end
+    uf.name=name
+    function uf:UpdateAnchors()
+        bar.points={{"BOTTOMLEFT",cast,"TOPLEFT",0,2},{"BOTTOMRIGHT",cast,"TOPRIGHT",-self.levelGap,2}}
+    end
+    uf:UpdateAnchors()
+    return uf
 end
 
-local plate=Plate(180)
-Hover.Track(plate,122,100)
-near(plate.width,122)
-plate.HealthBarsContainer.hover=true; tick()
-near(plate.width,214)
-assert(plate.name:GetWidth()>=plate.name.textWidth+4)
-local writes=plate.writes
-for i=1,20 do tick(); Hover.Track(plate,122,100) end
-near(plate.width,214)
-assert(plate.writes==writes, "Periodic decoration refresh must not cause oscillation or growth")
-plate.HealthBarsContainer.hover=false; tick()
-near(plate.width,122)
-plate.name.hover=true; tick()
-near(plate.width,214)
-plate.name.textWidth=210; tick()
-near(plate.width,244)
-plate.name.padding=55; tick()
-near(plate.width,269)
-plate.visible=false; tick()
-near(plate.width,122)
-plate.visible=true
-Hover.Release(plate)
-near(plate.width,100)
-tick(); near(plate.width,100)
-print("PASS: full name fits, hover exit restores width, repeated refresh is stable, layout changes recalculate")
+local p=Plate(180)
+Hover.TrackPlayer(p)
+near(p.HealthBarsContainer:GetWidth(),120)
+p.HealthBarsContainer.hover=true; tick()
+near(p.HealthBarsContainer:GetWidth(),224)
+near(p.name:GetWidth(),184)
+near(p:GetWidth(),160)
+assert(p.height==48 and p.HealthBarsContainer.height==18)
+assert(p.HealthBarsContainer.points[1][5]==2 and p.HealthBarsContainer.points[2][5]==2)
+local writes=p.HealthBarsContainer.writes
+for i=1,20 do Hover.TrackPlayer(p); tick() end
+assert(p.HealthBarsContainer.writes==writes, "Repeated refresh must not oscillate or grow")
+p.HealthBarsContainer.hover=false; tick(); near(p.HealthBarsContainer:GetWidth(),120)
+p.name.hover=true; tick(); near(p.HealthBarsContainer:GetWidth(),224)
+p.visible=false; tick(); near(p.HealthBarsContainer:GetWidth(),120)
+p.visible=true; tick(); near(p.HealthBarsContainer:GetWidth(),224)
+Hover.Release(p); near(p.HealthBarsContainer:GetWidth(),120)
+print("PASS: native root untouched; visible name/bar fit; only horizontal offsets change; hover exit and hidden plates restore")
 
 local short=Plate(50)
 short.HealthBarsContainer.hover=true
-Hover.Track(short,122,100)
-near(short.width,122)
+Hover.TrackPlayer(short); near(short.HealthBarsContainer:GetWidth(),120)
 Hover.Release(short)
-
 local scaled=Plate(180)
 scaled.scale=2; scaled.name.scale=3
+scaled.name.GetEffectiveScale=function(self) return self.scale end
 scaled.HealthBarsContainer.hover=true
-Hover.Track(scaled,122,100)
-near(scaled.width,306)
-assert(scaled.name:GetWidth()>=184)
+Hover.TrackPlayer(scaled); near(scaled.HealthBarsContainer:GetWidth(),316)
+near(scaled.name:GetWidth(),184)
 Hover.Release(scaled)
+print("PASS: short names do not expand; independent font/plate scaling fits the full name")
 
-local fallback=Plate(180)
-fallback.HealthBarsContainer.IsMouseOver=nil
-fallback.name.IsMouseOver=nil
-MouseIsOver=function(region) return region.hover end
-fallback.HealthBarsContainer.hover=true
-Hover.Track(fallback,122,100)
-near(fallback.width,214)
-Hover.Release(fallback)
-MouseIsOver=nil
-InputUtil={IsMouseOver=function(region) return region.hover end}
-Hover.Track(fallback,122,100)
-near(fallback.width,214)
-Hover.Release(fallback)
-InputUtil=nil
-print("PASS: short names, independent text scaling and legacy/current hover APIs")
+local reset=Plate(180)
+reset.HealthBarsContainer.hover=true
+Hover.Track(reset,195.2,160) -- Decorated baseline still uses Core's original width API.
+for i=1,10 do Hover.Track(reset,195.2,160); tick() end
+near(reset.HealthBarsContainer:GetWidth(),224)
+reset.levelGap=40; reset:UpdateAnchors()
+near(reset.HealthBarsContainer:GetWidth(),224)
+reset.HealthBarsContainer.hover=false; tick()
+near(reset.HealthBarsContainer:GetWidth(),104)
+reset.width=200; reset:UpdateAnchors()
+near(reset.HealthBarsContainer:GetWidth(),144)
+reset.HealthBarsContainer.hover=true; tick()
+near(reset.HealthBarsContainer:GetWidth(),224)
+Hover.Release(reset); near(reset.HealthBarsContainer:GetWidth(),144)
+print("PASS: native layout resets, level-badge changes and UI resizing preserve the latest baseline")
 
-local locked=Plate(180)
-locked.protected=true; locked.HealthBarsContainer.hover=true
-Hover.Track(locked,122,100)
-near(locked.width,122)
-combat=true; tick(); near(locked.width,122)
-Hover.Release(locked)
-combat=false; tick(); near(locked.width,100)
+local fallback=Plate(184)
+fallback.HealthBarsContainer.restrictedPoints=true
+fallback.name.secretGeometry=true
+mouseUnit=fallback.unit
+Hover.TrackPlayer(fallback)
+near(fallback.HealthBarsContainer:GetWidth(),308)
+local writesBefore=fallback.HealthBarsContainer.writes
+for i=1,10 do tick() end
+assert(fallback.HealthBarsContainer.writes==writesBefore)
+fallback.name.secretText=true; tick(); near(fallback.HealthBarsContainer:GetWidth(),120)
+fallback.name.secretText=false; tick(); near(fallback.HealthBarsContainer:GetWidth(),308)
+mouseUnit=nil; tick(); near(fallback.HealthBarsContainer:GetWidth(),120)
+Hover.Release(fallback)
+print("PASS: restricted native anchors and secret text geometry use public child layout and unanchored public text measurement")
+
+local secretSize=Plate(184)
+secretSize.GetWidth=function() return secret end
+secretSize.HealthBarsContainer.GetWidth=function() return secret end
+secretSize.name.secretGeometry=true
+secretSize.HealthBarsContainer.hover=true
+Hover.TrackPlayer(secretSize)
+near(secretSize.HealthBarsContainer.points[1][4],-94)
+near(secretSize.HealthBarsContainer.points[2][4],-24+94)
+Hover.Release(secretSize)
+near(secretSize.HealthBarsContainer.points[1][4],0)
+near(secretSize.HealthBarsContainer.points[2][4],-24)
+print("PASS: generic enrollment and child offsets do not depend on readable native frame widths")
 
 local fighting=Plate(180)
-Hover.Track(fighting,100,100)
-fighting.HealthBarsContainer.hover=true; tick()
-near(fighting.width,214)
+fighting.HealthBarsContainer.hover=true
+Hover.TrackPlayer(fighting); near(fighting.HealthBarsContainer:GetWidth(),224)
 combat=true; driver:OnEvent("PLAYER_REGEN_DISABLED")
-near(fighting.width,100)
-tick(); near(fighting.width,100)
-combat=false; tick(); near(fighting.width,214)
-fighting.HealthBarsContainer.hover=false; tick(); near(fighting.width,100)
+near(fighting.HealthBarsContainer:GetWidth(),120)
+for i=1,10 do tick(); Hover.TrackPlayer(fighting) end
+near(fighting.HealthBarsContainer:GetWidth(),120)
+combat=false; driver:OnEvent("PLAYER_REGEN_ENABLED")
+near(fighting.HealthBarsContainer:GetWidth(),224)
 Hover.Release(fighting)
-print("PASS: entering combat immediately restores width; no expansion in combat or on protected plates")
+local protected=Plate(180)
+protected.HealthBarsContainer.protected=true; protected.HealthBarsContainer.hover=true
+Hover.TrackPlayer(protected); near(protected.HealthBarsContainer:GetWidth(),120)
+combat=true; tick(); near(protected.HealthBarsContainer:GetWidth(),120)
+Hover.Release(protected); combat=false; tick()
+print("PASS: combat entry restores immediately, no combat expansion, protected visual frames never expand")
 
 local recycled=Plate(180)
 recycled.HealthBarsContainer.hover=true
-Hover.Track(recycled,122,100)
-recycled.unit="nameplate2"; tick()
-near(recycled.width,100)
-Hover.Track(recycled,122,100)
-near(recycled.width,214)
-recycled.unit=nil; tick()
-near(recycled.width,100)
+Hover.TrackPlayer(recycled)
+recycled.unit="npc"; Hover.TrackPlayer(recycled)
+near(recycled.HealthBarsContainer:GetWidth(),120)
+recycled.unit="nameplate2"; Hover.TrackPlayer(recycled)
+near(recycled.HealthBarsContainer:GetWidth(),224)
+recycled.unit=nil; tick(); near(recycled.HealthBarsContainer:GetWidth(),120)
+local invalid=Plate(0/0)
+invalid.HealthBarsContainer.hover=true
+invalid.name.GetText=function() return nil end
+Hover.TrackPlayer(invalid); near(invalid.HealthBarsContainer:GetWidth(),120)
+invalid.name.textWidth=math.huge; tick(); near(invalid.HealthBarsContainer:GetWidth(),120)
+Hover.Release(invalid)
+print("PASS: reused player/NPC plates, removed units, unreadable names and invalid measurements stay safe")
 
-local hidden=Plate(180)
-hidden.HealthBarsContainer.hover=true
-Hover.Track(hidden,122,100)
-hidden.name.textWidth=secret; tick()
-near(hidden.width,122)
-hidden.name.textWidth=180; hidden.name.forbidden=true; tick()
-near(hidden.width,122)
-hidden.name.forbidden=false; hidden.name.textWidth=0/0; tick()
-near(hidden.width,122)
-hidden.name.textWidth=math.huge; tick()
-near(hidden.width,122)
-Hover.Release(hidden)
-Hover.Track(hidden,secret,100)
-near(hidden.width,100)
-print("PASS: recycled/removed units, secret or forbidden metrics and invalid widths")
+local partial=Plate(180)
+partial.HealthBarsContainer.hover=true; partial.HealthBarsContainer.failRight=true
+Hover.TrackPlayer(partial)
+partial.HealthBarsContainer.failRight=false
+Hover.Release(partial)
+near(partial.HealthBarsContainer:GetWidth(),120)
+print("PASS: failed second anchor restores partial changes")
 
--- Simulate Blizzard's opposing anchors: SetWidth alone cannot change the width.
-local anchored=Plate(180)
-local parent={}
-anchored.points={{"TOPLEFT",parent,"TOPLEFT",0,-2},{"BOTTOMRIGHT",parent,"BOTTOMRIGHT",0,3}}
-function anchored:GetNumPoints() return #self.points end
-function anchored:GetPoint(i) return table.unpack(self.points[i]) end
-function anchored:SetPoint(point, relative, relativePoint, x, y)
-    for i, old in ipairs(self.points) do
-        if old[1]==point then self.points[i]={point,relative,relativePoint,x,y} end
-    end
-    self.width=100+self.points[2][4]-self.points[1][4]
-end
-function anchored:SetWidth() end
-anchored.HealthBarsContainer.hover=true
-Hover.Track(anchored,122,100)
-near(anchored.width,214)
-near(anchored.points[1][4],-57); near(anchored.points[2][4],57)
-assert(anchored.points[1][5]==-2 and anchored.points[2][5]==3, "Vertical offsets must never change")
-for i=1,20 do tick(); Hover.Track(anchored,122,100) end
-near(anchored.width,214)
-anchored.HealthBarsContainer.hover=false; tick(); near(anchored.width,122)
-Hover.Release(anchored); near(anchored.width,100)
-assert(anchored.points[1][4]==0 and anchored.points[2][4]==0)
-print("PASS: opposing native anchors widen horizontally, retain height and restore exactly")
-
-local native=Plate(180)
-native.name.GetEffectiveScale=nil
-native.name.GetParent=function() return native end
-UnitIsUnit=function(unit,other) return unit==native.unit and other=="mouseover" end
-Hover.Track(native,100,100)
-near(native.width,214)
-UnitIsUnit=function() return false end
-tick(); near(native.width,100)
-Hover.Release(native)
-print("PASS: mouseover unit detects native plates without mouse events; font scale falls back to parent")
-
--- Exercise Core's real refresh/event paths; decoration settings must not filter hover.
-local hoverDriver=driver
+-- Test enrollment through Core's real events and all refresh return paths.
 SlashCmdList={}
 local f=assert(io.open("TisteltiPlates/Core.lua","rb"))
 local source=f:read("*a"); f:close()
@@ -189,7 +217,6 @@ local config={enabled=true,group=false,guild=false}
 core.setDB(config)
 local instance=false
 IsInInstance=function() return instance end
-UnitIsPlayer=function(unit) return unit~="npc" end
 UnitIsFriend=function(_,unit) return unit~="enemy" end
 UnitInParty=function(unit) return unit=="party" end
 UnitIsInMyGuild=function(unit) return unit=="guild" end
@@ -199,19 +226,19 @@ for _,unit in ipairs({"party","guild","stranger","enemy","npc"}) do
     local uf=Plate(180); uf.unit=unit; uf.HealthBarsContainer.hover=true
     plates[unit]={UnitFrame=uf}
     core.driver:OnEvent("NAME_PLATE_UNIT_ADDED",unit)
-    near(uf.width,unit=="npc" and 100 or 214)
+    near(uf.HealthBarsContainer:GetWidth(),unit=="npc" and 120 or 224)
 end
-for i=1,10 do core.refresh(); hoverDriver:OnUpdate(.05) end
-for unit,plate in pairs(plates) do near(plate.UnitFrame.width,unit=="npc" and 100 or 214) end
-instance=true; core.refresh(); near(plates.enemy.UnitFrame.width,214)
-combat=true; core.refresh(); hoverDriver:OnEvent("PLAYER_REGEN_DISABLED")
-for _,plate in pairs(plates) do near(plate.UnitFrame.width,100) end
-combat=false; core.refresh(); near(plates.enemy.UnitFrame.width,214)
+for i=1,10 do core.refresh(); tick() end
+for unit,plate in pairs(plates) do near(plate.UnitFrame.HealthBarsContainer:GetWidth(),unit=="npc" and 120 or 224) end
+instance=true; core.refresh(); near(plates.enemy.UnitFrame.HealthBarsContainer:GetWidth(),224)
+combat=true; core.refresh(); driver:OnEvent("PLAYER_REGEN_DISABLED")
+for _,plate in pairs(plates) do near(plate.UnitFrame.HealthBarsContainer:GetWidth(),120) end
+combat=false; core.refresh(); near(plates.enemy.UnitFrame.HealthBarsContainer:GetWidth(),224)
 config.enabled=false; core.refresh()
-for _,plate in pairs(plates) do near(plate.UnitFrame.width,100) end
+for _,plate in pairs(plates) do near(plate.UnitFrame.HealthBarsContainer:GetWidth(),120) end
 config.enabled=true; core.refresh()
 core.driver:OnEvent("NAME_PLATE_UNIT_REMOVED","enemy")
-near(plates.enemy.UnitFrame.width,100)
-hoverDriver:OnUpdate(.05); near(plates.enemy.UnitFrame.width,100)
+near(plates.enemy.UnitFrame.HealthBarsContainer:GetWidth(),120)
+tick(); near(plates.enemy.UnitFrame.HealthBarsContainer:GetWidth(),120)
 for unit in pairs(plates) do core.driver:OnEvent("NAME_PLATE_UNIT_REMOVED",unit) end
-print("PASS: real Core enrollment covers party, guild, strangers and enemies; excludes NPCs; handles instances, disable and removal")
+print("PASS: all player types enrolled; NPCs excluded; instances, disable and removal restore native geometry")
