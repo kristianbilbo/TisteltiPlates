@@ -128,9 +128,10 @@ local function Ornament(parent)
         light:SetAllPoints(wing)
         light:SetBlendMode("ADD")
         light:SetAlpha(.62)
+        return light
     end
     illuminateWing(o.wings, 0, .40)
-    illuminateWing(o.rightWing, .60, 1)
+    o.rightWingLight = illuminateWing(o.rightWing, .60, 1)
     o.halo = FrameBorder(o, 12, false)
     o.halo:SetPoint("TOPLEFT",o.body,"TOPLEFT",-1.5,1.5)
     o.halo:SetPoint("BOTTOMRIGHT",o.body,"BOTTOMRIGHT",1.5,-1.5)
@@ -201,6 +202,7 @@ local function Ornament(parent)
         o.stars[i] = star
     end
     o:Hide()
+    TisteltiPlatesCC.AttachArt(o, parent)
     return o
 end
 
@@ -345,12 +347,16 @@ local function Layout(state)
     for _, entry in ipairs(state.levels) do entry.frame:SetAlpha(0) end
     local previous
     for _, entry in ipairs(state.cc) do
-        local frame = entry.frame
-        frame:ClearAllPoints()
-        frame:SetPoint("BOTTOM", previous or state.art.ccAnchor, "TOP", 0, previous and 6 * db.scale or 0)
-        frame:SetFrameLevel(state.art.badge:GetFrameLevel() + 10)
-        if frame:IsShown() then previous = frame end
+        -- CC stays beside the level badge; only buffs/debuffs stack above it.
+        if entry.row == 0 then
+            local frame = entry.frame
+            frame:ClearAllPoints()
+            frame:SetPoint("BOTTOM", previous or state.art.ccAnchor, "TOP", 0, previous and 6 * db.scale or 0)
+            frame:SetFrameLevel(state.art.badge:GetFrameLevel() + 10)
+            if frame:IsShown() then previous = frame end
+        end
     end
+    TisteltiPlatesCC.Position(state.art:GetParent())
 end
 
 local function Remove(uf)
@@ -710,6 +716,7 @@ SlashCmdList.TISTELTIPLATES = function(text)
     if not db then return end
     local cmd, value = text:match("^%s*(%S*)%s*(.-)%s*$")
     cmd = cmd:lower()
+    if cmd == "cc" then TisteltiPlatesCC.Report(); return end
     if cmd == "vista" then Preview(); return end
     if cmd == "on" or cmd == "off" then db.enabled = cmd == "on"
     elseif cmd == "borde" or cmd == "icono" or cmd == "color" then
@@ -744,7 +751,7 @@ SlashCmdList.TISTELTIPLATES = function(text)
         local unit = Safe(UnitIsPlayer, "target") and "target" or "player"
         Message(Safe(TisteltiHonorTexto, unit) or "Mérito: sin datos")
     else
-        Message("/tistelti vista | on/off | grupo on/off | guild on/off | tamano 0.8–1.8")
+        Message("/tistelti cc | vista | on/off | grupo on/off | guild on/off | tamano 0.8–1.8")
         Message("/tistelti merito: consulta el mérito del objetivo o de tu personaje")
         Message("borde grupo/guild oroazul/oro/plata/clase/rango | Insignia: animales por mérito")
         Message("color grupo/guild R G B (valores de 0 a 1). Vista incluye botones de personalización.")
