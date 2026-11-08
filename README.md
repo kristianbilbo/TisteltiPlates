@@ -1,6 +1,12 @@
 # TisteltiPlates
 
-Addon para WoW Forever (interfaz 16001). Versión actual: **0.8.7**.
+Addon para WoW Forever (interfaz 16001). Versión actual: **0.8.8**.
+
+## Rediseño PvP heráldico 0.8.8
+
+El modo PvP usa el acabado del diseño de hermandad: doble marco metálico, acento de clase o reacción, icono de clase unido al cuerpo y pequeña insignia de facción integrada. Las alas de hermandad reutilizan la textura de plumas del diseño clásico. Se elimina la segunda barra ampliada que podía tapar el nombre; se conserva la barra real y su textura.
+
+El objetivo se distingue por su contorno, y el recomendado por el oro y un motivo compacto debajo de la barra de lanzamiento si está visible. Se han comprobado nombres, salud, controles, temporizadores, combate y reutilización con Lua 5.1. Falta validar el aspecto final en WoW Forever. Ejecuta `/reload` después de actualizar.
 
 ## Nombre externo y escala con EllesmereUI 0.8.7
 
@@ -24,19 +30,19 @@ Personalización de placas para grupo y jugadores amistosos, con alas, escudos y
 
 ## Modo PvP compacto
 
-Se abre con `/tistelti pvp` o en **Opciones → AddOns → TisteltiPlates → Modo PvP**. Desde 0.8.2 está **desactivado por defecto**; se puede activar con `/tistelti pvp on`. Se respetan las activaciones y desactivaciones ya guardadas. Si se había activado antes y se desea apagarlo, usar `/tistelti pvp off`. Al activarlo conserva el tamaño original y sustituye las alas grandes por un marco con neón y un emblema de facción pequeño pegado al borde. Desactivar el modo recupera el diseño clásico con sus ajustes anteriores. No fuerza CVars ni muestra placas que el juego tenga ocultas.
+Se abre con `/tistelti pvp` o en **Opciones → AddOns → TisteltiPlates → Modo PvP**. Desde 0.8.2 está **desactivado por defecto**; se puede activar con `/tistelti pvp on`. Se respetan las activaciones y desactivaciones ya guardadas. Para apagarlo, usar `/tistelti pvp off`. Conserva el tamaño original con un doble marco metálico y acentos de color. Desactivar el modo recupera el diseño clásico con sus ajustes anteriores. No fuerza CVars ni muestra placas que el juego tenga ocultas.
 
-Los aliados admiten color de clase o azul. Los enemigos llevan **borde rojo** con barra por clase o roja, según la opción elegida. El icono de clase opcional conserva siempre su propio contorno de clase; se coloca fuera del lateral izquierdo, separado del emblema y del ala, con tamaño inicial 22 y selector de 18/22/26/30 en las opciones de PvP. Se mantiene el emblema de facción.
+Los aliados admiten color de clase o azul. Los enemigos llevan acento rojo dentro del marco plateado con barra por clase o roja, según la opción elegida. El icono de clase opcional conserva su acento de clase y se une al lateral izquierdo, con tamaño inicial 22 y selector de 18/22/26/30. El emblema de facción se integra junto a su esquina inferior. El nivel nativo recibe un borde metálico sin duplicar su texto.
 
 ### Objetivo actual y recomendado
 
-La opción **Ampliar objetivo y recomendado**, activada inicialmente dentro del modo PvP, dibuja una barra visual propia un 35 % más ancha y un 50 % más alta (mínimo 14), creciendo hacia la izquierda. La vida y sus límites se reenvían desde la barra nativa, también cuando cambian, sin usar valores de vida restringidos para tomar decisiones. Si no se puede copiar la barra, se mantiene la nativa.
+La opción **Destacar objetivo y recomendado**, activada inicialmente dentro del modo PvP, dibuja un contorno sin relleno alrededor de la barra real. No reemplaza la salud ni tapa el nombre. Conserva el valor guardado de la antigua opción de ampliar.
 
-Tu objetivo enemigo lleva contorno blanco. El recomendado lleva contorno dorado, una marca grande de 24 y el motivo. La recomendación prioriza una calavera real ya existente o un enemigo visible al que estén apuntando al menos dos compañeros. Se estabiliza durante dos segundos mientras siga siendo válido. No infiere sanadores por clase ni emplea criterios de poca vida o curación. Los datos restringidos se omiten; sin información suficiente no se inventa una prioridad.
+Tu objetivo enemigo lleva contorno blanco. El recomendado lleva contorno dorado, una marca de 14 y el motivo compacto debajo, dejando sitio a la barra de lanzamiento cuando está visible. Se elimina el rótulo suelto TU OBJETIVO. La recomendación prioriza una calavera real ya existente o un enemigo visible al que estén apuntando al menos dos compañeros. Se estabiliza durante dos segundos mientras siga siendo válido. No infiere sanadores por clase ni emplea criterios de poca vida o curación. Los datos restringidos se omiten; sin información suficiente no se inventa una prioridad.
 
-La marca de recomendación es visual y local: el addon no coloca marcas reales, cambia objetivos ni ataca. Los clics, anclajes de bufos/controles y barras de lanzamiento nativos conservan su comportamiento. La zona clicable mantiene su tamaño original, incluida la del objetivo ampliado. La ampliación desaparece al cambiar objetivo, desaparecer la prioridad, reciclar una placa o desactivar la opción/modo PvP. Falta validar visualmente el resultado dentro de WoW.
+La marca de recomendación es visual y local: el addon no coloca marcas reales, cambia objetivos ni ataca. Los clics, anclajes de bufos/controles y barras de lanzamiento nativos conservan su comportamiento. La zona clicable mantiene su tamaño original. El destacado desaparece al cambiar objetivo, desaparecer la prioridad, reciclar una placa o desactivar la opción/modo PvP. Falta validar visualmente el resultado dentro de WoW.
 
-Las alas son trazos pequeños de un solo color, pegados a ambos lados, solo para miembros de tu hermandad de la Alianza. Los colores iniciales son bronce (mérito 1–4), plata (5–9) y oro (10–14); cada tramo permite elegir otro color. Sin datos se usa gris azulado neutro. Son categorías de `TisteltiMerito`, no una afirmación de rango oficial. Brillo y tamaño de alas se ajustan en la misma sección, con vista previa.
+Las alas usan las plumas del diseño de hermandad, unidas al icono de clase y al nivel, solo para miembros de tu hermandad de la Alianza. Los matices iniciales son bronce (mérito 1–4), plata (5–9) y oro (10–14); cada tramo permite elegir otro color. Sin datos se usa gris azulado neutro. Son categorías de `TisteltiMerito`, no una afirmación de rango oficial. Brillo y tamaño se ajustan en la misma sección, con vista previa.
 
 Funciona en mundo abierto y permite dibujar en campos de batalla/arenas; las mazmorras y bandas siguen excluidas. Cambiar de modo en combate espera al final para restaurar la geometría anterior. El modo compacto conserva los anclajes nativos de auras y controles. Si la clase no se puede leer, oculta su icono y usa un color de reacción como respaldo.
 

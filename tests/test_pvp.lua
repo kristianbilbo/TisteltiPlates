@@ -127,6 +127,9 @@ assert(db.pvp.enabled and pvp.IsActive(),'activación explícita')
 local function add(unit)
     local uf=Frame(); uf.unit=unit; uf.native=true
     uf.healthBar=Frame(uf); uf.healthBar.native=true
+    uf.name=Frame(uf.healthBar)
+    uf.name:SetText('Nombre original largo')
+    uf.name:SetPoint('CENTER',uf.healthBar,'CENTER',0,0)
     if unit=='guild' then
         uf.AurasFrame=Frame(uf)
         uf.AurasFrame.LossOfControlFrame=Frame(uf.AurasFrame)
@@ -141,11 +144,12 @@ assert(art and art.shown and enemy.width==110 and enemy.scale==1)
 assert(nativeMutations==0,'Compact mode must never enlarge native plates')
 assert(enemy.healthBar.color[1]==RAID_CLASS_COLORS.WARLOCK.r)
 assert(art.edges[1].texture.vertex[1]==1 and art.edges[1].texture.vertex[2]==.08,'Enemy border is red independently of class-colored health')
-assert(art.faction.texture:find('Horde') and art.faction.points[1][4]==-.5)
+assert(art.faction.texture:find('Horde') and art.factionFrame.points[1][2]==art.classFrame)
 assert(not art.wings[1].shown and not art.wings[2].shown,'No Horde guild wings, even with bad guild membership data')
 assert(art.classFrame.shown and art.classFrame.edges[1].texture.vertex[1]==RAID_CLASS_COLORS.WARLOCK.r)
 assert(art.classFrame.width==22 and art.classFrame.height==22,'Class icons use a readable size independent of the health bar')
-assert(art.classFrame.points[1][1]=='RIGHT' and art.classFrame.points[1][2]==art.faction and art.classFrame.points[1][4]==-6,'Class icon is outside the left emblem, away from buffs and right-side controls')
+assert(art.classFrame.points[1][1]=='RIGHT' and art.classFrame.points[1][2]==art.body and art.classFrame.points[1][4]==-4,'Class tile joins the metal body and leaves right-side controls alone')
+assert(art.body and art.inner and art.classFrame.metal and art.levelFrame,'Guild-style metal frame is used throughout')
 local guild=add('guild')
 assert(guild.TisteltiPvPArt.wings[1].shown and guild.TisteltiPvPArt.wings[2].shown)
 -- CC and native ability timers must win the right-hand space in compact mode.
@@ -186,9 +190,9 @@ tickControls(); assert(guild.TisteltiPvPArt.classFrame.shown,'Restricted visibil
 controls.AuraItemFrame.IsVisible=isVisible
 combat=false; controls.protected=false
 local wing=guild.TisteltiPvPArt.wings[1]
-for _,line in ipairs(wing.lines) do
-    assert(line.texture.vertex[1]==pvp.WingColor(8).r and line.texture.vertex[2]==pvp.WingColor(8).g)
-end
+assert(wing.texture.texture:find('Wings.tga',1,true),'Guild wings reuse the real feather artwork')
+assert(wing.texture.vertex[1]==.55+.45*pvp.WingColor(8).r)
+assert(wing.points[1][2]==guild.TisteltiPvPArt.classFrame,'Wing and class tile form one silhouette')
 local ally=add('ally'); assert(not ally.TisteltiPvPArt.wings[1].shown)
 local npc=add('npc'); assert(not npc.TisteltiPvPArt,'NPCs must be untouched')
 local function clickText(prefix)
@@ -217,7 +221,7 @@ assert(not guild.TisteltiPvPArt.classFrame.shown,'CC ending must respect disable
 toggle('Icono de clase con neón de clase',true)
 assert(art.classFrame.shown)
 clickText('Alas · mérito 5–9:')
-assert(db.pvp.middle=='oro' and guild.TisteltiPvPArt.wings[1].lines[1].texture.vertex[2]==.86)
+assert(db.pvp.middle=='oro' and guild.TisteltiPvPArt.wings[1].texture.vertex[2]==.55+.45*.86)
 clickText('Brillo (0.6 / 1 / 1.4):')
 assert(db.pvp.intensity==1.4)
 clickText('Tamaño de icono de clase:')
@@ -225,7 +229,8 @@ assert(db.pvp.classIconSize==26 and art.classFrame.width==26,'Size option update
 -- Keep class icons outside the left guild wing, independent of the right level.
 guild.PlayerLevelDiffFrame=Frame(guild); core.refresh()
 assert(guild.TisteltiPvPArt.wings[2].points[1][2]==guild.PlayerLevelDiffFrame)
-assert(guild.TisteltiPvPArt.classFrame.points[1][2]==guild.TisteltiPvPArt.wings[1])
+assert(guild.TisteltiPvPArt.classFrame.points[1][2]==guild.TisteltiPvPArt.body)
+assert(guild.TisteltiPvPArt.levelFrame.shown and guild.TisteltiPvPArt.levelFrame.points[1][2]==guild.PlayerLevelDiffFrame)
 enemy.healthBar:SetStatusBarColor(.1,.2,.3)
 assert(enemy.healthBar.color[1]==1,'Native recolor must not erase PvP styling')
 combat=true
@@ -269,7 +274,7 @@ pvp.Update('ally',ally)
 assert(ally.TisteltiPvPArt.wings[1].shown,'Guild wings must support roster-only membership data')
 enemy2.unit=nil; pvp.Remove(enemy2); assert(enemy2.healthBar.color[1]==.3)
 
--- Enlargement is addon-owned and remains safe while native plates are protected.
+-- Emphasis is an empty frame: the real name, health fill and textures stay visible.
 local target='enemy'
 local targets={party1target='enemy',party2target='enemy'}
 units.party2=units.ally
@@ -279,23 +284,37 @@ GetTime=function() return 100 end
 local priority=TisteltiPlatesPriority
 enemy2.unit='enemy'
 local nativeBefore=nativeMutations
+local originalName=enemy2.name
+local originalNamePoint=originalName.points[1]
+local originalValueSetter=enemy2.healthBar.SetValue
+enemy2.castBar=Frame(enemy2)
+enemy2.castBar:SetPoint('TOP',enemy2.healthBar,'BOTTOM',0,-3)
+local originalCastPoint=enemy2.castBar.points[1]
 combat=true
 priority.Update({enemy={UnitFrame=enemy2}},true)
 pvp.Update('enemy',enemy2)
 local enlarged=enemy2.TisteltiPvPEmphasis
-assert(enlarged and enlarged.shown and enlarged.width==110*1.35 and enlarged.height==15)
+assert(enlarged and enlarged.shown and enlarged.points[1][2]==enemy2.healthBar)
+assert(not enlarged.background and not enlarged.sourceBar,'Emphasis must never overlay a replacement health fill')
 assert(enemy2.width==110 and enemy2.scale==1 and nativeMutations==nativeBefore,'Native scale, click area and protected geometry remain unchanged')
 assert(enlarged.marker.shown and enlarged.reason.text=='FOCO DEL GRUPO')
+assert(enlarged.reason.points[1][2]==enemy2.castBar,'Priority caption leaves room for a visible cast bar')
+assert(enemy2.castBar.points[1]==originalCastPoint and enemy2.name==originalName
+    and originalName.text=='Nombre original largo' and originalName.points[1]==originalNamePoint,
+    'Names and cast bars retain their text, placement and identity')
+assert(enemy2.healthBar.SetValue==originalValueSetter,'No replacement health forwarding hooks remain')
 assert(enlarged.outline.edges[1].texture.vertex[2]==1,'Current target has white outline')
 enemy2.healthBar:SetValue(35)
-assert(enlarged.value==35,'Health changes update the enlarged bar immediately')
+assert(enemy2.healthBar.value==35 and not enlarged.value,'Only the real health bar renders health')
 enemy2.healthBar:SetMinMaxValues(0,150)
-assert(enlarged.maximum==150)
+assert(enemy2.healthBar.maximum==150 and not enlarged.maximum)
 target=nil pvp.Update('enemy',enemy2)
 assert(enlarged.outline.edges[1].texture.vertex[2]==.8,'Recommended target has gold outline')
 targets={} priority.Update({enemy={UnitFrame=enemy2}},true) pvp.Update('enemy',enemy2)
 assert(not enlarged.shown,'Enlargement disappears when priority disappears')
 target='enemy' pvp.Update('enemy',enemy2) assert(enlarged.shown)
+assert(enlarged.reason.text=='' and not enlarged.reason.shown and not enlarged.marker.shown,
+    'A selected target needs no detached TU OBJETIVO label or skull')
 db.pvp.emphasizeTargets=false pvp.Update('enemy',enemy2) assert(not enlarged.shown)
 db.pvp.emphasizeTargets=true pvp.Update('enemy',enemy2)
 pvp.Remove(enemy2) assert(not enlarged.shown,'Recycled plates hide the enlarged bar')

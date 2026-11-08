@@ -1,4 +1,16 @@
-TISTELTI - ALAS DE GRUPO · v0.8.7 · Forever 1.60.1 / interfaz 16001
+TISTELTI - ALAS DE GRUPO · v0.8.8 · Forever 1.60.1 / interfaz 16001
+
+REDISEÑO PVP HERÁLDICO 0.8.8 (prevalece sobre el historial inferior)
+- Doble marco metálico inspirado en hermandad: plata y oro, con acento de clase/reacción.
+- Icono de clase unido al marco y pequeña insignia de facción integrada.
+- Alas con la textura real del diseño de hermandad, solo para tu hermandad.
+- Retirada la segunda barra ampliada que tapaba el nombre y descompensaba la placa.
+- El objetivo lleva contorno blanco; recomendado, oro y motivo compacto debajo.
+- El motivo queda debajo de la barra de lanzamiento cuando está visible.
+- Conserva la barra, nombre, textura, nivel, auras, temporizadores y zona clicable nativos.
+- La opción pasa a llamarse Destacar objetivo y recomendado; conserva su valor guardado.
+- Pruebas Lua 5.1 superadas; pendiente comprobar el aspecto final dentro del cliente.
+- Ejecuta /reload para cargar el diseño y retirar los manejadores anteriores.
 
 NOMBRE EXTERNO Y ESCALA CON ELLESMEREUI 0.8.7
 - Si está cargado EllesmereUINameplates, conserva su anchura y escala de placa.
