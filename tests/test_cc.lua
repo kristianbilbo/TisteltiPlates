@@ -59,6 +59,8 @@ auras.LossOfControlFrame=Frame(auras)
 auras.CrowdControlListFrame=Frame(auras)
 local loss=auras.LossOfControlFrame
 local crowd=auras.CrowdControlListFrame
+loss:SetPoint('BOTTOM',uf.HealthBarsContainer,'TOP',0,4)
+crowd:SetPoint('BOTTOM',uf.HealthBarsContainer,'TOP',0,5)
 loss.AuraItemFrame=Frame(loss)
 loss.AuraItemFrame:Hide()
 local crowdIcon=Frame(crowd)
@@ -71,6 +73,7 @@ local function tick(art) art.scripts.OnUpdate(art,.05) end
 local function artFor(key)
     local art=Frame(uf)
     art.badge=Frame(art)
+    art.ccAnchor=Frame(art)
     art.badge.level=20
     art.rightWing=Frame(art); art.rightWingLight=Frame(art); art.wings=Frame(art)
     art:Hide()
@@ -127,14 +130,14 @@ combat=false
 events.scripts.OnEvent(events,"PLAYER_REGEN_ENABLED")
 assert(loss.points[1][2]==combatArt.badge)
 combatArt:Hide()
-assert(loss.points[1][2]==uf.PlayerLevelDiffFrame and loss.level==2)
+assert(loss.points[1][2]==uf.HealthBarsContainer and loss.points[1][5]==4 and loss.level==2)
 uf.PlayerLevelDiffFrame.alpha=0
 CC.Position(uf)
 assert(loss.points[1][2]==uf.HealthBarsContainer)
 uf.PlayerLevelDiffFrame.alpha=1
 events.scripts.OnEvent(events,"NAME_PLATE_UNIT_ADDED","nameplate1")
 uf:UpdateAnchors()
-assert(loss.points[1][2]==uf.PlayerLevelDiffFrame, "Undecorated/enemy plates keep standalone positioning")
+assert(loss.points[1][2]==uf.HealthBarsContainer and loss.points[1][5]==4, "Undecorated plates keep native positioning")
 local preview=Frame(); preview.rightWing=Frame(preview); preview.rightWingLight=Frame(preview)
 CC.AttachArt(preview, Frame())
 assert(not preview.scripts.OnUpdate)
@@ -152,12 +155,14 @@ return {layout=Layout, remove=Remove, active=active, driver=driver, options=Regi
 core.setDB({enabled=true,scale=1})
 IsInInstance=function() return false end
 local buff=Frame(auras)
+auras.BuffListFrame=buff
+buff:SetPoint('BOTTOM',uf.HealthBarsContainer,'TOP',0,3)
 local state={art=art,levels={},cc={
     {frame=buff,row=0}, {frame=loss,row=2},
 }}
 art.ccAnchor=Frame(art)
 core.layout(state)
-assert(buff.points[1][1]=="BOTTOM")
+assert(buff.points[1][1]=="BOTTOMLEFT" and buff.points[1][2]==art.ccAnchor)
 assert(loss.points[1][1]=="LEFT" and loss.points[1][2]==art.badge)
 uf:UpdateAnchors()
 core.layout(state)
@@ -240,6 +245,9 @@ local native=Frame(fresh.AurasFrame)
 fresh.AurasFrame.LossOfControlFrame=native
 native:SetPoint('BOTTOM',fresh.HealthBarsContainer,'TOP',0,4)
 local nativeLevel=native:GetFrameLevel()
+local freshArt=Frame(fresh)
+freshArt.badge=Frame(freshArt); freshArt.ccAnchor=Frame(freshArt)
+fresh.TisteltiArt=freshArt
 CC.Position(fresh)
 assert(native.points[1][1]=='LEFT')
 local saved=CC.OriginalPlacement(native)
@@ -258,6 +266,8 @@ restrictedUF.HealthBarsContainer=Frame(restrictedUF)
 restrictedUF.AurasFrame=Frame(restrictedUF)
 local restricted=Frame(restrictedUF.AurasFrame)
 restrictedUF.AurasFrame.LossOfControlFrame=restricted
+restrictedUF.TisteltiArt=Frame(restrictedUF)
+restrictedUF.TisteltiArt.badge=Frame(restrictedUF.TisteltiArt)
 restricted:SetPoint('BOTTOM',restrictedUF.HealthBarsContainer,'TOP',0,4)
 local original=restricted.points[1]
 local measurements,mutations=0,0
@@ -279,3 +289,37 @@ hiddenAccess.GetPoint=function() return secret end
 hiddenAccess.GetNumPoints=function() return 1 end
 assert(not CC.CapturePlacement(hiddenAccess),'Secret anchor values are never saved or used')
 print('PASS: restricted FrameMeasurement, access constraints and repeated GetPoint failures leave native controls untouched')
+
+-- Late aura lists, asynchronous native/EllesmereUI layout, combat and cleanup.
+local late=Frame()
+late.AurasFrame=Frame(late)
+late.TisteltiArt=Frame(late)
+local lateArt=late.TisteltiArt
+lateArt.badge=Frame(lateArt); lateArt.ccAnchor=Frame(lateArt)
+lateArt.rightWing=Frame(lateArt); lateArt.rightWingLight=Frame(lateArt)
+CC.AttachArt(lateArt,late)
+local lateBuff=Frame(late.AurasFrame)
+late.AurasFrame.BuffListFrame=lateBuff
+lateBuff:SetPoint('LEFT',late,'LEFT',1,2)
+tick(lateArt)
+assert(lateBuff.points[1][2]==lateArt.ccAnchor,'Late-created buffs must clear the wing')
+lateBuff:SetPoint('LEFT',late,'LEFT',0,0)
+tick(lateArt)
+assert(lateBuff.points[1][2]==lateArt.ccAnchor,'Aura refresh must not leave buffs inside the wing')
+local lateDebuff=Frame(late.AurasFrame)
+late.AurasFrame.DebuffListFrame=lateDebuff
+lateDebuff:SetPoint('RIGHT',late,'RIGHT',3,4)
+tick(lateArt)
+assert(lateDebuff.points[1][2]==lateBuff,'Second visible aura row stacks above buffs')
+combat=true; lateBuff.protected=true
+lateBuff:SetShown(false)
+tick(lateArt)
+assert(lateDebuff.points[1][2]==lateArt.ccAnchor,'Hidden/protected first row must not create an overlap')
+lateArt:Hide()
+assert(lateDebuff.points[1][1]=='RIGHT' and lateDebuff.points[1][4]==3)
+combat=false; CC.Position(late)
+assert(lateBuff.points[1][1]=='LEFT' and lateBuff.points[1][4]==1 and lateBuff.points[1][5]==2)
+lateBuff:SetPoint('TOP',late,'BOTTOM',7,8)
+CC.Position(late)
+assert(lateBuff.points[1][1]=='TOP','Inactive Tistelti must leave other addons alone')
+print('PASS: late buffs, refreshed anchors, stacked rows, protected combat and full native restoration')

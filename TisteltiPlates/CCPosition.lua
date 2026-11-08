@@ -8,6 +8,8 @@ local originalLevels = setmetatable({}, {__mode = "k"})
 local originalPoints = setmetatable({}, {__mode = "k"})
 local unreadable = setmetatable({}, {__mode = "k"})
 local keys = {"CrowdControlListFrame", "LossOfControlFrame"}
+local auraKeys = {"BuffListFrame", "DebuffListFrame", "CrowdControlListFrame", "LossOfControlFrame"}
+local moved = setmetatable({}, {__mode = "k"})
 
 function CC.OriginalPlacement(frame)
     return originalPoints[frame], originalLevels[frame]
@@ -114,43 +116,44 @@ function CC.Position(uf)
     if not uf or Read(uf.IsForbidden, uf) then return end
     local auras = uf.AurasFrame
     if not auras or Read(auras.IsForbidden, auras) then return end
-    if TisteltiPlatesPvP and TisteltiPlatesPvP.IsActive() then
-        for _, key in ipairs(keys) do
-            local frame = auras[key]
-            if frame and originalPoints[frame] and CC.CanPosition(frame) then
+    local art = Visible(uf.TisteltiArt) and uf.TisteltiArt
+        or Visible(uf.TisteltiCombatArt) and uf.TisteltiCombatArt
+    if not art or (TisteltiPlatesPvP and TisteltiPlatesPvP.IsActive()) then
+        for frame in pairs(moved[uf] or {}) do
+            if originalPoints[frame] and CC.CanPosition(frame) then
                 frame:ClearAllPoints()
                 for _, point in ipairs(originalPoints[frame]) do frame:SetPoint(unpack(point)) end
                 if originalLevels[frame] then frame:SetFrameLevel(originalLevels[frame]) end
                 originalPoints[frame], originalLevels[frame] = nil, nil
+                moved[uf][frame] = nil
             end
         end
-        return -- Compact mode leaves the native CC layout intact.
+        return -- Undecorated plates and compact mode keep their own layout.
     end
-    local art = Visible(uf.TisteltiArt) and uf.TisteltiArt
-        or Visible(uf.TisteltiCombatArt) and uf.TisteltiCombatArt
-    local anchor = art and art.badge
-        or Visible(uf.PlayerLevelDiffFrame) and uf.PlayerLevelDiffFrame
-        or uf.HealthBarsContainer
+    local anchor = art.badge
     if not anchor then return end
-    for _, key in ipairs(keys) do
+    local previous
+    for index, key in ipairs(auraKeys) do
         local frame = auras[key]
         -- Preserve the old positioner's combat behavior for unprotected lists.
         -- Protected lists wait for PLAYER_REGEN_ENABLED; wings still update.
         if frame and CC.CanPosition(frame) then
             if not originalPoints[frame] then
-                local points=CC.CapturePlacement(frame)
+                local points, level=CC.CapturePlacement(frame)
                 originalPoints[frame] = points
+                originalLevels[frame] = level
             end
             if originalPoints[frame] then
+                moved[uf] = moved[uf] or setmetatable({}, {__mode = "k"})
+                moved[uf][frame] = true
                 frame:ClearAllPoints()
-                frame:SetPoint("LEFT", anchor, "RIGHT", 8, 0)
-                if art then
-                    if originalLevels[frame] == nil then originalLevels[frame] = frame:GetFrameLevel() end
-                    frame:SetFrameLevel(art.badge:GetFrameLevel() + 10)
-                elseif originalLevels[frame] then
-                    frame:SetFrameLevel(originalLevels[frame])
-                    originalLevels[frame] = nil
+                if index <= 2 then
+                    frame:SetPoint("BOTTOMLEFT", previous or art.ccAnchor, "TOPLEFT", 0, previous and 6 or 0)
+                    if Visible(frame) then previous = frame end
+                else
+                    frame:SetPoint("LEFT", anchor, "RIGHT", 8, 0)
                 end
+                frame:SetFrameLevel(art.badge:GetFrameLevel() + 10)
             end
         end
     end
@@ -174,6 +177,7 @@ function CC.AttachArt(art, uf)
         if elapsed < .05 then return end
         elapsed = 0
         UpdateWing(art, uf)
+        CC.Position(uf)
     end)
 end
 
