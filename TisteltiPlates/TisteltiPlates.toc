@@ -8,6 +8,7 @@ Honor.lua
 Prioridad.lua
 PvP.lua
 CCPosition.lua
+HordeStyle.lua
 Core.lua
 
 

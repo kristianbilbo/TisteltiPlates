@@ -603,6 +603,13 @@ local function UpdateCombat(unit, plate)
     art.guildRole:SetText("")
 end
 
+local function RefreshHorde()
+    if not TisteltiPlatesHorde then return end
+    for unit, plate in pairs(tracked) do
+        TisteltiPlatesHorde.Update(plate and plate.UnitFrame, unit, db)
+    end
+end
+
 Refresh = function()
     if not db then return end
     if TisteltiPlatesPvP then TisteltiPlatesPvP.Sync() end
@@ -617,6 +624,7 @@ Refresh = function()
                 Message("Error al dibujar en combate: " .. tostring(err))
             end
         end
+        RefreshHorde()
         return
     end
     for uf, art in pairs(combatArt) do art:Hide(); combatArt[uf] = nil end
@@ -634,6 +642,7 @@ Refresh = function()
         end
         for uf in pairs(active) do Remove(uf) end
         for _, label in pairs(guildLabels) do label:Hide() end
+        RefreshHorde()
         return
     end
     for unit, plate in pairs(tracked) do
@@ -643,6 +652,7 @@ Refresh = function()
             Message("Error al dibujar la placa: " .. tostring(err))
         end
     end
+    RefreshHorde()
 end
 
 local function Preview()
@@ -729,7 +739,7 @@ local function RegisterOptions()
     local style, rank = "group", 0
     local color = RAID_CLASS_COLORS.MAGE
     local bar = CreateFrame("StatusBar", nil, panel)
-    bar:SetPoint("TOPLEFT", 56, -315)
+    bar:SetPoint("TOPLEFT", 56, -395)
     bar:SetSize(180, 19)
     bar:SetStatusBarTexture(WHITE)
     bar:SetMinMaxValues(0, 100)
@@ -806,7 +816,23 @@ local function RegisterOptions()
     local priorityNote=panel:CreateFontString(nil,"OVERLAY","GameFontDisableSmall")
     priorityNote:SetPoint("TOPLEFT",20,-220)
     priorityNote:SetText("Estilo configura el aspecto; Prioridad decide cuál se aplica si coinciden.")
-    caption:SetPoint("TOPLEFT",20,-235); caption:SetText("Vista previa")
+    local function hordeCheck(key, text, y)
+        local check = CreateFrame("CheckButton", nil, panel, "UICheckButtonTemplate")
+        check:SetSize(26, 26)
+        check:SetPoint("TOPLEFT", 20, y)
+        local label = check:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        label:SetPoint("LEFT", check, "RIGHT", 4, 0)
+        label:SetText(text)
+        check:SetChecked(db[key])
+        check:SetScript("OnShow", function(self) self:SetChecked(db[key]) end)
+        check:SetScript("OnClick", function(self)
+            db[key] = self:GetChecked() and true or false
+            Refresh()
+        end)
+    end
+    hordeCheck("hordeRedName", "Jugadores de la Horda: nombre rojo", -245)
+    hordeCheck("hordeRedBorder", "Jugadores de la Horda: borde rojo", -275)
+    caption:SetPoint("TOPLEFT",20,-325); caption:SetText("Vista previa")
     panel:SetScript("OnShow",redraw)
     panel:SetScript("OnHide",function() popup:Hide() end)
     local category = Settings.RegisterCanvasLayoutCategory(panel, "TisteltiPlates")
@@ -891,6 +917,8 @@ driver:SetScript("OnEvent", function(_, event, unit)
         if db.group == nil then db.group = true end
         if db.raid == nil then db.raid = db.group end
         if db.guild == nil then db.guild = true end
+        if type(db.hordeRedName) ~= "boolean" then db.hordeRedName = true end
+        if type(db.hordeRedBorder) ~= "boolean" then db.hordeRedBorder = true end
         if db.priority ~= "group" and db.priority ~= "guild" then db.priority = "guild" end
         if type(db.hideRightWingOnCC) ~= "boolean" then db.hideRightWingOnCC = true end
         if type(db.scale) ~= "number" or db.scale < .8 or db.scale > 1.8 then db.scale = 1 end
@@ -924,7 +952,10 @@ driver:SetScript("OnEvent", function(_, event, unit)
         tracked[unit] = C_NamePlate.GetNamePlateForUnit(unit)
     elseif event == "NAME_PLATE_UNIT_REMOVED" then
         local plate = tracked[unit]
-        if plate and plate.UnitFrame then Remove(plate.UnitFrame) end
+        if plate and plate.UnitFrame then
+            Remove(plate.UnitFrame)
+            if TisteltiPlatesHorde then TisteltiPlatesHorde.Remove(plate.UnitFrame) end
+        end
         tracked[unit] = nil
     end
     Refresh()

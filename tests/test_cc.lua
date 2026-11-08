@@ -184,6 +184,7 @@ print("PASS: wing preference defaults on, toggles live and persists when disable
 
 -- Build the real options panel and exercise the checkbox's actual callbacks.
 local checkbox
+local checkboxes = {}
 local function UIFrame(parent)
     local frame=Frame(parent)
     frame.CreateTexture=function(self) return UIFrame(self) end
@@ -197,7 +198,10 @@ local function UIFrame(parent)
 end
 CreateFrame=function(kind,_,parent)
     local frame=UIFrame(parent)
-    if kind=="CheckButton" then checkbox=frame end
+    if kind=="CheckButton" then
+        checkboxes[#checkboxes+1]=frame
+        checkbox=checkbox or frame
+    end
     return frame
 end
 RAID_CLASS_COLORS={MAGE={r=0.2,g=0.6,b=1}}
@@ -213,6 +217,18 @@ assert(TisteltiPlatesDB.hideRightWingOnCC==false and art.rightWing.shown and art
 checkbox:SetChecked(true); checkbox.scripts.OnShow(checkbox)
 assert(checkbox.checked==false, "Reopening must resync the saved preference")
 print("PASS: config checkbox changes live wings and reflects the saved preference")
+assert(#checkboxes==3)
+for i,key in ipairs({"hordeRedName", "hordeRedBorder"}) do
+    local check=checkboxes[i+1]
+    assert(check.checked==true)
+    check:SetChecked(false); check.scripts.OnClick(check)
+    assert(TisteltiPlatesDB[key]==false)
+    check:SetChecked(true); check.scripts.OnShow(check)
+    assert(check.checked==false)
+end
+core.driver.scripts.OnEvent(core.driver,"ADDON_LOADED","TisteltiPlates")
+assert(TisteltiPlatesDB.hordeRedName==false and TisteltiPlatesDB.hordeRedBorder==false)
+print("PASS: independent Horde options toggle live and preserve saved opt-outs")
 
 local message
 local oldPrint=print
