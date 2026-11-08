@@ -1,12 +1,12 @@
 # TisteltiPlates
 
-Addon para WoW Forever (interfaz 16001). Versión actual: **0.8.1**.
+Addon para WoW Forever (interfaz 16001). Versión actual: **0.8.2**.
 
 Personalización de placas para grupo y jugadores amistosos, con alas, escudos y colores de clase.
 
 ## Modo PvP compacto
 
-Se abre con `/tistelti pvp` o en **Opciones → AddOns → TisteltiPlates → Modo PvP**. Está activado inicialmente: conserva el tamaño original y sustituye las alas grandes por un marco con neón y un emblema de facción pequeño pegado al borde. Desactivar el modo recupera el diseño clásico con sus ajustes anteriores. No fuerza CVars ni muestra placas que el juego tenga ocultas.
+Se abre con `/tistelti pvp` o en **Opciones → AddOns → TisteltiPlates → Modo PvP**. Desde 0.8.2 está **desactivado por defecto**; se puede activar con `/tistelti pvp on`. Se respetan las activaciones y desactivaciones ya guardadas. Si se había activado antes y se desea apagarlo, usar `/tistelti pvp off`. Al activarlo conserva el tamaño original y sustituye las alas grandes por un marco con neón y un emblema de facción pequeño pegado al borde. Desactivar el modo recupera el diseño clásico con sus ajustes anteriores. No fuerza CVars ni muestra placas que el juego tenga ocultas.
 
 Los aliados admiten color de clase o azul. Los enemigos admiten **barra, marco y neón por clase** o **los tres rojos**. El icono de clase opcional conserva siempre su propio contorno neón de clase, incluso cuando la barra es roja. Se mantiene el emblema de facción, sin sustituirlo todavía por los escudos de mérito de los bocetos.
 

@@ -27,7 +27,8 @@ end
 function PvP.Initialize(db)
     if type(db.pvp) ~= "table" then db.pvp = {} end
     config = db.pvp
-    for _, key in ipairs({"enabled", "friends", "enemies", "emblem", "wings", "classIcon"}) do
+    if type(config.enabled) ~= "boolean" then config.enabled = false end
+    for _, key in ipairs({"friends", "enemies", "emblem", "wings", "classIcon"}) do
         if type(config[key]) ~= "boolean" then config[key] = true end
     end
     if config.enemyColor ~= "red" and config.enemyColor ~= "class" then config.enemyColor = "class" end

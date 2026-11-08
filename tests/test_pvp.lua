@@ -114,9 +114,12 @@ local pvp=TisteltiPlatesPvP
 TisteltiPlatesDB={priority='group',scale=1.4,appearance={group={border='cobre'}}}
 core.driver.scripts.OnEvent(core.driver,'ADDON_LOADED','TisteltiPlates')
 local db=TisteltiPlatesDB
-assert(db.pvp.enabled and db.pvp.enemyColor=='class' and db.pvp.classIcon)
+assert(not db.pvp.enabled and not pvp.IsActive(),'PvP desactivado por defecto')
+assert(db.pvp.enemyColor=='class' and db.pvp.classIcon)
 assert(db.priority=='group' and db.scale==1.4 and db.appearance.group.border=='cobre')
 assert(panels['Modo PvP'],'PvP subcategory must be registered')
+SlashCmdList.TISTELTIPLATES('pvp on')
+assert(db.pvp.enabled and pvp.IsActive(),'activación explícita')
 local function add(unit)
     local uf=Frame(); uf.unit=unit; uf.native=true
     uf.healthBar=Frame(uf); uf.healthBar.native=true
@@ -259,5 +262,7 @@ assert(ally.TisteltiPvPArt.wings[1].shown,'Guild wings must support roster-only 
 enemy2.unit=nil; pvp.Remove(enemy2); assert(enemy2.healthBar.color[1]==.3)
 db.pvp.enabled=false; db.pvp.high='violeta'; pvp.Initialize(db)
 assert(not pvp.IsActive() and db.pvp.high=='violeta','Saved settings must survive reload')
+db.pvp.enabled=true; pvp.Initialize(db)
+assert(pvp.IsActive(),'se conserva una activación guardada')
 assert(#errors==0,table.concat(errors,'\n'))
 print('PASS: PvP migration, native size, factions, wings, options, colors, combat, native skills/CC/cast timers, secrets, restoration and recycling')

@@ -1,4 +1,8 @@
-TISTELTI - ALAS DE GRUPO · v0.8.1 · Forever 1.60.1 / interfaz 16001
+TISTELTI - ALAS DE GRUPO · v0.8.2 · Forever 1.60.1 / interfaz 16001
+
+MODO PVP OPCIONAL 0.8.2 (prevalece sobre el historial inferior)
+- Desactivado por defecto para configuraciones nuevas.
+- Se respeta la opción ya guardada. /tistelti pvp on lo activa; off lo apaga.
 
 COMPATIBILIDAD CON HABILIDADES 0.8.1
 - Ala derecha e icono de clase ceden espacio a los controles nativos visibles.
