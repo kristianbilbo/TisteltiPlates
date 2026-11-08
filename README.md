@@ -1,6 +1,12 @@
 # TisteltiPlates
 
-Addon para WoW Forever (interfaz 16001). Versión actual: **0.8.4**.
+Addon para WoW Forever (interfaz 16001). Versión actual: **0.8.5**.
+
+## Corrección de errores 0.8.5
+
+El registro real del cliente mostraba una repetición de `Frame:GetPoint(): Can't measure restricted regions` al intentar guardar anclajes de controles. Ahora se comprueban las restricciones parciales de acceso y aspectos prohibidos antes de medirlos. Si no se puede obtener una copia completa y pública, ese marco conserva su colocación nativa. Core aplica las mismas comprobaciones al guardar, recolocar y restaurar auras. Los controles restringidos no se vuelven a medir repetidamente.
+
+La regresión incluye 1.000 actualizaciones de un marco que rechaza las mediciones: no se llama a GetPoint ni se mutan sus anclajes. También se cubren respuestas secretas y clientes sin las comprobaciones preventivas. Ejecuta `/reload` después de actualizar para retirar los manejadores de la versión anterior.
 
 Personalización de placas para grupo y jugadores amistosos, con alas, escudos y colores de clase.
 

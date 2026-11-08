@@ -378,9 +378,9 @@ end
 
 local function RememberCC(state, frame, row)
     if not frame or Safe(frame.IsForbidden, frame) then return end
-    if not frame.GetFrameLevel or not frame.GetNumPoints or not frame.GetPoint then return end
-    local entry = {frame = frame, row = row, frameLevel = frame:GetFrameLevel(), points = {}}
-    for i = 1, frame:GetNumPoints() do entry.points[i] = {frame:GetPoint(i)} end
+    local points,level=TisteltiPlatesCC.CapturePlacement(frame)
+    if not points then return end
+    local entry = {frame = frame, row = row, frameLevel = level, points = points}
     if TisteltiPlatesCC.OriginalPlacement then
         local points, level = TisteltiPlatesCC.OriginalPlacement(frame)
         if points then entry.points = points end
@@ -395,7 +395,7 @@ local function Layout(state)
     local previous
     for _, entry in ipairs(state.cc) do
         -- CC stays beside the level badge; only buffs/debuffs stack above it.
-        if entry.row == 0 then
+        if entry.row == 0 and TisteltiPlatesCC.CanPosition(entry.frame) then
             local frame = entry.frame
             frame:ClearAllPoints()
             frame:SetPoint("BOTTOM", previous or state.art.ccAnchor, "TOP", 0, previous and 6 * db.scale or 0)
@@ -423,9 +423,11 @@ local function Remove(uf)
     if state.baseWidth then uf:SetWidth(state.baseWidth) end
     for _, entry in ipairs(state.levels) do entry.frame:SetAlpha(entry.alpha) end
     for _, entry in ipairs(state.cc) do
-        entry.frame:ClearAllPoints()
-        for _, point in ipairs(entry.points) do entry.frame:SetPoint(unpack(point)) end
-        entry.frame:SetFrameLevel(entry.frameLevel)
+        if TisteltiPlatesCC.CanPosition(entry.frame) then
+            entry.frame:ClearAllPoints()
+            for _, point in ipairs(entry.points) do entry.frame:SetPoint(unpack(point)) end
+            entry.frame:SetFrameLevel(entry.frameLevel)
+        end
     end
     -- Removed plates may have no unit by the time deferred cleanup runs.
     -- Blizzard's color updater requires a live unit; otherwise restore our snapshot.

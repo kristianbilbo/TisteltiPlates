@@ -6,6 +6,7 @@ TisteltiPlatesCC = CC
 local hooked = setmetatable({}, {__mode = "k"})
 local originalLevels = setmetatable({}, {__mode = "k"})
 local originalPoints = setmetatable({}, {__mode = "k"})
+local unreadable = setmetatable({}, {__mode = "k"})
 local keys = {"CrowdControlListFrame", "LossOfControlFrame"}
 
 function CC.OriginalPlacement(frame)
@@ -16,6 +17,34 @@ local function Read(fn, ...)
     if type(fn) ~= "function" then return nil end
     local ok, value = pcall(fn, ...)
     if ok and not (issecretvalue and issecretvalue(value)) then return value end
+end
+
+function CC.CanPosition(frame)
+    if not frame or unreadable[frame] then return false end
+    -- IsForbidden no cubre restricciones parciales como FrameMeasurement.
+    -- Una respuesta secreta o no disponible tampoco autoriza medir el marco.
+    for _,method in ipairs({"IsForbidden","HasAccessConstraints","HasAnyForbiddenAspects"}) do
+        if type(frame[method])=="function" and Read(frame[method],frame)~=false then return false end
+    end
+    return not InCombatLockdown() or Read(frame.IsProtected,frame)==false
+end
+
+function CC.CapturePlacement(frame)
+    if not CC.CanPosition(frame) then return end
+    local count=Read(frame.GetNumPoints,frame)
+    local level=Read(frame.GetFrameLevel,frame)
+    if type(count)~="number" or type(level)~="number" or type(frame.GetPoint)~="function" then return end
+    local points={}
+    for i=1,count do
+        local ok,point,relative,relativePoint,x,y=pcall(frame.GetPoint,frame,i)
+        if not ok or (issecretvalue and (issecretvalue(point) or issecretvalue(relative)
+            or issecretvalue(relativePoint) or issecretvalue(x) or issecretvalue(y))) or not point then
+            unreadable[frame]=true
+            return -- Sin copia completa no se cambia ni se intenta recolocar.
+        end
+        points[i]={point,relative,relativePoint,x,y}
+    end
+    return points,level
 end
 
 local function Visible(frame)
@@ -88,8 +117,7 @@ function CC.Position(uf)
     if TisteltiPlatesPvP and TisteltiPlatesPvP.IsActive() then
         for _, key in ipairs(keys) do
             local frame = auras[key]
-            if frame and originalPoints[frame] and not Read(frame.IsForbidden, frame)
-                and (not InCombatLockdown() or Read(frame.IsProtected, frame) == false) then
+            if frame and originalPoints[frame] and CC.CanPosition(frame) then
                 frame:ClearAllPoints()
                 for _, point in ipairs(originalPoints[frame]) do frame:SetPoint(unpack(point)) end
                 if originalLevels[frame] then frame:SetFrameLevel(originalLevels[frame]) end
@@ -108,21 +136,21 @@ function CC.Position(uf)
         local frame = auras[key]
         -- Preserve the old positioner's combat behavior for unprotected lists.
         -- Protected lists wait for PLAYER_REGEN_ENABLED; wings still update.
-        if frame and not Read(frame.IsForbidden, frame)
-            and (not InCombatLockdown() or Read(frame.IsProtected, frame) == false) then
+        if frame and CC.CanPosition(frame) then
             if not originalPoints[frame] then
-                local points = {}
-                for i = 1, frame:GetNumPoints() do points[i] = {frame:GetPoint(i)} end
+                local points=CC.CapturePlacement(frame)
                 originalPoints[frame] = points
             end
-            frame:ClearAllPoints()
-            frame:SetPoint("LEFT", anchor, "RIGHT", 8, 0)
-            if art then
-                if originalLevels[frame] == nil then originalLevels[frame] = frame:GetFrameLevel() end
-                frame:SetFrameLevel(art.badge:GetFrameLevel() + 10)
-            elseif originalLevels[frame] then
-                frame:SetFrameLevel(originalLevels[frame])
-                originalLevels[frame] = nil
+            if originalPoints[frame] then
+                frame:ClearAllPoints()
+                frame:SetPoint("LEFT", anchor, "RIGHT", 8, 0)
+                if art then
+                    if originalLevels[frame] == nil then originalLevels[frame] = frame:GetFrameLevel() end
+                    frame:SetFrameLevel(art.badge:GetFrameLevel() + 10)
+                elseif originalLevels[frame] then
+                    frame:SetFrameLevel(originalLevels[frame])
+                    originalLevels[frame] = nil
+                end
             end
         end
     end

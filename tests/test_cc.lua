@@ -249,3 +249,33 @@ CC.Position(fresh); assert(native.points[1][1]=='LEFT')
 combat=false; CC.Position(fresh)
 assert(native.points[1][1]=='BOTTOM' and native.points[1][5]==4 and native:GetFrameLevel()==nativeLevel)
 print('PASS: compact PvP restores native CC anchors and defers protected changes in combat')
+
+-- Real-client regression: IsForbidden=false is not enough. Native controls
+-- can forbid FrameMeasurement and throw from GetPoint thousands of times.
+compact=false
+local restrictedUF=Frame()
+restrictedUF.HealthBarsContainer=Frame(restrictedUF)
+restrictedUF.AurasFrame=Frame(restrictedUF)
+local restricted=Frame(restrictedUF.AurasFrame)
+restrictedUF.AurasFrame.LossOfControlFrame=restricted
+restricted:SetPoint('BOTTOM',restrictedUF.HealthBarsContainer,'TOP',0,4)
+local original=restricted.points[1]
+local measurements,mutations=0,0
+restricted.HasAnyForbiddenAspects=function() return true end
+restricted.GetPoint=function() measurements=measurements+1 error("Can't measure restricted regions") end
+restricted.ClearAllPoints=function() mutations=mutations+1 error('Restricted anchor mutation') end
+for i=1,1000 do CC.Position(restrictedUF) end
+assert(measurements==0 and mutations==0 and restricted.points[1]==original,'Forbidden aspects must be checked before reading native points')
+restricted.HasAnyForbiddenAspects=function() return false end
+restricted.HasAccessConstraints=function() return true end
+CC.Position(restrictedUF) assert(measurements==0)
+restricted.HasAccessConstraints=function() return secret end
+CC.Position(restrictedUF) assert(measurements==0,'Unknown access fails closed')
+restricted.HasAccessConstraints=nil restricted.HasAnyForbiddenAspects=nil
+for i=1,1000 do CC.Position(restrictedUF) end
+assert(measurements==1 and mutations==0,'A client without preflight only attempts a failed snapshot once')
+local hiddenAccess=Frame()
+hiddenAccess.GetPoint=function() return secret end
+hiddenAccess.GetNumPoints=function() return 1 end
+assert(not CC.CapturePlacement(hiddenAccess),'Secret anchor values are never saved or used')
+print('PASS: restricted FrameMeasurement, access constraints and repeated GetPoint failures leave native controls untouched')

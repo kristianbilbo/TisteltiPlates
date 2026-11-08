@@ -1,4 +1,12 @@
-TISTELTI - ALAS DE GRUPO · v0.8.4 · Forever 1.60.1 / interfaz 16001
+TISTELTI - ALAS DE GRUPO · v0.8.5 · Forever 1.60.1 / interfaz 16001
+
+CORRECCION DE ERRORES 0.8.5
+- Evita la repetición de GetPoint / Can't measure restricted regions.
+- Comprueba restricciones parciales antes de medir anclajes nativos.
+- Los controles inaccesibles conservan su colocación nativa.
+- La misma protección se aplica al guardar, recolocar y restaurar auras.
+- Comprobado con 1.000 actualizaciones de un marco restringido.
+- Ejecuta /reload para cargar el arreglo y retirar los manejadores anteriores.
 
 OBJETIVO Y PRIORIDAD 0.8.4 (prevalece sobre el historial inferior)
 - Enemigos con borde rojo y barra de clase, o roja si así se configura.
