@@ -31,6 +31,9 @@ local function Frame(parent)
     function f:SetWidth(w) if self.native then nativeMutations=nativeMutations+1; assert(not combat) end; self.width=w end
     function f:SetHeight(h) self.height=h end
     function f:GetWidth() return self.width end
+    function f:GetStringWidth() return self.textWidth or 80 end
+    function f:GetJustifyH() return 'CENTER' end
+    function f:IsShowOnlyName() return self.showOnlyName==true end
     function f:GetHeight() return self.height end
     function f:SetScale(v) if self.native then nativeMutations=nativeMutations+1; assert(not combat) end; self.scale=v end
     function f:GetScale() return self.scale end
@@ -115,6 +118,7 @@ Settings={
 local plates={}
 C_NamePlate={GetNamePlateForUnit=function(u) return plates[u] end}
 assert(loadfile('TisteltiPlates/Prioridad.lua'))()
+assert(loadfile('TisteltiPlates/NamesOnly.lua'))()
 assert(loadfile('TisteltiPlates/PlayerStyle.lua'))()
 assert(loadfile('TisteltiPlates/PvP.lua'))()
 assert(loadfile('TisteltiPlates/CCPosition.lua'))()
@@ -395,3 +399,48 @@ core.driver.scripts.OnEvent(core.driver,'NAME_PLATE_UNIT_ADDED','enemy')
 assert(together.TisteltiPlayerBorder.shown and togetherCC.points[1][4]==8)
 assert(#errors==0,table.concat(errors,'\n'))
 print('PASS: combined modes use one border/color source; disable, combat, guild priority and recycled plates clean up all modules')
+
+-- Native names-only mode must win over every plate renderer, even when the
+-- health bar frame is still shown (Blizzard hides its artwork internally).
+db.pvp.enabled=true; db.guild=true; db.namesOnlyWings=true
+core.refresh()
+guild.showOnlyName=true
+core.driver.scripts.OnEvent(core.driver,'CVAR_UPDATE','nameplateShowOnlyNameForFriendlyPlayerUnits')
+local mini=guild.TisteltiNameWings
+assert(mini and mini.shown and mini.width==80 and mini.left.width==16)
+assert(mini.points[1][2]==guild.name and mini.left.points[1][4]==-4)
+assert(not guild.TisteltiPvPArt.shown)
+assert(not guild.TisteltiPlayerBorder or not guild.TisteltiPlayerBorder.shown)
+assert(not guild.TisteltiArt or not guild.TisteltiArt.shown)
+assert(guild.AurasFrame.LossOfControlFrame.points[1][1]=='BOTTOM', 'Names-only leaves native CC anchors alone')
+local beforeNames=nativeMutations
+combat=true; core.refresh()
+assert(mini.shown and nativeMutations==beforeNames, 'Names-only draws no native geometry in combat')
+db.namesOnlyWings=false; core.refresh(); assert(not mini.shown)
+assert(not guild.TisteltiPvPArt.shown, 'Opting out of mini wings does not restore a full plate')
+db.namesOnlyWings=true; core.refresh(); assert(mini.shown)
+db.enabled=false; core.refresh(); assert(not mini.shown)
+db.enabled=true; combat=false; core.refresh(); assert(mini.shown)
+-- Name changes alter only the span of our own frame.
+guild.name.textWidth=44; core.refresh(); assert(mini.width==44)
+guild.name:Hide(); core.refresh(); assert(not mini.shown)
+guild.name:Show(); core.refresh(); assert(mini.shown)
+core.driver.scripts.OnEvent(core.driver,'NAME_PLATE_UNIT_REMOVED','guild')
+assert(not mini.shown)
+core.driver.scripts.OnEvent(core.driver,'NAME_PLATE_UNIT_ADDED','guild')
+assert(mini.shown)
+guild.showOnlyName=false; core.refresh()
+assert(not mini.shown and guild.TisteltiPvPArt.shown, 'Returning to bars restores compact mode')
+db.pvp.enabled=false; core.refresh()
+assert(guild.TisteltiArt.shown)
+guild.showOnlyName=true; core.refresh()
+assert(mini.shown and not guild.TisteltiArt.shown and guild.scale==.9)
+-- Same style resolver and guild/group priority as full plates.
+UnitInParty=function(u) return u=='guild' end
+db.group=true; db.priority='group'; core.refresh()
+assert(mini.left.texture:find('Wings-Grupo',1,true))
+db.priority='guild'; core.refresh()
+assert(mini.left.texture:find('Media\\Wings.tga',1,true))
+db.guild=false; db.group=false; core.refresh(); assert(not mini.shown)
+assert(#errors==0,table.concat(errors,'\n'))
+print('PASS: names-only overrides classic/PvP/borders/CC; membership, combat, opt-out, disable and recycling')

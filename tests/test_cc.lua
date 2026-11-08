@@ -225,9 +225,12 @@ assert(TisteltiPlatesDB.hideRightWingOnCC==false and art.rightWing.shown and art
 checkbox:SetChecked(true); checkbox.scripts.OnShow(checkbox)
 assert(checkbox.checked==false, "Reopening must resync the saved preference")
 print("PASS: config checkbox changes live wings and reflects the saved preference")
-assert(#checkboxes==4)
+assert(#checkboxes==5)
+assert(checkboxes[2].checked==true)
+checkboxes[2]:SetChecked(false); checkboxes[2].scripts.OnClick(checkboxes[2])
+assert(TisteltiPlatesDB.namesOnlyWings==false)
 for i,key in ipairs({"name", "border"}) do
-    local check=checkboxes[i+1]
+    local check=checkboxes[i+2]
     assert(check.checked==false)
     check:SetChecked(true); check.scripts.OnClick(check)
     assert(TisteltiPlatesDB.playerColors.ally[key]==true)
@@ -236,6 +239,7 @@ for i,key in ipairs({"name", "border"}) do
 end
 core.driver.scripts.OnEvent(core.driver,"ADDON_LOADED","TisteltiPlates")
 assert(TisteltiPlatesDB.playerColors.ally.name and TisteltiPlatesDB.playerColors.ally.border)
+assert(TisteltiPlatesDB.namesOnlyWings==false, 'Names-only opt-out survives initialization')
 print("PASS: independent player options preserve saved preferences")
 
 local message

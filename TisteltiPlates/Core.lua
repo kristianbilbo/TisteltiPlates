@@ -389,6 +389,7 @@ local function Layout(state)
 end
 
 local function Remove(uf)
+    if TisteltiPlatesNamesOnly then TisteltiPlatesNamesOnly.Remove(uf) end
     if TisteltiPlatesPvP then TisteltiPlatesPvP.Remove(uf) end
     if combatArt[uf] then combatArt[uf]:Hide(); combatArt[uf] = nil end
     if guildLabels[uf] then guildLabels[uf]:Hide() end
@@ -442,17 +443,7 @@ local function Tint(uf)
     end
 end
 
-local function Update(unit, plate)
-    local uf = plate and plate.UnitFrame
-    if not uf or Safe(uf.IsForbidden, uf) then return end
-    if TisteltiPlatesPvP and TisteltiPlatesPvP.IsActive() then
-        if active[uf] or combatArt[uf] then Remove(uf) end
-        if guildLabels[uf] then guildLabels[uf]:Hide() end
-        TisteltiPlatesCC.Position(uf)
-        if Allowed() then TisteltiPlatesPvP.Update(unit, uf) else TisteltiPlatesPvP.Remove(uf) end
-        return
-    end
-    if TisteltiPlatesPvP then TisteltiPlatesPvP.Remove(uf) end
+local function ResolveStyle(unit)
     -- A party token and a nameplate token can refer to the same character.
     -- Use the roster identity when Forever exposes more data through it.
     local roster
@@ -468,7 +459,33 @@ local function Update(unit, plate)
             end
         end
     end
-    local style = Allowed() and RosterMembership(unit, roster, db[rosterStyle] and rosterStyle)
+    return Allowed() and RosterMembership(unit, roster, db[rosterStyle] and rosterStyle), roster
+end
+
+local function NamesOnly(unit, uf)
+    local names = TisteltiPlatesNamesOnly
+    if not names then return false end
+    if not names.IsActive(uf) then names.Remove(uf); return false end
+    -- Names-only takes precedence over both decorated and compact PvP plates.
+    Remove(uf)
+    local style = ResolveStyle(unit)
+    names.Update(uf, style, db)
+    return true
+end
+
+local function Update(unit, plate)
+    local uf = plate and plate.UnitFrame
+    if not uf or Safe(uf.IsForbidden, uf) then return end
+    if NamesOnly(unit, uf) then return end
+    if TisteltiPlatesPvP and TisteltiPlatesPvP.IsActive() then
+        if active[uf] or combatArt[uf] then Remove(uf) end
+        if guildLabels[uf] then guildLabels[uf]:Hide() end
+        TisteltiPlatesCC.Position(uf)
+        if Allowed() then TisteltiPlatesPvP.Update(unit, uf) else TisteltiPlatesPvP.Remove(uf) end
+        return
+    end
+    if TisteltiPlatesPvP then TisteltiPlatesPvP.Remove(uf) end
+    local style, roster = ResolveStyle(unit)
     if not style then
         Remove(uf)
         PlainGuildName(uf, unit)
@@ -549,6 +566,7 @@ end
 local function UpdateCombat(unit, plate)
     local uf = plate and plate.UnitFrame
     if not uf or Safe(uf.IsForbidden, uf) then return end
+    if NamesOnly(unit, uf) then return end
     if TisteltiPlatesPvP and TisteltiPlatesPvP.IsActive() then
         if active[uf] or combatArt[uf] then Remove(uf) end
         if guildLabels[uf] then guildLabels[uf]:Hide() end
@@ -591,6 +609,7 @@ local function RefreshOverlays()
         TisteltiPlatesCC.Position(uf)
         if TisteltiPlatesPlayers then
             local decorated = uf and ((active[uf] and not active[uf].pendingRemoval) or combatArt[uf])
+            decorated = decorated or (uf and uf.TisteltiNameWings and Safe(uf.TisteltiNameWings.IsShown, uf.TisteltiNameWings))
             local pvpArt = uf and uf.TisteltiPvPArt
             TisteltiPlatesPlayers.Update(uf, unit, db, decorated, pvpArt and Safe(pvpArt.IsShown, pvpArt))
         end
@@ -817,6 +836,7 @@ driver:SetScript("OnEvent", function(_, event, unit)
         end
         if db.priority ~= "group" and db.priority ~= "guild" then db.priority = "guild" end
         if type(db.hideRightWingOnCC) ~= "boolean" then db.hideRightWingOnCC = true end
+        if type(db.namesOnlyWings) ~= "boolean" then db.namesOnlyWings = true end
         if type(db.scale) ~= "number" or db.scale < .8 or db.scale > 1.8 then db.scale = 1 end
         if type(db.ranks) ~= "table" then db.ranks = {} end
         if type(db.appearance) ~= "table" then db.appearance = {} end
@@ -860,7 +880,7 @@ driver:SetScript("OnEvent", function(_, event, unit)
 end)
 for _, event in ipairs({"ADDON_LOADED", "NAME_PLATE_UNIT_ADDED", "NAME_PLATE_UNIT_REMOVED",
     "GROUP_ROSTER_UPDATE", "PLAYER_GUILD_UPDATE", "PLAYER_ENTERING_WORLD",
-    "PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "UNIT_FACTION", "PLAYER_TARGET_CHANGED", "RAID_TARGET_UPDATE"}) do driver:RegisterEvent(event) end
+    "PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "UNIT_FACTION", "PLAYER_TARGET_CHANGED", "RAID_TARGET_UPDATE", "CVAR_UPDATE"}) do driver:RegisterEvent(event) end
 local elapsed = 0
 driver:SetScript("OnUpdate", function(_, dt)
     if InCombatLockdown() then

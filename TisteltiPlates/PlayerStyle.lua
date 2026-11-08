@@ -83,7 +83,8 @@ function Players.Update(uf, unit, db, decorated, pvpOwnsBorder)
         RestoreName(state)
     end
     local anchor = uf.HealthBarsContainer or uf.healthBar
-    if config.border and not pvpOwnsBorder and anchor and not Read(anchor.IsForbidden, anchor)
+    local namesOnly = TisteltiPlatesNamesOnly and TisteltiPlatesNamesOnly.IsActive(uf)
+    if config.border and not namesOnly and not pvpOwnsBorder and anchor and not Read(anchor.IsForbidden, anchor)
         and Read(anchor.IsShown, anchor) then
         local border = borders[uf]
         if not border then

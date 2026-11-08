@@ -6,6 +6,7 @@
 ## SavedVariables: TisteltiPlatesDB
 Honor.lua
 Prioridad.lua
+NamesOnly.lua
 PlayerStyle.lua
 PvP.lua
 CCPosition.lua

@@ -27,6 +27,9 @@ function TisteltiPlatesOptions.Register(db, api)
     bar:SetFrameLevel(previewBox:GetFrameLevel()+1)
     local caption = previewBox:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     caption:SetPoint("TOPLEFT",16,-14)
+    local miniName = previewBox:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    miniName:SetPoint("CENTER",previewBox,"CENTER",0,-42)
+    miniName:SetWidth(150); miniName:SetText("Solo nombres"); miniName:SetJustifyH("CENTER")
     local note = panel:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     note:SetPoint("TOPLEFT",20,-108); note:SetWidth(460); note:SetJustifyH("LEFT"); note:SetWordWrap(true)
     local labels = {group="Grupo", groupFirst="Grupo/Banda", raid="Banda", guild="Hermandad", ally="Aliados", enemy="Enemigos",
@@ -148,8 +151,10 @@ function TisteltiPlatesOptions.Register(db, api)
         return function(rgb) config.color=rgb; config.border="color" end,
             function() config.color=oldColor; config.border=oldMode end
     end,"decorated")
-    check(20,-350,"Ocultar ala derecha al mostrar controles",function() return db.hideRightWingOnCC~=false end,
+    check(20,-338,"Ocultar ala derecha al mostrar controles",function() return db.hideRightWingOnCC~=false end,
         function(v) db.hideRightWingOnCC=v end,"decorated")
+    check(20,-369,"Alitas pequeñas en el modo solo nombres de WoW",function() return db.namesOnlyWings end,
+        function(v) db.namesOnlyWings=v end,"decorated")
     local function playerConfig() return db.playerColors[tab=="enemy" and "enemy" or "ally"] end
     check(20,-185,"Colorear nombre",function() return playerConfig().name end,function(v) playerConfig().name=v end,"players")
     check(20,-245,"Colorear borde",function() return playerConfig().border end,function(v) playerConfig().border=v end,"players")
@@ -171,6 +176,12 @@ function TisteltiPlatesOptions.Register(db, api)
         for _,update in ipairs(updates) do update() end
         for _,menu in ipairs(menus) do menu:SetText(labels[menu.read()]) end
         caption:SetText("Vista previa · "..labels[special and style or tab])
+        miniName:SetShown(special and db.namesOnlyWings and db[style])
+        if TisteltiPlatesNamesOnly then
+            if special and db.namesOnlyWings and db[style] then
+                TisteltiPlatesNamesOnly.Paint(previewBox, miniName, style)
+            else TisteltiPlatesNamesOnly.Remove(previewBox) end
+        end
         if special then
             plainBorder:Hide(); bar:SetShown(db[style]); name:SetText("Mago de muestra"); name:SetTextColor(1,1,1)
             Paint(art,bar,style,color,60,rank,db.scale,Safe(GetGuildInfo,"player") or "Hermandad de muestra")

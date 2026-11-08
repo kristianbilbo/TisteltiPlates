@@ -191,6 +191,7 @@ end
 function CC.Position(uf)
     if not uf or Read(uf.IsForbidden, uf) then return end
     if not Enabled() or suspended[uf] then CC.Restore(uf); return end
+    if TisteltiPlatesNamesOnly and TisteltiPlatesNamesOnly.IsActive(uf) then CC.Restore(uf); return end
     local auras = uf.AurasFrame
     if not auras or Read(auras.IsForbidden, auras) then return end
     local art = Visible(uf.TisteltiArt) and uf.TisteltiArt

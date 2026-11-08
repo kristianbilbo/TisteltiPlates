@@ -1,6 +1,11 @@
 TISTELTI - ALAS DE GRUPO · v0.8.7 · Forever 1.60.1 / interfaz 16001
 
 AJUSTES LOCALES
+- Modo solo nombres de WoW: dos alas pequeñas junto al texto para grupo,
+  banda y hermandad. Activado por defecto; check en Hermandad y Grupo.
+- Respeta el modo nativo y no activa placas ni cambia CVars. Requiere placas
+  amistosas en modo solo nombres; no puede adornar nombres del mundo con
+  las placas completamente desactivadas. Conserva los límites de instancias.
 - Configuración separada en Options.lua, con pestañas nativas de WoW,
   etiquetas legibles, muestras de color y una zona de vista previa.
 - Colores para aliados y jugadores enemigos, compartidos con el modo PvP.
