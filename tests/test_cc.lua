@@ -190,6 +190,9 @@ local function UIFrame(parent)
     frame.CreateTexture=function(self) return UIFrame(self) end
     frame.CreateFontString=function(self) return UIFrame(self) end
     frame.SetText=function(self,text) self.text=text end
+    frame.GetHeight=function(self) return 19 end
+    frame.GetFrameLevel=function(self) return self.frameLevel or 2 end
+    frame.SetFrameLevel=function(self,v) self.frameLevel=v end
     frame.SetChecked=function(self,value) self.checked=value end
     frame.GetChecked=function(self) return self.checked end
     return setmetatable(frame,{__index=function(_,key)
@@ -218,17 +221,17 @@ checkbox:SetChecked(true); checkbox.scripts.OnShow(checkbox)
 assert(checkbox.checked==false, "Reopening must resync the saved preference")
 print("PASS: config checkbox changes live wings and reflects the saved preference")
 assert(#checkboxes==3)
-for i,key in ipairs({"hordeRedName", "hordeRedBorder"}) do
+for i,key in ipairs({"name", "border"}) do
     local check=checkboxes[i+1]
-    assert(check.checked==true)
-    check:SetChecked(false); check.scripts.OnClick(check)
-    assert(TisteltiPlatesDB[key]==false)
-    check:SetChecked(true); check.scripts.OnShow(check)
     assert(check.checked==false)
+    check:SetChecked(true); check.scripts.OnClick(check)
+    assert(TisteltiPlatesDB.playerColors.ally[key]==true)
+    check:SetChecked(false); check.scripts.OnShow(check)
+    assert(check.checked==true)
 end
 core.driver.scripts.OnEvent(core.driver,"ADDON_LOADED","TisteltiPlates")
-assert(TisteltiPlatesDB.hordeRedName==false and TisteltiPlatesDB.hordeRedBorder==false)
-print("PASS: independent Horde options toggle live and preserve saved opt-outs")
+assert(TisteltiPlatesDB.playerColors.ally.name and TisteltiPlatesDB.playerColors.ally.border)
+print("PASS: independent player options preserve saved preferences")
 
 local message
 local oldPrint=print

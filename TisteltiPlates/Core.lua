@@ -603,10 +603,12 @@ local function UpdateCombat(unit, plate)
     art.guildRole:SetText("")
 end
 
-local function RefreshHorde()
-    if not TisteltiPlatesHorde then return end
+local function RefreshPlayers()
+    if not TisteltiPlatesPlayers then return end
     for unit, plate in pairs(tracked) do
-        TisteltiPlatesHorde.Update(plate and plate.UnitFrame, unit, db)
+        local uf = plate and plate.UnitFrame
+        local decorated = uf and ((active[uf] and not active[uf].pendingRemoval) or combatArt[uf])
+        TisteltiPlatesPlayers.Update(uf, unit, db, decorated)
     end
 end
 
@@ -624,7 +626,7 @@ Refresh = function()
                 Message("Error al dibujar en combate: " .. tostring(err))
             end
         end
-        RefreshHorde()
+        RefreshPlayers()
         return
     end
     for uf, art in pairs(combatArt) do art:Hide(); combatArt[uf] = nil end
@@ -642,7 +644,7 @@ Refresh = function()
         end
         for uf in pairs(active) do Remove(uf) end
         for _, label in pairs(guildLabels) do label:Hide() end
-        RefreshHorde()
+        RefreshPlayers()
         return
     end
     for unit, plate in pairs(tracked) do
@@ -652,7 +654,7 @@ Refresh = function()
             Message("Error al dibujar la placa: " .. tostring(err))
         end
     end
-    RefreshHorde()
+    RefreshPlayers()
 end
 
 local function Preview()
@@ -734,50 +736,50 @@ local function RegisterOptions()
     if not Settings or not Settings.RegisterCanvasLayoutCategory then return end
     local panel = CreateFrame("Frame")
     local title = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    title:SetPoint("TOPLEFT", 20, -20)
-    title:SetText("TisteltiPlates")
-    local style, rank = "group", 0
+    title:SetPoint("TOPLEFT", 20, -20); title:SetText("TisteltiPlates")
+    local tab, style, rank = "group", "group", 0
     local color = RAID_CLASS_COLORS.MAGE
     local bar = CreateFrame("StatusBar", nil, panel)
-    bar:SetPoint("TOPLEFT", 56, -395)
-    bar:SetSize(180, 19)
-    bar:SetStatusBarTexture(WHITE)
-    bar:SetMinMaxValues(0, 100)
-    bar:SetValue(78)
+    bar:SetPoint("TOPLEFT", 70, -410); bar:SetSize(180, 19)
+    bar:SetStatusBarTexture(WHITE); bar:SetMinMaxValues(0, 100); bar:SetValue(78)
     bar:SetStatusBarColor(color.r, color.g, color.b)
     local bg = bar:CreateTexture(nil, "BACKGROUND")
     bg:SetAllPoints(); bg:SetColorTexture(.025,.035,.07,1)
     local name = bar:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    name:SetPoint("LEFT", 5, 0); name:SetText("Mago de muestra")
+    name:SetPoint("LEFT", 5, 0)
     local art = Ornament(bar)
-    local labels = {group="Grupo", groupFirst="Grupo/Banda", raid="Banda", guild="Hermandad", oroazul="Oro y azul", oro="Oro", plata="Plata",
-        clase="Clase", rango="Por rango", color="RGB personalizado", cobre="Cobre", bronce="Bronce",
-        platino="Platino", zafiro="Zafiro", esmeralda="Esmeralda", amatista="Amatista", rubi="Rubí",
-        alianza="León de la Alianza", animales="Animales de la Alianza", asesino="Capucha de Tistelti", rombos="Rombos", estrella="Estrellas", ninguno="Ninguno",
-        on="Activado", off="Desactivado", [0]="Sin rango", [4]="Rango 4", [8]="Rango 8", [14]="Rango 14"}
-    for i=1,14 do labels[i]='Rango '..i end
-    local menus = {}
-    local function redraw()
-        bar:SetShown(db[style])
-        Paint(art, bar, style, color, 60, rank, db.scale, Safe(GetGuildInfo,"player") or "Hermandad de muestra")
-        for _, menu in ipairs(menus) do menu:SetText(menu.caption .. ": " .. labels[menu.read()]) end
+    local plainBorder = FrameBorder(bar, 14, false)
+    plainBorder:SetPoint("TOPLEFT", bar, "TOPLEFT", -5, 5)
+    plainBorder:SetPoint("BOTTOMRIGHT", bar, "BOTTOMRIGHT", 5, -5)
+    local caption = panel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    caption:SetPoint("TOPLEFT",20,-355)
+    local note = panel:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    note:SetPoint("TOPLEFT",20,-315)
+    local labels = {group="Grupo", groupFirst="Grupo/Banda", raid="Banda", guild="Hermandad", ally="Aliados", enemy="Enemigos",
+        oroazul="Oro y azul", oro="Oro", plata="Plata", clase="Clase", rango="Por rango", color="RGB personalizado",
+        cobre="Cobre", bronce="Bronce", platino="Platino", zafiro="Zafiro", esmeralda="Esmeralda", amatista="Amatista", rubi="Rubí",
+        animales="Animales de la Alianza", on="Activado", off="Desactivado", [0]="Sin rango"}
+    for i=1,14 do labels[i]="Rango "..i end
+    local menus, controls, tabs, updates = {}, {}, {}, {}
+    local redraw
+    local function control(widget, scope)
+        controls[#controls+1]={widget=widget,scope=scope}
+        return widget
     end
+    local function decorated() return tab == "group" or tab == "guild" end
     local popup = CreateFrame("Frame", nil, panel, "BackdropTemplate")
-    popup:SetFrameStrata("TOOLTIP")
-    popup:EnableMouse(true)
-    popup:SetBackdrop({bgFile=WHITE}); popup:SetBackdropColor(.035,.045,.07,1)
-    popup:Hide()
+    popup:SetFrameStrata("TOOLTIP"); popup:EnableMouse(true)
+    popup:SetBackdrop({bgFile=WHITE}); popup:SetBackdropColor(.035,.045,.07,1); popup:Hide()
     local rows = {}
-    local function dropdown(x,y,label,choices,get,set)
-        local button = CreateFrame("Button",nil,panel,"UIPanelButtonTemplate")
+    local function dropdown(x,y,label,choices,get,set,scope)
+        local button=control(CreateFrame("Button",nil,panel,"UIPanelButtonTemplate"),scope or "decorated")
         button:SetSize(220,26); button:SetPoint("TOPLEFT",x,y)
-        button.caption, button.read = label,get
-        menus[#menus+1] = button
-        button:SetScript("OnClick", function()
-            if popup:IsShown() and popup.owner == button then popup:Hide(); return end
+        button.caption,button.read=label,get; menus[#menus+1]=button
+        button:SetScript("OnClick",function()
+            if popup:IsShown() and popup.owner==button then popup:Hide(); return end
             popup.owner=button; popup:ClearAllPoints(); popup:SetPoint("TOPLEFT",button,"BOTTOMLEFT")
             popup:SetSize(220,#choices*22+4)
-            for _, row in ipairs(rows) do row:Hide() end
+            for _,row in ipairs(rows) do row:Hide() end
             for i,value in ipairs(choices) do
                 local choice=value
                 local row=rows[i] or CreateFrame("Button",nil,popup,"UIPanelButtonTemplate")
@@ -789,55 +791,117 @@ local function RegisterOptions()
             popup:Show()
         end)
     end
-    dropdown(20,-60,"Estilo",{"group","raid","guild"},function() return style end,function(v) style=v end)
-    dropdown(250,-60,"Mostrar",{"on","off"},function() return db[style] and "on" or "off" end,function(v) db[style]=v=="on" end)
-    dropdown(20,-100,"Borde",{"oroazul","oro","plata","cobre","bronce","platino","zafiro","esmeralda","amatista","rubi","clase","rango","color"},
-        function() return db.appearance[style].border end,function(v) db.appearance[style].border=v end)
-    dropdown(250,-100,"Insignia",{"animales"},
-        function() return db.appearance[style].icon end,function(v) db.appearance[style].icon=v end)
-    dropdown(20,-145,"Ejemplo mérito",{0,1,2,3,4,5,6,7,8,9,10,11,12,13,14},function() return rank end,function(v) rank=v; style="guild" end)
-    dropdown(250,-145,"Prioridad",{"groupFirst","guild"},
-        function() return db.priority == "group" and "groupFirst" or "guild" end,
-        function(v) db.priority = v == "groupFirst" and "group" or "guild" end)
-    local hideWing = CreateFrame("CheckButton", nil, panel, "UICheckButtonTemplate")
-    hideWing:SetSize(26, 26)
-    hideWing:SetPoint("TOPLEFT", 20, -185)
-    local hideWingLabel = hideWing:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    hideWingLabel:SetPoint("LEFT", hideWing, "RIGHT", 4, 0)
-    hideWingLabel:SetText("Ocultar ala derecha al mostrar controles")
-    hideWing:SetChecked(db.hideRightWingOnCC ~= false)
-    hideWing:SetScript("OnShow", function(self)
-        self:SetChecked(db.hideRightWingOnCC ~= false)
-    end)
-    hideWing:SetScript("OnClick", function(self)
-        db.hideRightWingOnCC = self:GetChecked() and true or false
-    end)
-    local caption=panel:CreateFontString(nil,"OVERLAY","GameFontNormal")
-    local priorityNote=panel:CreateFontString(nil,"OVERLAY","GameFontDisableSmall")
-    priorityNote:SetPoint("TOPLEFT",20,-220)
-    priorityNote:SetText("Estilo configura el aspecto; Prioridad decide cuál se aplica si coinciden.")
-    local function hordeCheck(key, text, y)
-        local check = CreateFrame("CheckButton", nil, panel, "UICheckButtonTemplate")
-        check:SetSize(26, 26)
-        check:SetPoint("TOPLEFT", 20, y)
-        local label = check:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-        label:SetPoint("LEFT", check, "RIGHT", 4, 0)
-        label:SetText(text)
-        check:SetChecked(db[key])
-        check:SetScript("OnShow", function(self) self:SetChecked(db[key]) end)
-        check:SetScript("OnClick", function(self)
-            db[key] = self:GetChecked() and true or false
-            Refresh()
+    local function check(x,y,text,get,set,scope)
+        local button=control(CreateFrame("CheckButton",nil,panel,"UICheckButtonTemplate"),scope)
+        button:SetSize(26,26); button:SetPoint("TOPLEFT",x,y)
+        local label=button:CreateFontString(nil,"OVERLAY","GameFontNormal")
+        label:SetPoint("LEFT",button,"RIGHT",4,0); label:SetText(text)
+        local function update() button:SetChecked(get()) end
+        updates[#updates+1]=update
+        button:SetScript("OnShow",update)
+        button:SetScript("OnClick",function(self) set(self:GetChecked() and true or false); Refresh(); redraw() end)
+        return button
+    end
+    local function colorButton(x,y,text,get,set,scope)
+        local button=control(CreateFrame("Button",nil,panel,"UIPanelButtonTemplate"),scope)
+        button:SetSize(220,26); button:SetPoint("TOPLEFT",x,y)
+        updates[#updates+1]=function()
+            local rgb=get()
+            local hex=string.format("%02x%02x%02x",math.floor(rgb[1]*255+.5),math.floor(rgb[2]*255+.5),math.floor(rgb[3]*255+.5))
+            button:SetText(text.."  |cff"..hex.."■|r")
+        end
+        button:SetScript("OnClick",function()
+            local picker=ColorPickerFrame
+            if not picker then return end
+            -- Capture this tab's setting so switching tabs cannot edit another one.
+            local rgb=get()
+            local apply,restore=set()
+            local original={rgb[1],rgb[2],rgb[3]}
+            local function changed()
+                local r,g,b=picker:GetColorRGB(); apply({r,g,b}); Refresh(); redraw()
+            end
+            local function cancel()
+                if restore then restore() else apply(original) end
+                Refresh(); redraw()
+            end
+            picker:Hide()
+            if picker.SetupColorPickerAndShow then
+                picker:SetupColorPickerAndShow({r=rgb[1],g=rgb[2],b=rgb[3],hasOpacity=false,
+                    swatchFunc=changed,cancelFunc=cancel})
+            else
+                picker.hasOpacity=false; picker.func=changed; picker.cancelFunc=cancel
+                picker:SetColorRGB(rgb[1],rgb[2],rgb[3]); picker:Show()
+            end
         end)
     end
-    hordeCheck("hordeRedName", "Jugadores de la Horda: nombre rojo", -245)
-    hordeCheck("hordeRedBorder", "Jugadores de la Horda: borde rojo", -275)
-    caption:SetPoint("TOPLEFT",20,-325); caption:SetText("Vista previa")
+    for i,key in ipairs({"guild","group","ally","enemy"}) do
+        local kind=key
+        local button=CreateFrame("Button",nil,panel,"UIPanelButtonTemplate")
+        button:SetSize(110,28); button:SetPoint("TOPLEFT",20+(i-1)*116,-60)
+        button:SetText(labels[kind]); tabs[kind]=button
+        button:SetScript("OnClick",function()
+            tab=kind
+            if kind=="guild" then style="guild" elseif kind=="group" and style=="guild" then style="group" end
+            popup:Hide(); redraw()
+        end)
+    end
+    dropdown(20,-110,"Estilo",{"group","raid"},function() return style end,function(v) style=v end,"group")
+    dropdown(250,-110,"Mostrar",{"on","off"},function() return db[style] and "on" or "off" end,function(v) db[style]=v=="on" end)
+    dropdown(20,-150,"Borde",{"oroazul","oro","plata","cobre","bronce","platino","zafiro","esmeralda","amatista","rubi","clase","rango","color"},
+        function() return db.appearance[style].border end,function(v) db.appearance[style].border=v end)
+    dropdown(250,-150,"Insignia",{"animales"},function() return db.appearance[style].icon end,function(v) db.appearance[style].icon=v end)
+    dropdown(20,-190,"Ejemplo mérito",{0,1,2,3,4,5,6,7,8,9,10,11,12,13,14},function() return rank end,function(v) rank=v end)
+    dropdown(250,-190,"Prioridad",{"groupFirst","guild"},function() return db.priority=="group" and "groupFirst" or "guild" end,
+        function(v) db.priority=v=="groupFirst" and "group" or "guild" end)
+    colorButton(20,-230,"Color del borde",function() return db.appearance[style].color end,function()
+        local config=db.appearance[style]
+        local oldMode,oldColor=config.border,config.color
+        -- Selecting a color opts into the existing custom RGB border mode.
+        return function(rgb) config.color=rgb; config.border="color" end,
+            function() config.color=oldColor; config.border=oldMode end
+    end,"decorated")
+    check(20,-270,"Ocultar ala derecha al mostrar controles",function() return db.hideRightWingOnCC~=false end,
+        function(v) db.hideRightWingOnCC=v end,"decorated")
+    local function playerConfig() return db.playerColors[tab=="enemy" and "enemy" or "ally"] end
+    check(20,-110,"Colorear nombre",function() return playerConfig().name end,function(v) playerConfig().name=v end,"players")
+    check(20,-150,"Colorear borde",function() return playerConfig().border end,function(v) playerConfig().border=v end,"players")
+    for i,key in ipairs({"nameColor","borderColor"}) do
+        local field=key
+        colorButton(250,-110-(i-1)*40,i==1 and "Color del nombre" or "Color del borde",
+            function() return playerConfig()[field] end,function()
+                local config=playerConfig()
+                return function(rgb) config[field]=rgb end
+            end,"players")
+    end
+    redraw=function()
+        local special=decorated()
+        for key,button in pairs(tabs) do button:SetEnabled(key~=tab) end
+        for _,entry in ipairs(controls) do
+            entry.widget:SetShown(entry.scope==tab or (entry.scope=="decorated" and special) or (entry.scope=="players" and not special))
+        end
+        for _,update in ipairs(updates) do update() end
+        for _,menu in ipairs(menus) do menu:SetText(menu.caption..": "..labels[menu.read()]) end
+        caption:SetText("Vista previa · "..labels[special and style or tab])
+        if special then
+            plainBorder:Hide(); bar:SetShown(db[style]); name:SetText("Mago de muestra"); name:SetTextColor(1,1,1)
+            Paint(art,bar,style,color,60,rank,db.scale,Safe(GetGuildInfo,"player") or "Hermandad de muestra")
+            note:SetText("Prioridad decide el estilo cuando alguien pertenece al grupo y a tu hermandad.")
+        else
+            art:Hide(); bar:Show()
+            local config=playerConfig()
+            name:SetText(tab=="enemy" and "Jugador enemigo" or "Jugador aliado")
+            name:SetTextColor(unpack(config.name and config.nameColor or {1,1,1}))
+            plainBorder:Show(); plainBorder:SetBackdropBorderColor(unpack(config.border and config.borderColor or SILVER))
+            note:SetText(tab=="enemy" and "Jugadores enemigos de tu personaje, tanto si juegas Alianza como Horda."
+                or "Otros jugadores aliados. Grupo y hermandad conservan sus propios estilos.")
+        end
+    end
     panel:SetScript("OnShow",redraw)
     panel:SetScript("OnHide",function() popup:Hide() end)
-    local category = Settings.RegisterCanvasLayoutCategory(panel, "TisteltiPlates")
+    local category=Settings.RegisterCanvasLayoutCategory(panel,"TisteltiPlates")
     Settings.RegisterAddOnCategory(category)
-    if TisteltiPlatesPvP then TisteltiPlatesPvP.RegisterOptions(category, Refresh) end
+    if TisteltiPlatesPvP then TisteltiPlatesPvP.RegisterOptions(category,Refresh) end
+    redraw()
 end
 
 SLASH_TISTELTIPLATES1 = "/tistelti"
@@ -917,8 +981,21 @@ driver:SetScript("OnEvent", function(_, event, unit)
         if db.group == nil then db.group = true end
         if db.raid == nil then db.raid = db.group end
         if db.guild == nil then db.guild = true end
-        if type(db.hordeRedName) ~= "boolean" then db.hordeRedName = true end
-        if type(db.hordeRedBorder) ~= "boolean" then db.hordeRedBorder = true end
+        if type(db.playerColors) ~= "table" then db.playerColors = {} end
+        for _, kind in ipairs({"ally", "enemy"}) do
+            if type(db.playerColors[kind]) ~= "table" then db.playerColors[kind] = {} end
+            local config = db.playerColors[kind]
+            if type(config.name) ~= "boolean" then config.name = kind == "enemy" and db.hordeRedName ~= false end
+            if type(config.border) ~= "boolean" then config.border = kind == "enemy" and db.hordeRedBorder ~= false end
+            local default = kind == "enemy" and {1,.12,.12} or {.2,.65,1}
+            for _, key in ipairs({"nameColor", "borderColor"}) do
+                if type(config[key]) ~= "table" then config[key] = {} end
+                for i=1,3 do
+                    local v = config[key][i]
+                    if type(v) ~= "number" or v ~= v or v < 0 or v > 1 then config[key][i] = default[i] end
+                end
+            end
+        end
         if db.priority ~= "group" and db.priority ~= "guild" then db.priority = "guild" end
         if type(db.hideRightWingOnCC) ~= "boolean" then db.hideRightWingOnCC = true end
         if type(db.scale) ~= "number" or db.scale < .8 or db.scale > 1.8 then db.scale = 1 end
@@ -954,7 +1031,7 @@ driver:SetScript("OnEvent", function(_, event, unit)
         local plate = tracked[unit]
         if plate and plate.UnitFrame then
             Remove(plate.UnitFrame)
-            if TisteltiPlatesHorde then TisteltiPlatesHorde.Remove(plate.UnitFrame) end
+            if TisteltiPlatesPlayers then TisteltiPlatesPlayers.Remove(plate.UnitFrame) end
         end
         tracked[unit] = nil
     end

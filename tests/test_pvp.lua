@@ -193,7 +193,7 @@ local ally=add('ally'); assert(not ally.TisteltiPvPArt.wings[1].shown)
 local npc=add('npc'); assert(not npc.TisteltiPvPArt,'NPCs must be untouched')
 local function clickText(prefix)
     for _,f in ipairs(frames) do
-        if f.text and f.text:sub(1,#prefix)==prefix and f.scripts.OnClick then f.scripts.OnClick(f); return end
+        if type(f.text)=="string" and f.text:sub(1,#prefix)==prefix and f.scripts.OnClick then f.scripts.OnClick(f); return end
     end
     error('Missing control: '..prefix)
 end

@@ -1,23 +1,29 @@
 -- Optional faction accents on player nameplates; no native sizing or input changes.
-TisteltiPlatesHorde = {}
-local Horde = TisteltiPlatesHorde
+TisteltiPlatesPlayers = {}
+local Players = TisteltiPlatesPlayers
 local states, borders, hooked = {}, {}, {}
-local RED = {1, .12, .12}
 local function Public(v) return not (issecretvalue and issecretvalue(v)) end
 local function Read(fn, ...)
     if type(fn) ~= "function" then return end
     local ok, v = pcall(fn, ...)
     if ok and Public(v) then return v end
 end
-local function IsHorde(unit)
-    return Public(unit) and type(unit) == "string"
-        and Read(UnitIsPlayer, unit) == true and Read(UnitFactionGroup, unit) == "Horde"
+function Players.Kind(unit)
+    if not Public(unit) or type(unit) ~= "string" or Read(UnitIsPlayer, unit) ~= true
+        or Read(UnitIsUnit, unit, "player") then return end
+    if Read(UnitCanAttack, "player", unit) then return "enemy" end
+    if Read(UnitIsFriend, "player", unit) then return "ally" end
+    local faction, ownFaction = Read(UnitFactionGroup, unit), Read(UnitFactionGroup, "player")
+    if (faction == "Horde" or faction == "Alliance")
+        and (ownFaction == "Horde" or ownFaction == "Alliance") then
+        return faction == ownFaction and "ally" or "enemy"
+    end
 end
 local function PaintName(uf, state)
-    if state.painting or not state.name or not state.config.enabled
-        or not state.config.hordeRedName or not IsHorde(uf.unit) then return end
+    if state.painting or not state.name or not state.db.enabled
+        or not state.config.name or Players.Kind(uf.unit) ~= state.kind then return end
     state.painting = true
-    state.name:SetTextColor(RED[1], RED[2], RED[3], 1)
+    state.name:SetTextColor(unpack(state.config.nameColor))
     state.painting = false
 end
 local function RestoreName(state)
@@ -27,21 +33,23 @@ local function RestoreName(state)
     state.painting = false
     state.name = nil
 end
-function Horde.Remove(uf)
+function Players.Remove(uf)
     local state = states[uf]
     if state then RestoreName(state); states[uf] = nil end
     if borders[uf] then borders[uf]:Hide() end
 end
-function Horde.Update(uf, unit, config)
+function Players.Update(uf, unit, db, decorated)
     if not uf or Read(uf.IsForbidden, uf) then return end
-    if not config.enabled or not IsHorde(unit) then Horde.Remove(uf); return end
+    local kind = Players.Kind(unit)
+    if not db.enabled or not kind or (kind == "ally" and decorated) then Players.Remove(uf); return end
+    local config = db.playerColors[kind]
     local state = states[uf]
-    if state and (state.unit ~= unit or state.name and state.name ~= uf.name) then
-        Horde.Remove(uf); state = nil
+    if state and (state.unit ~= unit or state.kind ~= kind or state.name and state.name ~= uf.name) then
+        Players.Remove(uf); state = nil
     end
     if not state then state = {unit=unit}; states[uf] = state end
-    state.config = config
-    if config.hordeRedName and uf.name and not Read(uf.name.IsForbidden, uf.name) then
+    state.config, state.db, state.kind = config, db, kind
+    if config.name and uf.name and not Read(uf.name.IsForbidden, uf.name) then
         local name = uf.name
         if not state.name then
             local r, g, b, a = name:GetTextColor()
@@ -68,16 +76,16 @@ function Horde.Update(uf, unit, config)
         RestoreName(state)
     end
     local anchor = uf.HealthBarsContainer or uf.healthBar
-    if config.hordeRedBorder and anchor and not Read(anchor.IsForbidden, anchor)
+    if config.border and anchor and not Read(anchor.IsForbidden, anchor)
         and Read(anchor.IsShown, anchor) then
         local border = borders[uf]
         if not border then
             border = CreateFrame("Frame", nil, uf, "BackdropTemplate")
             border:EnableMouse(false)
             border:SetBackdrop({edgeFile="Interface\\Tooltips\\UI-Tooltip-Border", edgeSize=14})
-            border:SetBackdropBorderColor(RED[1], RED[2], RED[3], 1)
             borders[uf] = border
         end
+        border:SetBackdropBorderColor(unpack(config.borderColor))
         border:ClearAllPoints()
         border:SetPoint("TOPLEFT", anchor, "TOPLEFT", -5, 5)
         border:SetPoint("BOTTOMRIGHT", anchor, "BOTTOMRIGHT", 5, -5)

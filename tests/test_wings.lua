@@ -8,6 +8,10 @@ local function Frame(parent)
     function f:CreateFontString() return Frame(self) end
     function f:SetScript(k,v) self.scripts[k]=v end
     function f:SetText(v) self.text=v end
+    function f:SetTextColor(...) self.textColor={...} end
+    function f:SetBackdropBorderColor(...) self.borderColor={...} end
+    function f:SetChecked(v) self.checked=v end
+    function f:GetChecked() return self.checked end
     function f:SetTexture(v) self.texture=v end
     function f:SetAlpha(v) self.alpha=v end
     function f:SetHeight(v) self.height=v end
@@ -75,6 +79,14 @@ local function choose(caption, text)
     end
     error('Missing choice: '..text)
 end
+local function selectTab(text)
+    for i=#frames,1,-1 do
+        if frames[i].text==text and frames[i].scripts.OnClick and not (frames[i].parent and frames[i].parent.owner) then
+            frames[i].scripts.OnClick(); return
+        end
+    end
+    error('Missing tab: '..text)
+end
 local function displayedTexture()
     for i=#frames,1,-1 do
         local texture=frames[i].texture
@@ -100,7 +112,7 @@ raid=false; TisteltiPlatesDB.group=true
 assert(core.membership('nameplate1')=='group')
 raid=true; TisteltiPlatesDB.raid=true
 assert(core.membership('nameplate1')=='raid')
-choose('Estilo','Hermandad')
+selectTab('Hermandad')
 assert(displayedTexture():find('Media\\Wings.tga',1,true))
 -- Explicit styles must also work for plates and their two light layers.
 local o={wings=Frame(),rightWing=Frame(),leftWingLight=Frame(),rightWingLight=Frame()}
@@ -148,7 +160,7 @@ for _,isRaid in ipairs({false,true}) do
     assert(TisteltiPlatesDB.priority=='group')
     assert(core.membership('nameplate1')==fallback)
     assert(core.rosterMembership('nameplate1','roster1',fallback)==fallback)
-    choose('Estilo','Hermandad')
+    selectTab('Hermandad')
     assert(TisteltiPlatesDB.priority=='group', 'Editing an appearance must not change priority')
     assert(core.rosterMembership('nameplate1','roster1',nil)=='guild', 'Disabled group style falls back to guild')
     choose('Prioridad','Hermandad')
@@ -166,3 +178,46 @@ initialize(TisteltiPlatesDB)
 assert(TisteltiPlatesDB.priority=='group', 'Priority must persist across reloads')
 assert(menu('Prioridad').read()=='groupFirst')
 print('PASS: priority dropdown changes actual party/raid membership, preserves guild outside groups and survives reload')
+
+-- Exercise the real tab controls, previews, color picker and cancellation.
+local function visibleButton(prefix)
+    for i=#frames,1,-1 do
+        local f=frames[i]
+        if f.shown and type(f.text)=='string' and f.text:sub(1,#prefix)==prefix and f.scripts.OnClick then return f end
+    end
+    error('Missing visible button: '..prefix)
+end
+local function named(text)
+    for i=#frames,1,-1 do if frames[i].text==text then return frames[i] end end
+    error('Missing preview: '..text)
+end
+local picked={.3,.8,.5}
+ColorPickerFrame={Hide=function() end,
+    GetColorRGB=function() return unpack(picked) end,
+    SetupColorPickerAndShow=function(self,info) self.info=info end}
+selectTab('Enemigos')
+local sample=named('Jugador enemigo')
+assert(sample.textColor[1]==1 and sample.textColor[2]==.12)
+visibleButton('Color del nombre').scripts.OnClick()
+ColorPickerFrame.info.swatchFunc()
+assert(TisteltiPlatesDB.playerColors.enemy.nameColor[1]==.3 and sample.textColor[2]==.8)
+ColorPickerFrame.info.cancelFunc()
+assert(TisteltiPlatesDB.playerColors.enemy.nameColor[1]==1 and sample.textColor[2]==.12)
+visibleButton('Color del borde').scripts.OnClick()
+ColorPickerFrame.info.swatchFunc()
+local found=false
+for _,f in ipairs(frames) do if f.shown and f.borderColor and f.borderColor[2]==.8 then found=true end end
+assert(found, 'Border preview follows the chosen RGB')
+selectTab('Aliados')
+assert(named('Jugador aliado').textColor[1]==1, 'Disabled ally name keeps its normal color')
+assert(TisteltiPlatesDB.playerColors.ally.borderColor[2]==.65, 'Enemy picker leaves allies unchanged')
+-- A picker opened in one tab must not write to another after switching.
+ColorPickerFrame.info.cancelFunc()
+assert(TisteltiPlatesDB.playerColors.enemy.borderColor[2]==.12)
+selectTab('Hermandad')
+local oldMode=TisteltiPlatesDB.appearance.guild.border
+visibleButton('Color del borde').scripts.OnClick(); ColorPickerFrame.info.swatchFunc()
+assert(TisteltiPlatesDB.appearance.guild.border=='color')
+ColorPickerFrame.info.cancelFunc()
+assert(TisteltiPlatesDB.appearance.guild.border==oldMode)
+print('PASS: four tabs, live enemy/ally previews, independent RGB colors, cancel and tab-switch isolation')
