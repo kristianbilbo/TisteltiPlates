@@ -1,6 +1,10 @@
 TISTELTI - ALAS DE GRUPO · v0.8.7 · Forever 1.60.1 / interfaz 16001
 
 AJUSTES LOCALES
+- Seleccionar jugadores ya no solicita comparaciones de logros en segundo
+  plano, que provocaban el error de categoría "summary" de Blizzard.
+  El mérito ajeno usa datos guardados y rango oficial disponible; no se
+  actualizan automáticamente estadísticas ajenas. Las propias siguen activas.
 - Modo solo nombres de WoW: dos alas pequeñas junto al texto para grupo,
   banda y hermandad. Activado por defecto; check en Hermandad y Grupo.
 - Respeta el modo nativo y no activa placas ni cambia CVars. Requiere placas
