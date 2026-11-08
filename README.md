@@ -1,10 +1,10 @@
 # TisteltiPlates
 
-Addon para WoW Forever (interfaz 16001). Versión actual: **0.7.11**.
+Addon para WoW Forever (interfaz 16001). Versión actual: **0.7.12**.
 
 Personalización de placas para grupo y jugadores amistosos, con alas, escudos y colores de clase.
 
-El estilo de tu propia hermandad tiene prioridad dentro de grupo y banda. Los demás compañeros usan el estilo de grupo o banda. Si desactivas Hermandad, se aplica el estilo de grupo o banda correspondiente.
+En Opciones, **Prioridad** permite elegir **Grupo/Banda** (todos los compañeros usan el estilo de grupo o banda, incluidos los de tu hermandad) o **Hermandad** (tu propia hermandad conserva su estilo; los demás compañeros usan grupo o banda). Fuera del grupo, los de tu hermandad mantienen su aspecto habitual. Se respetan los interruptores de cada estilo. La selección se guarda y se aplica también en combate; por defecto se conserva la prioridad de Hermandad. **Estilo** sigue eligiendo qué aspecto editas y no cambia la prioridad.
 
 ## Instalación
 

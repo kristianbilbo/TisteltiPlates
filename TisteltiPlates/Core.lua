@@ -53,24 +53,28 @@ local function Color(unit)
     return RAID_CLASS_COLORS and RAID_CLASS_COLORS[class]
 end
 
+local function PreferredStyle(groupStyle, sameGuild)
+    local guildStyle = db.guild and sameGuild and "guild" or nil
+    if db.priority == "group" then return groupStyle or guildStyle end
+    return guildStyle or groupStyle
+end
+
 local function Membership(unit)
     if not Safe(UnitIsPlayer, unit) or Safe(UnitIsUnit, unit, "player") then return nil end
     if not Safe(UnitIsFriend, "player", unit) then return nil end
-    if db.guild and Safe(UnitIsInMyGuild, unit) then return "guild" end
+    local groupStyle
     if Safe(IsInRaid) then
-        if db.raid and Safe(UnitInRaid, unit) then return "raid" end
+        if db.raid and Safe(UnitInRaid, unit) then groupStyle = "raid" end
     elseif db.group and Safe(UnitInParty, unit) then
-        return "group"
+        groupStyle = "group"
     end
+    return PreferredStyle(groupStyle, Safe(UnitIsInMyGuild, unit))
 end
 
 local function RosterMembership(unit, roster, rosterStyle)
     if roster then
         -- Forever can expose guild membership through either unit token.
-        if db.guild and (Safe(UnitIsInMyGuild, roster) or Safe(UnitIsInMyGuild, unit)) then
-            return "guild"
-        end
-        return rosterStyle
+        return PreferredStyle(rosterStyle, Safe(UnitIsInMyGuild, roster) or Safe(UnitIsInMyGuild, unit))
     end
     return Membership(unit)
 end
@@ -698,7 +702,7 @@ local function RegisterOptions()
     local name = bar:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     name:SetPoint("LEFT", 5, 0); name:SetText("Mago de muestra")
     local art = Ornament(bar)
-    local labels = {group="Grupo", raid="Banda", guild="Hermandad", oroazul="Oro y azul", oro="Oro", plata="Plata",
+    local labels = {group="Grupo", groupFirst="Grupo/Banda", raid="Banda", guild="Hermandad", oroazul="Oro y azul", oro="Oro", plata="Plata",
         clase="Clase", rango="Por rango", color="RGB personalizado", cobre="Cobre", bronce="Bronce",
         platino="Platino", zafiro="Zafiro", esmeralda="Esmeralda", amatista="Amatista", rubi="Rubí",
         alianza="León de la Alianza", animales="Animales de la Alianza", asesino="Capucha de Tistelti", rombos="Rombos", estrella="Estrellas", ninguno="Ninguno",
@@ -744,6 +748,9 @@ local function RegisterOptions()
     dropdown(250,-100,"Insignia",{"animales"},
         function() return db.appearance[style].icon end,function(v) db.appearance[style].icon=v end)
     dropdown(20,-145,"Ejemplo mérito",{0,1,2,3,4,5,6,7,8,9,10,11,12,13,14},function() return rank end,function(v) rank=v; style="guild" end)
+    dropdown(250,-145,"Prioridad",{"groupFirst","guild"},
+        function() return db.priority == "group" and "groupFirst" or "guild" end,
+        function(v) db.priority = v == "groupFirst" and "group" or "guild" end)
     local hideWing = CreateFrame("CheckButton", nil, panel, "UICheckButtonTemplate")
     hideWing:SetSize(26, 26)
     hideWing:SetPoint("TOPLEFT", 20, -185)
@@ -758,6 +765,9 @@ local function RegisterOptions()
         db.hideRightWingOnCC = self:GetChecked() and true or false
     end)
     local caption=panel:CreateFontString(nil,"OVERLAY","GameFontNormal")
+    local priorityNote=panel:CreateFontString(nil,"OVERLAY","GameFontDisableSmall")
+    priorityNote:SetPoint("TOPLEFT",20,-220)
+    priorityNote:SetText("Estilo configura el aspecto; Prioridad decide cuál se aplica si coinciden.")
     caption:SetPoint("TOPLEFT",20,-235); caption:SetText("Vista previa")
     panel:SetScript("OnShow",redraw)
     panel:SetScript("OnHide",function() popup:Hide() end)
@@ -824,6 +834,7 @@ driver:SetScript("OnEvent", function(_, event, unit)
         if db.group == nil then db.group = true end
         if db.raid == nil then db.raid = db.group end
         if db.guild == nil then db.guild = true end
+        if db.priority ~= "group" and db.priority ~= "guild" then db.priority = "guild" end
         if type(db.hideRightWingOnCC) ~= "boolean" then db.hideRightWingOnCC = true end
         if type(db.scale) ~= "number" or db.scale < .8 or db.scale > 1.8 then db.scale = 1 end
         if type(db.ranks) ~= "table" then db.ranks = {} end

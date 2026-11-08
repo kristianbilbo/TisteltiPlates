@@ -59,6 +59,7 @@ assert(TisteltiPlatesDB.appearance.raid~=TisteltiPlatesDB.appearance.group)
 assert(TisteltiPlatesDB.appearance.raid.color~=TisteltiPlatesDB.appearance.group.color)
 initialize({group=true,guild=true})
 assert(TisteltiPlatesDB.raid==true)
+assert(TisteltiPlatesDB.priority=='guild', 'Updating must retain the existing guild priority')
 local function menu(caption)
     for i=#frames,1,-1 do if frames[i].caption==caption then return frames[i] end end
     error('Missing menu: '..caption)
@@ -136,3 +137,32 @@ TisteltiPlatesDB.guild=true; sameGuild={nameplate1=true}
 UnitIsFriend=function() return false end
 assert(core.membership('nameplate1')==nil, 'Hostile players must remain excluded')
 print('PASS: guild priority in party/raid, direct and roster identities, disabled styles and hostile exclusion')
+
+UnitIsFriend=function() return true end
+TisteltiPlatesDB.guild=true
+for _,isRaid in ipairs({false,true}) do
+    raid=isRaid
+    local fallback=raid and 'raid' or 'group'
+    sameGuild={nameplate1=true,roster1=true}
+    choose('Prioridad','Grupo/Banda')
+    assert(TisteltiPlatesDB.priority=='group')
+    assert(core.membership('nameplate1')==fallback)
+    assert(core.rosterMembership('nameplate1','roster1',fallback)==fallback)
+    choose('Estilo','Hermandad')
+    assert(TisteltiPlatesDB.priority=='group', 'Editing an appearance must not change priority')
+    assert(core.rosterMembership('nameplate1','roster1',nil)=='guild', 'Disabled group style falls back to guild')
+    choose('Prioridad','Hermandad')
+    assert(core.membership('nameplate1')=='guild')
+    assert(core.rosterMembership('nameplate1','roster1',fallback)=='guild')
+    sameGuild={}
+    assert(core.membership('nameplate1')==fallback, 'Other guilds retain the group/raid appearance')
+end
+sameGuild={nameplate1=true}
+UnitInRaid=function() return false end
+UnitInParty=function() return false end
+choose('Prioridad','Grupo/Banda')
+assert(core.membership('nameplate1')=='guild', 'Guild members outside the roster keep their usual appearance')
+initialize(TisteltiPlatesDB)
+assert(TisteltiPlatesDB.priority=='group', 'Priority must persist across reloads')
+assert(menu('Prioridad').read()=='groupFirst')
+print('PASS: priority dropdown changes actual party/raid membership, preserves guild outside groups and survives reload')

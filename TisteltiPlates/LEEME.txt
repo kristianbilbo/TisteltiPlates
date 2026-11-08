@@ -1,4 +1,12 @@
-TISTELTI - ALAS DE GRUPO · v0.7.11 · Forever 1.60.1 / interfaz 16001
+TISTELTI - ALAS DE GRUPO · v0.7.12 · Forever 1.60.1 / interfaz 16001
+
+SELECTOR DE PRIORIDAD 0.7.12
+- Opciones > Prioridad: Grupo/Banda o Hermandad.
+- Grupo/Banda: todos los companeros usan el mismo estilo, incluida tu hermandad.
+- Hermandad: tu hermandad conserva su estilo y el resto usa grupo o banda.
+- Fuera de grupo/banda, tu hermandad conserva su apariencia habitual.
+- Se respetan los estilos desactivados; la prioridad se guarda entre sesiones.
+- Por defecto se conserva Hermandad. Estilo solo decide que apariencia editas.
 
 PRIORIDAD DE HERMANDAD 0.7.11
 - Tu propia hermandad tiene prioridad sobre el estilo de grupo y banda.
