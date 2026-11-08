@@ -1,4 +1,14 @@
-TISTELTI - ALAS DE GRUPO · v0.8.9 · Forever 1.60.1 / interfaz 16001
+TISTELTI - ALAS DE GRUPO · v0.8.10 · Forever 1.60.1 / interfaz 16001
+
+INTEGRACIÓN DE IVÁN 0.8.10
+- Integrada fix/guild-name-scale (598939b): los nombres de hermandad siguen la escala nativa sin multiplicadores gigantes.
+- Integrada expand-nameplate-on-hover (hasta 7bbb472): ancho animado al pasar el cursor para leer nombres completos.
+- Conserva el rediseño PvP, los nombres por facción y la prioridad visual de auras de 0.8.9.
+- Con EllesmereUINameplates se deja la geometría a ese addon y no se aplica ampliación al pasar el ratón.
+- La ampliación independiente respeta combate, marcos protegidos y restricciones parciales de acceso.
+- Las seis suites Lua 5.1 superadas, incluidas las pruebas de Iván y de integración.
+- Ninguna rama remota conocida de Iván queda pendiente tras esta integración.
+- Pendiente validación visual en el cliente. Ejecuta /reload.
 
 AURAS PRIORITARIAS Y NOMBRES POR FACCIÓN 0.8.9
 - En PvP, nombres azules para Alianza y rojos para Horda, sin cambiar fuente o posición.

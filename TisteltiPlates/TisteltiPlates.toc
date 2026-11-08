@@ -2,12 +2,13 @@
 ## Title: Tistelti - Alas de grupo
 ## Notes: Placas de grupo y modo PvP compacto con neón, facción e iconos de clase.
 ## Author: Kristian
-## Version: 0.8.9
+## Version: 0.8.10
 ## SavedVariables: TisteltiPlatesDB
 Honor.lua
 Prioridad.lua
 PvP.lua
 CCPosition.lua
+HoverWidth.lua
 Core.lua
 
 
