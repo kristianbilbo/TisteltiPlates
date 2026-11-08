@@ -258,7 +258,6 @@ end
 local function Paint(o, anchor, style, color, level, rank, scale, guildName)
     PaintWings(o, style)
     local tier = Tier(rank)
-    local size = (style ~= "guild" and 27 or 25) * scale
     local border = BorderColor(style, color, tier)
     local icon = "ninguno" -- One heraldic merit emblem below the level.
     -- Nameplate children have different frame levels; the base UnitFrame level
@@ -371,9 +370,9 @@ local function Paint(o, anchor, style, color, level, rank, scale, guildName)
             jewel:SetPoint("BOTTOM", o.stars[1], "BOTTOM", (i - (tier + 1)/2) * 5 * scale, 0)
         end
     end
-    -- All CC rows go above the maximum decoration envelope, not beside level.
+    -- Buffs start above the left wing, including its full scaled height.
     o.ccAnchor:ClearAllPoints()
-    o.ccAnchor:SetPoint("BOTTOM", anchor, "TOP", 0, size * .5 + 39 * scale + 8)
+    o.ccAnchor:SetPoint("BOTTOMLEFT", o.wings, "TOPLEFT", 0, 6 * scale)
     o:Show()
 end
 
@@ -383,33 +382,9 @@ local function RememberLevel(state, frame)
     state.levels[#state.levels + 1] = {frame = frame, alpha = frame:GetAlpha()}
 end
 
-local function RememberCC(state, frame, row)
-    if not frame or Safe(frame.IsForbidden, frame) then return end
-    local points,level=TisteltiPlatesCC.CapturePlacement(frame)
-    if not points then return end
-    local entry = {frame = frame, row = row, frameLevel = level, points = points}
-    if TisteltiPlatesCC.OriginalPlacement then
-        local points, level = TisteltiPlatesCC.OriginalPlacement(frame)
-        if points then entry.points = points end
-        if level then entry.frameLevel = level end
-    end
-    state.cc[#state.cc + 1] = entry
-end
-
 local function Layout(state)
     if not Allowed() or InCombatLockdown() then return end
     for _, entry in ipairs(state.levels) do entry.frame:SetAlpha(0) end
-    local previous
-    for _, entry in ipairs(state.cc) do
-        -- CC stays beside the level badge; only buffs/debuffs stack above it.
-        if entry.row == 0 and TisteltiPlatesCC.CanPosition(entry.frame) then
-            local frame = entry.frame
-            frame:ClearAllPoints()
-            frame:SetPoint("BOTTOM", previous or state.art.ccAnchor, "TOP", 0, previous and 6 * db.scale or 0)
-            frame:SetFrameLevel(state.art.badge:GetFrameLevel() + 10)
-            if frame:IsShown() then previous = frame end
-        end
-    end
     TisteltiPlatesCC.Position(state.art:GetParent())
 end
 
@@ -426,16 +401,12 @@ local function Remove(uf)
     end
     active[uf] = nil -- Hooks must see it inactive before Blizzard restores colors.
     state.art:Hide()
-    if state.baseScale then uf:SetScale(state.baseScale) end
-    if state.baseWidth then uf:SetWidth(state.baseWidth) end
-    for _, entry in ipairs(state.levels) do entry.frame:SetAlpha(entry.alpha) end
-    for _, entry in ipairs(state.cc) do
-        if TisteltiPlatesCC.CanPosition(entry.frame) then
-            entry.frame:ClearAllPoints()
-            for _, point in ipairs(entry.points) do entry.frame:SetPoint(unpack(point)) end
-            entry.frame:SetFrameLevel(entry.frameLevel)
-        end
+    if state.geometryChanged then
+        uf:SetScale(state.baseScale)
+        uf:SetWidth(state.baseWidth)
     end
+    for _, entry in ipairs(state.levels) do entry.frame:SetAlpha(entry.alpha) end
+    TisteltiPlatesCC.Position(uf)
     -- Removed plates may have no unit by the time deferred cleanup runs.
     -- Blizzard's color updater requires a live unit; otherwise restore our snapshot.
     if CompactUnitFrame_UpdateHealthColor and Public(uf.unit)
@@ -515,19 +486,13 @@ local function Update(unit, plate)
         local art = uf.TisteltiArt or Ornament(uf)
         uf.TisteltiArt = art
         state = {art = art, bar = bar, baseScale = uf:GetScale(), baseWidth = uf:GetWidth(), originalColor = {bar:GetStatusBarColor()},
-            levels = {}, levelSeen = {}, cc = {}}
+            levels = {}, levelSeen = {}}
         -- Both exist in Forever. PlayerLevelDiffFrame is the extra native box
         -- visible beside the custom badge in the reported screenshot.
         RememberLevel(state, uf.LevelFrame)
         RememberLevel(state, uf.PlayerLevelDiffFrame)
         if uf.HealthBarsContainer then RememberLevel(state, uf.HealthBarsContainer.LevelFrame) end
         RememberLevel(state, bar.LevelFrame)
-        if uf.AurasFrame then
-            pcall(RememberCC, state, uf.AurasFrame.BuffListFrame, 0)
-            pcall(RememberCC, state, uf.AurasFrame.DebuffListFrame, 0)
-            pcall(RememberCC, state, uf.AurasFrame.CrowdControlListFrame, 1)
-            pcall(RememberCC, state, uf.AurasFrame.LossOfControlFrame, 2)
-        end
         active[uf] = state
         if not uf.TisteltiLayoutHooked and type(uf.UpdateAnchors) == "function" then
             hooksecurefunc(uf, "UpdateAnchors", function()
@@ -541,10 +506,27 @@ local function Update(unit, plate)
             bar.TisteltiColorHooked = true
         end
     end
-    local desiredScale = state.baseScale * 1.25
-    if math.abs(uf:GetScale()-desiredScale) > .001 then uf:SetScale(desiredScale) end
-    local desiredWidth = state.baseWidth * 1.22
-    if math.abs(uf:GetWidth()-desiredWidth) > .01 then uf:SetWidth(desiredWidth) end
+    -- EllesmereUI can host the name outside this UnitFrame. Enlarging only
+    -- the native rectangle then makes that name look smaller than the bar.
+    -- Leave geometry and text sizing to its nameplate module.
+    local externalGeometry = Safe(C_AddOns and C_AddOns.IsAddOnLoaded or IsAddOnLoaded,
+        "EllesmereUINameplates")
+    if externalGeometry then
+        if state.geometryChanged then
+            uf:SetScale(state.baseScale)
+            uf:SetWidth(state.baseWidth)
+            state.geometryChanged = nil
+        end
+    else
+        if not state.geometryChanged then
+            state.baseScale, state.baseWidth = uf:GetScale(), uf:GetWidth()
+            state.geometryChanged = true
+        end
+        local desiredScale = state.baseScale * 1.25
+        if math.abs(uf:GetScale()-desiredScale) > .001 then uf:SetScale(desiredScale) end
+        local desiredWidth = state.baseWidth * 1.22
+        if math.abs(uf:GetWidth()-desiredWidth) > .01 then uf:SetWidth(desiredWidth) end
+    end
     state.color = color
     -- Enclose the whole native name/health rectangle, not just its colored fill.
     local guildName = Safe(GetGuildInfo, roster or unit) or Safe(GetGuildInfo, unit)

@@ -1,4 +1,27 @@
-TISTELTI - ALAS DE GRUPO · v0.8.5 · Forever 1.60.1 / interfaz 16001
+TISTELTI - ALAS DE GRUPO · v0.8.7 · Forever 1.60.1 / interfaz 16001
+
+AJUSTES LOCALES
+- Pestañas, vista previa y colores para aliados y jugadores enemigos.
+- Controles a la derecha también en enemigos y modo compacto, sin exigir medir su posición.
+- Conserva la corrección del nombre de hermandad gigante.
+
+NOMBRE EXTERNO Y ESCALA CON ELLESMEREUI 0.8.7
+- Si está cargado EllesmereUINameplates, conserva su anchura y escala de placa.
+- Evita ampliar la barra por separado del nombre alojado fuera de ella.
+- No cambia fuente, tamaño, escala ni posición del texto de EllesmereUI.
+- Al desactivar Tistelti no restaura medidas antiguas sobre ajustes ajenos.
+- Sin ese módulo, conserva la ampliación del estilo clásico y su restauración.
+- Incluye el arreglo de bufos 0.8.6. Ejecuta /reload tras actualizar.
+- Pruebas Lua 5.1 superadas; pendiente verificar la configuración real del amigo.
+
+BUFOS Y CONVIVENCIA CON OTRAS INTERFACES 0.8.6
+- Bufos y perjuicios sobre el ala izquierda, siguiendo su tamaño y con margen.
+- Detecta listas creadas después y repone la posición tras actualizar auras.
+- Solo recoloca auras en placas decoradas por Tistelti.
+- Al retirar las alas o activar PvP restaura anclajes y capas originales.
+- Conserva la protección de regiones restringidas y de marcos en combate.
+- Pruebas Lua 5.1 superadas; falta validación visual con EllesmereUI en WoW.
+- Ejecuta /reload tras actualizar. No cambia los ajustes de EllesmereUI.
 
 CORRECCION DE ERRORES 0.8.5
 - Evita la repetición de GetPoint / Can't measure restricted regions.

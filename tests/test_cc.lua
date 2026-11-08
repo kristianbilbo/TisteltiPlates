@@ -152,12 +152,14 @@ return {layout=Layout, remove=Remove, active=active, driver=driver, options=Regi
 core.setDB({enabled=true,scale=1})
 IsInInstance=function() return false end
 local buff=Frame(auras)
+auras.BuffListFrame=buff
+buff:SetPoint("BOTTOM",uf.HealthBarsContainer,"TOP",0,3)
 local state={art=art,levels={},cc={
     {frame=buff,row=0}, {frame=loss,row=2},
 }}
 art.ccAnchor=Frame(art)
 core.layout(state)
-assert(buff.points[1][1]=="BOTTOM")
+assert(buff.points[1][1]=="BOTTOMLEFT" and buff.points[1][2]==art.ccAnchor)
 assert(loss.points[1][1]=="LEFT" and loss.points[1][2]==art.badge)
 uf:UpdateAnchors()
 core.layout(state)
@@ -310,3 +312,37 @@ hiddenAccess.GetPoint=function() return secret end
 hiddenAccess.GetNumPoints=function() return 1 end
 assert(not CC.CapturePlacement(hiddenAccess),'Secret anchor values are never saved or used')
 print('PASS: measurement-restricted controls move right without reads; inaccessible/protected frames remain untouched')
+
+-- Late aura lists, asynchronous native/EllesmereUI layout, combat and cleanup.
+local late=Frame()
+late.AurasFrame=Frame(late)
+late.TisteltiArt=Frame(late)
+local lateArt=late.TisteltiArt
+lateArt.badge=Frame(lateArt); lateArt.ccAnchor=Frame(lateArt)
+lateArt.rightWing=Frame(lateArt); lateArt.rightWingLight=Frame(lateArt)
+CC.AttachArt(lateArt,late)
+local lateBuff=Frame(late.AurasFrame)
+late.AurasFrame.BuffListFrame=lateBuff
+lateBuff:SetPoint('LEFT',late,'LEFT',1,2)
+tick(lateArt)
+assert(lateBuff.points[1][2]==lateArt.ccAnchor,'Late-created buffs must clear the wing')
+lateBuff:SetPoint('LEFT',late,'LEFT',0,0)
+tick(lateArt)
+assert(lateBuff.points[1][2]==lateArt.ccAnchor,'Aura refresh must not leave buffs inside the wing')
+local lateDebuff=Frame(late.AurasFrame)
+late.AurasFrame.DebuffListFrame=lateDebuff
+lateDebuff:SetPoint('RIGHT',late,'RIGHT',3,4)
+tick(lateArt)
+assert(lateDebuff.points[1][2]==lateBuff,'Second visible aura row stacks above buffs')
+combat=true; lateBuff.protected=true
+lateBuff:SetShown(false)
+tick(lateArt)
+assert(lateDebuff.points[1][2]==lateArt.ccAnchor,'Hidden/protected first row must not create an overlap')
+lateArt:Hide()
+assert(lateDebuff.points[1][1]=='RIGHT' and lateDebuff.points[1][4]==3)
+combat=false; CC.Position(late)
+assert(lateBuff.points[1][1]=='LEFT' and lateBuff.points[1][4]==1 and lateBuff.points[1][5]==2)
+lateBuff:SetPoint('TOP',late,'BOTTOM',7,8)
+CC.Position(late)
+assert(lateBuff.points[1][1]=='TOP','Inactive Tistelti must leave other addons alone')
+print('PASS: late buffs, refreshed anchors, stacked rows, protected combat and full native restoration')

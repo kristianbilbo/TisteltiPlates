@@ -1,6 +1,20 @@
 # TisteltiPlates
 
-Addon para WoW Forever (interfaz 16001). Versión actual: **0.8.5**.
+Addon para WoW Forever (interfaz 16001). Versión actual: **0.8.7**.
+
+Esta variante local conserva las pestañas y colores de jugadores, el arreglo del nombre de hermandad gigante y los controles a la derecha también en placas enemigas y modo compacto. La restauración de anclajes de 0.8.7 se aplica a bufos y perjuicios normales.
+
+## Nombre externo y escala con EllesmereUI 0.8.7
+
+Cuando está cargado `EllesmereUINameplates`, Tistelti conserva la escala y anchura que gestiona ese módulo. El estilo clásico deja de aplicar su ampliación de escala del 25 % y anchura del 22 % sobre una placa cuyo nombre puede estar alojado fuera de ella. Se conservan los ajustes de fuente, tamaño y posición de ese nombre. Al desactivar Tistelti tampoco se restauran medidas antiguas sobre las elegidas por la otra interfaz.
+
+Sin ese módulo se mantiene la ampliación habitual. Se incluyen los bufos de 0.8.6. Verificado en Lua 5.1 con un nombre en un contenedor externo, cambios de geometría, detección moderna y antigua, combate y desactivación; falta validación visual con la versión y configuración reales del amigo. Referencia consultada: [colocación del nombre en EllesmereUI](https://github.com/EllesmereGaming/EllesmereUI/blob/main/EllesmereUINameplates/EUI_Nameplates_Name.lua).
+
+## Bufos y convivencia con otras interfaces 0.8.6
+
+En el diseño clásico, los beneficios y perjuicios parten de un anclaje situado seis puntos por encima del ala izquierda, siguiendo su tamaño. Se recogen también las listas que aparecen después de crear la decoración y se repone su posición tras actualizaciones de auras. Los controles permanecen junto al nivel.
+
+El posicionador solo modifica placas decoradas por Tistelti. Al retirar las alas o activar PvP compacto restaura los anclajes y capas originales; los marcos protegidos esperan al final del combate. Esto reduce interferencias con otros gestores de placas. La compatibilidad visual concreta con EllesmereUI está pendiente de probar en el cliente. Las pruebas Lua 5.1 cubren listas tardías, dos filas, actualización de anclajes, combate, restauración y regiones restringidas.
 
 ## Corrección de errores 0.8.5
 
@@ -46,7 +60,7 @@ Las alas de grupo tienen plumas turquesa y detalles violeta suave, inspirados en
 
 ## Indicadores de control integrados
 
-Incluye la colocación de indicadores de ForeverCCPosition: quedan a la derecha del nivel, con una separación de 8 unidades. En las placas decoradas se usa el distintivo de nivel de Tistelti; las demás conservan la colocación junto al nivel nativo. Los beneficios y perjuicios normales siguen encima de la placa.
+Incluye la colocación de indicadores de ForeverCCPosition en las placas decoradas: quedan a la derecha del nivel de Tistelti, con una separación de 8 unidades. Las demás placas conservan sus anclajes originales. Los beneficios y perjuicios normales quedan encima del ala izquierda.
 
 El ala derecha y su brillo se ocultan mientras haya un icono visible de control o pérdida de control, incluidos los stuns, y reaparecen cuando desaparece. Funciona también con la decoración de combate. Los contenedores vacíos no ocultan el ala y las vistas previas conservan ambas alas.
 

@@ -8,6 +8,8 @@ local originalLevels = setmetatable({}, {__mode = "k"})
 local originalPoints = setmetatable({}, {__mode = "k"})
 local unreadable = setmetatable({}, {__mode = "k"})
 local keys = {"CrowdControlListFrame", "LossOfControlFrame"}
+local buffKeys = {"BuffListFrame", "DebuffListFrame"}
+local movedBuffs = setmetatable({}, {__mode = "k"})
 
 function CC.OriginalPlacement(frame)
     return originalPoints[frame], originalLevels[frame]
@@ -131,17 +133,50 @@ function CC.Position(uf)
     if not auras or Read(auras.IsForbidden, auras) then return end
     local art = Visible(uf.TisteltiArt) and uf.TisteltiArt
         or Visible(uf.TisteltiCombatArt) and uf.TisteltiCombatArt
+    if TisteltiPlatesPvP and TisteltiPlatesPvP.IsActive() then art = nil end
+
+    -- 0.8.7: normal aura rows clear the wings and restore their native layout
+    -- when the decoration disappears. CC below retains ForeverCCPosition.
+    if not art then
+        for frame in pairs(movedBuffs[uf] or {}) do
+            if originalPoints[frame] and CC.CanPosition(frame) then
+                frame:ClearAllPoints()
+                for _, point in ipairs(originalPoints[frame]) do frame:SetPoint(unpack(point)) end
+                if originalLevels[frame] then frame:SetFrameLevel(originalLevels[frame]) end
+                originalPoints[frame], originalLevels[frame] = nil, nil
+                movedBuffs[uf][frame] = nil
+            end
+        end
+    else
+        local previous
+        for _, key in ipairs(buffKeys) do
+            local frame = auras[key]
+            if frame and CC.CanPosition(frame) then
+                if not originalPoints[frame] then
+                    originalPoints[frame], originalLevels[frame] = CC.CapturePlacement(frame)
+                end
+                if originalPoints[frame] then
+                    movedBuffs[uf] = movedBuffs[uf] or setmetatable({}, {__mode = "k"})
+                    movedBuffs[uf][frame] = true
+                    frame:ClearAllPoints()
+                    frame:SetPoint("BOTTOMLEFT", previous or art.ccAnchor, "TOPLEFT", 0, previous and 6 or 0)
+                    frame:SetFrameLevel(art.badge:GetFrameLevel() + 10)
+                    if Visible(frame) then previous = frame end
+                end
+            end
+        end
+    end
+
+    -- Keep controls to the right on enemies and undecorated/compact plates too.
     local anchor = art and art.badge
         or Visible(uf.PlayerLevelDiffFrame) and uf.PlayerLevelDiffFrame
         or uf.HealthBarsContainer
     if not anchor then return end
     for _, key in ipairs(keys) do
         local frame = auras[key]
-        -- Preserve the old positioner's combat behavior for unprotected lists.
-        -- Protected lists wait for PLAYER_REGEN_ENABLED; wings still update.
         if CanMoveControl(frame) then
             if not originalPoints[frame] then
-                local points=CC.CapturePlacement(frame)
+                local points = CC.CapturePlacement(frame)
                 originalPoints[frame] = points
             end
             frame:ClearAllPoints()
@@ -176,6 +211,7 @@ function CC.AttachArt(art, uf)
         if elapsed < .05 then return end
         elapsed = 0
         UpdateWing(art, uf)
+        CC.Position(uf)
     end)
 end
 

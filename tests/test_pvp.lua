@@ -307,3 +307,37 @@ assert(pvp.IsActive(),'se conserva una activación guardada')
 assert(db.pvp.classIconSize==26,'Class icon size survives reload')
 assert(#errors==0,table.concat(errors,'\n'))
 print('PASS: PvP migration, native size, factions, wings, options, colors, combat, native skills/CC/cast timers, secrets, restoration and recycling')
+
+-- EllesmereUI's external name host must not be dwarfed by our bar enlargement.
+SlashCmdList.TISTELTIPLATES('pvp off')
+assert(guild.scale==1.25 and guild.width==110*1.22)
+C_AddOns={IsAddOnLoaded=function(addon) return addon=='EllesmereUINameplates' end}
+core.refresh()
+assert(guild.scale==1 and guild.width==110,'Detecting EllesmereUI restores our earlier enlargement')
+guild.name=Frame() -- An external text host, outside the native bar hierarchy.
+guild.name.fontSize=14
+guild.name:SetPoint('BOTTOM',guild.healthBar,'TOP',0,6)
+local namePoint=guild.name.points[1]
+guild:SetScale(.9); guild:SetWidth(145)
+local beforeExternal=nativeMutations
+core.refresh(); core.refresh()
+assert(guild.scale==.9 and guild.width==145 and nativeMutations==beforeExternal,
+    'EllesmereUI owns live geometry; repeated refresh must not fight its settings')
+assert(guild.name.fontSize==14 and guild.name.points[1]==namePoint and guild.name.scale==1,
+    'External name font, position and scale must remain intact')
+combat=true; core.refresh(); combat=false
+assert(guild.scale==.9 and guild.width==145)
+db.enabled=false; core.refresh()
+assert(guild.scale==.9 and guild.width==145,'Turning Tistelti off must not restore stale external geometry')
+db.enabled=true
+C_AddOns=nil
+IsAddOnLoaded=function(addon) return addon=='EllesmereUINameplates' end
+core.refresh()
+assert(guild.scale==.9 and guild.width==145,'Legacy addon detection also preserves external geometry')
+IsAddOnLoaded=nil
+core.refresh()
+assert(guild.scale==.9*1.25 and guild.width==145*1.22,'Standalone style retains its enlargement')
+db.enabled=false; core.refresh()
+assert(guild.scale==.9 and guild.width==145,'Standalone removal restores the latest base geometry')
+assert(#errors==0,table.concat(errors,'\n'))
+print('PASS: EllesmereUI external names, live geometry, legacy detection, combat, disable and standalone restoration')
