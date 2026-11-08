@@ -247,6 +247,14 @@ local function PaintWings(o, style)
     o.wingTexture = texture
 end
 
+local function SetGuildName(label, guild)
+    -- Follow the plate's native scale. Inverting a transient near-zero parent
+    -- scale leaves a huge multiplier behind when combat/recycling interrupts.
+    label:SetScale(1)
+    label:SetText(guild and ("<" .. guild .. ">") or "")
+    label:SetShown(guild ~= nil)
+end
+
 local function Paint(o, anchor, style, color, level, rank, scale, guildName)
     PaintWings(o, style)
     local tier = Tier(rank)
@@ -298,8 +306,7 @@ local function Paint(o, anchor, style, color, level, rank, scale, guildName)
     o.rightWing:SetPoint("LEFT", o.badge, "RIGHT", -3, 1)
     o.shade:SetColorTexture(.40 * border[1], .40 * border[2], .40 * border[3], 1)
     o.lustre:SetColorTexture(.4 + .6 * border[1], .4 + .6 * border[2], .4 + .6 * border[3], .95)
-    o.guildName:SetText(guildName and ("<" .. guildName .. ">") or "")
-    o.guildName:SetShown(guildName ~= nil)
+    SetGuildName(o.guildName, guildName)
     o.gem:SetVertexColor(color.r, color.g, color.b)
     -- The honor badge replaces the class diamond, including its gold rim.
     o.gemGold:Hide()
@@ -452,8 +459,7 @@ local function PlainGuildName(uf, unit)
     end
     label:ClearAllPoints()
     label:SetPoint("TOP", uf.HealthBarsContainer or uf.healthBar or uf, "BOTTOM", 0, -3)
-    label:SetText("<" .. guild .. ">")
-    label:Show()
+    SetGuildName(label, guild)
 end
 
 local function Tint(uf)
@@ -932,20 +938,6 @@ driver:SetScript("OnUpdate", function(_, dt)
         elapsed = elapsed + dt
         if elapsed >= .35 then elapsed = 0; Refresh() end
         return
-    end
-    for uf, label in pairs(guildLabels) do
-        if label:IsShown() then
-            local scale = uf:GetEffectiveScale()
-            if scale and scale > 0 then label:SetScale(UIParent:GetEffectiveScale() / scale) end
-        end
-    end
-    -- Cancel distance/selection scaling inherited from the native nameplate.
-    -- Update every frame so movement cannot leave a visibly stale text scale.
-    for _, state in pairs(active) do
-        local scale = state.art:GetEffectiveScale()
-        if scale and scale > 0 then
-            state.art.guildName:SetScale(UIParent:GetEffectiveScale() / scale)
-        end
     end
     elapsed = elapsed + dt
     if elapsed >= .35 then elapsed = 0; Refresh() end
