@@ -1,4 +1,31 @@
-TISTELTI - ALAS DE GRUPO · v0.7.12 · Forever 1.60.1 / interfaz 16001
+TISTELTI - ALAS DE GRUPO · v0.8.1 · Forever 1.60.1 / interfaz 16001
+
+COMPATIBILIDAD CON HABILIDADES 0.8.1
+- Ala derecha e icono de clase ceden espacio a los controles nativos visibles.
+- Se recuperan al terminar el control, respetando las opciones guardadas.
+- No se alteran anclajes, barras de lanzamiento ni temporizadores de habilidades.
+- Comprobado con pruebas Lua 5.1, también en combate y con marcos protegidos.
+- Pendiente validación visual en el cliente.
+
+MODO PVP COMPACTO 0.8.0 (prevalece sobre el historial inferior)
+- Nueva sección Opciones > AddOns > TisteltiPlates > Modo PvP; /tistelti pvp la abre.
+- Activado inicialmente. Desactívalo para recuperar las alas y estilos anteriores.
+- Conserva el tamaño nativo de la placa, sin el aumento de anchura/escala del modo clásico.
+- Aliados: barra, marco y neón de clase; opcionalmente azul.
+- Enemigos: barra, marco y neón de clase, u opción roja para los tres elementos.
+- Icono de clase pequeño y opcional, con neón siempre de su clase, incluso con barra roja.
+- Emblema de facción pequeño pegado al borde izquierdo; se mantiene el emblema de facción.
+- Alas PvP: trazos mínimos pegados, de un único color, solo para tu hermandad de la Alianza.
+- Mérito 1–4: bronce; 5–9: plata; 10–14: oro. Cada tramo permite escoger otro color.
+- Sin datos de mérito: gris azulado neutro. Usa TisteltiMerito, no presupone rango oficial.
+- Brillo y tamaño de alas configurables. La vista previa refleja los cambios al pulsar.
+- Cambiar modo en combate espera al final para restaurar geometría protegida.
+- Mundo abierto y campos de batalla/arenas; mazmorras y bandas siguen excluidas.
+- No activa CVars ni placas ocultas. Salud, nombres, clics y filtros de auras son nativos.
+- Si la clase está restringida, se oculta su icono y se usa color de reacción como respaldo.
+- /tistelti pvp on/off; /tistelti enemigos rojo/clase.
+- /tistelti vista sigue siendo la vista de las alas clásicas; la vista PvP está en su sección.
+- Validación dentro de WoW Forever pendiente; revisar visibilidad real de texturas y combate.
 
 SELECTOR DE PRIORIDAD 0.7.12
 - Opciones > Prioridad: Grupo/Banda o Hermandad.

@@ -44,7 +44,9 @@ local function Message(text)
 end
 
 local function Allowed()
-    return db and db.enabled and not IsInInstance()
+    if not db or not db.enabled then return false end
+    local inside, kind = IsInInstance()
+    return not inside or (TisteltiPlatesPvP and TisteltiPlatesPvP.IsActive() and (kind == "pvp" or kind == "arena"))
 end
 
 local function Color(unit)
@@ -379,6 +381,11 @@ local function RememberCC(state, frame, row)
     if not frame.GetFrameLevel or not frame.GetNumPoints or not frame.GetPoint then return end
     local entry = {frame = frame, row = row, frameLevel = frame:GetFrameLevel(), points = {}}
     for i = 1, frame:GetNumPoints() do entry.points[i] = {frame:GetPoint(i)} end
+    if TisteltiPlatesCC.OriginalPlacement then
+        local points, level = TisteltiPlatesCC.OriginalPlacement(frame)
+        if points then entry.points = points end
+        if level then entry.frameLevel = level end
+    end
     state.cc[#state.cc + 1] = entry
 end
 
@@ -400,6 +407,7 @@ local function Layout(state)
 end
 
 local function Remove(uf)
+    if TisteltiPlatesPvP then TisteltiPlatesPvP.Remove(uf) end
     if combatArt[uf] then combatArt[uf]:Hide(); combatArt[uf] = nil end
     if guildLabels[uf] then guildLabels[uf]:Hide() end
     local state = active[uf]
@@ -458,6 +466,14 @@ end
 local function Update(unit, plate)
     local uf = plate and plate.UnitFrame
     if not uf or Safe(uf.IsForbidden, uf) then return end
+    if TisteltiPlatesPvP and TisteltiPlatesPvP.IsActive() then
+        if active[uf] or combatArt[uf] then Remove(uf) end
+        if guildLabels[uf] then guildLabels[uf]:Hide() end
+        TisteltiPlatesCC.Position(uf)
+        if Allowed() then TisteltiPlatesPvP.Update(unit, uf) else TisteltiPlatesPvP.Remove(uf) end
+        return
+    end
+    if TisteltiPlatesPvP then TisteltiPlatesPvP.Remove(uf) end
     -- A party token and a nameplate token can refer to the same character.
     -- Use the roster identity when Forever exposes more data through it.
     local roster
@@ -543,6 +559,13 @@ end
 local function UpdateCombat(unit, plate)
     local uf = plate and plate.UnitFrame
     if not uf or Safe(uf.IsForbidden, uf) then return end
+    if TisteltiPlatesPvP and TisteltiPlatesPvP.IsActive() then
+        if active[uf] or combatArt[uf] then Remove(uf) end
+        if guildLabels[uf] then guildLabels[uf]:Hide() end
+        if Allowed() then TisteltiPlatesPvP.Update(unit, uf) else TisteltiPlatesPvP.Remove(uf) end
+        return
+    end
+    if TisteltiPlatesPvP then TisteltiPlatesPvP.Remove(uf) end
     if not Allowed() then Remove(uf); return end
     local style = Membership(unit)
     if not style then
@@ -574,6 +597,7 @@ end
 
 Refresh = function()
     if not db then return end
+    if TisteltiPlatesPvP then TisteltiPlatesPvP.Sync() end
     if InCombatLockdown() then
         for unit, plate in pairs(tracked) do
             local ok, err = pcall(UpdateCombat, unit, plate)
@@ -594,6 +618,9 @@ Refresh = function()
         end
     end
     if not Allowed() then
+        for _, plate in pairs(tracked) do
+            if plate and plate.UnitFrame then Remove(plate.UnitFrame) end
+        end
         for uf in pairs(active) do Remove(uf) end
         for _, label in pairs(guildLabels) do label:Hide() end
         return
@@ -773,6 +800,7 @@ local function RegisterOptions()
     panel:SetScript("OnHide",function() popup:Hide() end)
     local category = Settings.RegisterCanvasLayoutCategory(panel, "TisteltiPlates")
     Settings.RegisterAddOnCategory(category)
+    if TisteltiPlatesPvP then TisteltiPlatesPvP.RegisterOptions(category, Refresh) end
 end
 
 SLASH_TISTELTIPLATES1 = "/tistelti"
@@ -780,6 +808,23 @@ SlashCmdList.TISTELTIPLATES = function(text)
     if not db then return end
     local cmd, value = text:match("^%s*(%S*)%s*(.-)%s*$")
     cmd = cmd:lower()
+    if cmd == "pvp" then
+        if value == "on" or value == "off" then
+            db.pvp.enabled = value == "on"
+            if InCombatLockdown() then Message("El cambio de modo se aplicará al terminar el combate.") end
+            Refresh()
+        elseif TisteltiPlatesPvP.category and Settings and Settings.OpenToCategory then
+            Settings.OpenToCategory(TisteltiPlatesPvP.category:GetID())
+        else
+            Message("Opciones > AddOns > TisteltiPlates > Modo PvP. /tistelti pvp on/off")
+        end
+        return
+    end
+    if cmd == "enemigos" then
+        if value ~= "rojo" and value ~= "clase" then Message("/tistelti enemigos rojo/clase"); return end
+        db.pvp.enemyColor = value == "rojo" and "red" or "class"
+        Refresh(); return
+    end
     if cmd == "cc" then TisteltiPlatesCC.Report(); return end
     if cmd == "vista" then Preview(); return end
     if cmd == "on" or cmd == "off" then db.enabled = cmd == "on"
@@ -816,10 +861,11 @@ SlashCmdList.TISTELTIPLATES = function(text)
         Message(Safe(TisteltiHonorTexto, unit) or "Mérito: sin datos")
     else
         Message("/tistelti cc | vista | on/off | grupo/banda/guild on/off | tamano 0.8–1.8")
+        Message("/tistelti pvp: opciones compactas | pvp on/off | enemigos rojo/clase")
         Message("/tistelti merito: consulta el mérito del objetivo o de tu personaje")
         Message("borde grupo/banda/guild oroazul/oro/plata/clase/rango | Insignia: animales por mérito")
         Message("color grupo/banda/guild R G B (valores de 0 a 1). Vista incluye botones de personalización.")
-        Message("Diseño para ciudad/mundo abierto fuera de combate. Mérito automático; no es rango oficial.")
+        Message("PvP: mundo abierto y campos de batalla/arenas. Mérito automático; no es rango oficial.")
         return
     end
     Refresh()
@@ -860,6 +906,7 @@ driver:SetScript("OnEvent", function(_, event, unit)
         end
         db.compactIconDefault = true
         db.frameFixVersion = 1
+        if TisteltiPlatesPvP then TisteltiPlatesPvP.Initialize(db) end
         RegisterOptions()
         if CompactUnitFrame_UpdateHealthColor then hooksecurefunc("CompactUnitFrame_UpdateHealthColor", Tint) end
     elseif event == "NAME_PLATE_UNIT_ADDED" then

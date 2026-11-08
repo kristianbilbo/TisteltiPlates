@@ -1,8 +1,24 @@
 # TisteltiPlates
 
-Addon para WoW Forever (interfaz 16001). Versión actual: **0.7.12**.
+Addon para WoW Forever (interfaz 16001). Versión actual: **0.8.1**.
 
 Personalización de placas para grupo y jugadores amistosos, con alas, escudos y colores de clase.
+
+## Modo PvP compacto
+
+Se abre con `/tistelti pvp` o en **Opciones → AddOns → TisteltiPlates → Modo PvP**. Está activado inicialmente: conserva el tamaño original y sustituye las alas grandes por un marco con neón y un emblema de facción pequeño pegado al borde. Desactivar el modo recupera el diseño clásico con sus ajustes anteriores. No fuerza CVars ni muestra placas que el juego tenga ocultas.
+
+Los aliados admiten color de clase o azul. Los enemigos admiten **barra, marco y neón por clase** o **los tres rojos**. El icono de clase opcional conserva siempre su propio contorno neón de clase, incluso cuando la barra es roja. Se mantiene el emblema de facción, sin sustituirlo todavía por los escudos de mérito de los bocetos.
+
+Las alas son trazos pequeños de un solo color, pegados a ambos lados, solo para miembros de tu hermandad de la Alianza. Los colores iniciales son bronce (mérito 1–4), plata (5–9) y oro (10–14); cada tramo permite elegir otro color. Sin datos se usa gris azulado neutro. Son categorías de `TisteltiMerito`, no una afirmación de rango oficial. Brillo y tamaño de alas se ajustan en la misma sección, con vista previa.
+
+Funciona en mundo abierto y permite dibujar en campos de batalla/arenas; las mazmorras y bandas siguen excluidas. Cambiar de modo en combate espera al final para restaurar la geometría anterior. El modo compacto conserva los anclajes nativos de auras y controles. Si la clase no se puede leer, oculta su icono y usa un color de reacción como respaldo.
+
+En 0.8.1 se evita que el ala derecha y el icono de clase compactos tapen indicadores de control o pérdida de control: ambos se ocultan mientras haya un icono nativo visible y recuperan sus opciones al terminar. El ala izquierda, los anclajes de auras, las barras de lanzamiento y los temporizadores de habilidades se conservan. Los contenedores vacíos u ocultos no ocultan la decoración. La comprobación funciona también en combate, sin recolocar marcos protegidos.
+
+Comandos: `/tistelti pvp on/off` y `/tistelti enemigos rojo/clase`. `/tistelti vista` mantiene la vista del diseño clásico; la de PvP está en su sección de opciones.
+
+Comprobado con pruebas Lua 5.1 de migración, menús, colores, iconos, combate, instancias, reutilización de placas y restauración. **Pendiente comprobar el aspecto y las restricciones reales dentro de WoW Forever.**
 
 En Opciones, **Prioridad** permite elegir **Grupo/Banda** (todos los compañeros usan el estilo de grupo o banda, incluidos los de tu hermandad) o **Hermandad** (tu propia hermandad conserva su estilo; los demás compañeros usan grupo o banda). Fuera del grupo, los de tu hermandad mantienen su aspecto habitual. Se respetan los interruptores de cada estilo. La selección se guarda y se aplica también en combate; por defecto se conserva la prioridad de Hermandad. **Estilo** sigue eligiendo qué aspecto editas y no cambia la prioridad.
 
@@ -30,7 +46,7 @@ Los marcos protegidos no se recolocan durante el combate: se actualizan al termi
 
 ## Código y datos
 
-`TisteltiPlates/Honor.lua`, `TisteltiPlates/CCPosition.lua` y `TisteltiPlates/Core.lua` contienen el código; el manifiesto TOC define el orden de carga. Las texturas necesarias están en `TisteltiPlates/Media/`.
+`TisteltiPlates/Honor.lua`, `TisteltiPlates/PvP.lua`, `TisteltiPlates/CCPosition.lua` y `TisteltiPlates/Core.lua` contienen el código; el manifiesto TOC define el orden de carga. Las texturas necesarias están en `TisteltiPlates/Media/`.
 
 El addon se mantiene separado de TisteltiGuild y no lo requiere. La configuración se guarda en `TisteltiPlatesDB`. Este repositorio no incluye SavedVariables, datos de jugadores ni credenciales.
 
@@ -47,3 +63,5 @@ Desde la raíz del repositorio, ejecuta `lua tests/test_cc.lua` (Lua 5.1 o poste
 Las pruebas simuladas no sustituyen la comprobación en WoW Forever: recarga la interfaz, revisa `/tistelti cc` y comprueba que el ala derecha desaparece al mostrarse un control sobre un aliado y vuelve al terminar.
 
 `lua tests/test_wings.lua` comprueba las tres opciones de estilo y sus vistas previas estando en banda, los ajustes independientes, la migración de configuración y la selección de grupo/banda.
+
+`lua tests/test_pvp.lua` comprueba la integración real de Core, CC y PvP, las opciones, los colores, cambios de modo, instancias y reciclaje. Incluye aparición/desaparición de controles en combate, contenedores vacíos/ocultos, visibilidad restringida y conservación de anclajes y temporizadores nativos de habilidades y lanzamientos. Pendiente validar el resultado visual en WoW Forever.

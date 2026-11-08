@@ -5,7 +5,12 @@ local CC = {}
 TisteltiPlatesCC = CC
 local hooked = setmetatable({}, {__mode = "k"})
 local originalLevels = setmetatable({}, {__mode = "k"})
+local originalPoints = setmetatable({}, {__mode = "k"})
 local keys = {"CrowdControlListFrame", "LossOfControlFrame"}
+
+function CC.OriginalPlacement(frame)
+    return originalPoints[frame], originalLevels[frame]
+end
 
 local function Read(fn, ...)
     if type(fn) ~= "function" then return nil end
@@ -47,6 +52,28 @@ local function HasControlIcon(uf)
     return false
 end
 
+function CC.UpdatePvPArt(art, uf)
+    -- En compacto el nivel y los controles conservan sus anclajes nativos.
+    -- El ala y el icono de clase ocupan ese mismo lateral: sólo nuestras
+    -- decoraciones ceden el espacio mientras dure un control visible.
+    local hide=HasControlIcon(uf)
+    art.wings[2]:SetShown(art.pvpShowRightWing and not hide or false)
+    art.classFrame:SetShown(art.pvpShowClassIcon and not hide or false)
+end
+
+function CC.AttachPvPArt(art, uf)
+    if not uf.AurasFrame or art.pvpControlHooks then return end
+    art.pvpControlHooks=true
+    art.pvpUnitFrame=uf
+    local elapsed=0
+    art:SetScript("OnUpdate",function(_,dt)
+        elapsed=elapsed+dt
+        if elapsed<.05 then return end
+        elapsed=0
+        CC.UpdatePvPArt(art,uf)
+    end)
+end
+
 local function UpdateWing(art, uf)
     local enabled = not TisteltiPlatesDB or TisteltiPlatesDB.hideRightWingOnCC ~= false
     local hide = enabled and HasControlIcon(uf)
@@ -58,6 +85,19 @@ function CC.Position(uf)
     if not uf or Read(uf.IsForbidden, uf) then return end
     local auras = uf.AurasFrame
     if not auras or Read(auras.IsForbidden, auras) then return end
+    if TisteltiPlatesPvP and TisteltiPlatesPvP.IsActive() then
+        for _, key in ipairs(keys) do
+            local frame = auras[key]
+            if frame and originalPoints[frame] and not Read(frame.IsForbidden, frame)
+                and (not InCombatLockdown() or Read(frame.IsProtected, frame) == false) then
+                frame:ClearAllPoints()
+                for _, point in ipairs(originalPoints[frame]) do frame:SetPoint(unpack(point)) end
+                if originalLevels[frame] then frame:SetFrameLevel(originalLevels[frame]) end
+                originalPoints[frame], originalLevels[frame] = nil, nil
+            end
+        end
+        return -- Compact mode leaves the native CC layout intact.
+    end
     local art = Visible(uf.TisteltiArt) and uf.TisteltiArt
         or Visible(uf.TisteltiCombatArt) and uf.TisteltiCombatArt
     local anchor = art and art.badge
@@ -70,6 +110,11 @@ function CC.Position(uf)
         -- Protected lists wait for PLAYER_REGEN_ENABLED; wings still update.
         if frame and not Read(frame.IsForbidden, frame)
             and (not InCombatLockdown() or Read(frame.IsProtected, frame) == false) then
+            if not originalPoints[frame] then
+                local points = {}
+                for i = 1, frame:GetNumPoints() do points[i] = {frame:GetPoint(i)} end
+                originalPoints[frame] = points
+            end
             frame:ClearAllPoints()
             frame:SetPoint("LEFT", anchor, "RIGHT", 8, 0)
             if art then

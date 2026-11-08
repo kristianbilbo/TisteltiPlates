@@ -228,3 +228,24 @@ CC.Report()
 assert(message:find("control/stuns en amigos: desactivado",1,true))
 print=oldPrint
 print("PASS: /tistelti cc reports settings without changing them")
+
+-- Switching to compact PvP must restore the real native points, not the
+-- positioner's temporary right-of-badge anchor. Protected lists defer safely.
+local compact=false
+TisteltiPlatesPvP={IsActive=function() return compact end}
+local fresh=Frame()
+fresh.HealthBarsContainer=Frame(fresh)
+fresh.AurasFrame=Frame(fresh)
+local native=Frame(fresh.AurasFrame)
+fresh.AurasFrame.LossOfControlFrame=native
+native:SetPoint('BOTTOM',fresh.HealthBarsContainer,'TOP',0,4)
+local nativeLevel=native:GetFrameLevel()
+CC.Position(fresh)
+assert(native.points[1][1]=='LEFT')
+local saved=CC.OriginalPlacement(native)
+assert(saved[1][1]=='BOTTOM' and saved[1][5]==4)
+compact=true; combat=true; native.protected=true
+CC.Position(fresh); assert(native.points[1][1]=='LEFT')
+combat=false; CC.Position(fresh)
+assert(native.points[1][1]=='BOTTOM' and native.points[1][5]==4 and native:GetFrameLevel()==nativeLevel)
+print('PASS: compact PvP restores native CC anchors and defers protected changes in combat')
