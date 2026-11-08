@@ -82,7 +82,7 @@ local function HasControlIcon(uf)
 end
 
 function CC.UpdatePvPArt(art, uf)
-    -- En compacto el nivel y los controles conservan sus anclajes nativos.
+    -- En compacto los controles siguen a la derecha del nivel nativo.
     -- El ala derecha cede espacio mientras dure un control visible. El icono
     -- de clase tiene su propio espacio al otro lado y permanece legible.
     local hide=HasControlIcon(uf)
@@ -110,22 +110,25 @@ local function UpdateWing(art, uf)
     art.rightWingLight:SetShown(not hide)
 end
 
+-- Moving a control within its plate does not require measuring its old anchor.
+-- Keep CapturePlacement conservative for restoration of other native regions.
+local function CanMoveControl(frame)
+    if not frame or Read(frame.IsForbidden, frame) ~= false then return false end
+    if type(frame.CanBeAccessedInContext) == "function" then
+        if Read(frame.CanBeAccessedInContext, frame) ~= true then return false end
+    elseif type(frame.HasAccessConstraints) == "function"
+        and Read(frame.HasAccessConstraints, frame) ~= false then
+        return false
+    end
+    if type(frame.CanChangeProtectedState) == "function"
+        and Read(frame.CanChangeProtectedState, frame) ~= true then return false end
+    return not InCombatLockdown() or Read(frame.IsProtected, frame) == false
+end
+
 function CC.Position(uf)
     if not uf or Read(uf.IsForbidden, uf) then return end
     local auras = uf.AurasFrame
     if not auras or Read(auras.IsForbidden, auras) then return end
-    if TisteltiPlatesPvP and TisteltiPlatesPvP.IsActive() then
-        for _, key in ipairs(keys) do
-            local frame = auras[key]
-            if frame and originalPoints[frame] and CC.CanPosition(frame) then
-                frame:ClearAllPoints()
-                for _, point in ipairs(originalPoints[frame]) do frame:SetPoint(unpack(point)) end
-                if originalLevels[frame] then frame:SetFrameLevel(originalLevels[frame]) end
-                originalPoints[frame], originalLevels[frame] = nil, nil
-            end
-        end
-        return -- Compact mode leaves the native CC layout intact.
-    end
     local art = Visible(uf.TisteltiArt) and uf.TisteltiArt
         or Visible(uf.TisteltiCombatArt) and uf.TisteltiCombatArt
     local anchor = art and art.badge
@@ -136,21 +139,20 @@ function CC.Position(uf)
         local frame = auras[key]
         -- Preserve the old positioner's combat behavior for unprotected lists.
         -- Protected lists wait for PLAYER_REGEN_ENABLED; wings still update.
-        if frame and CC.CanPosition(frame) then
+        if CanMoveControl(frame) then
             if not originalPoints[frame] then
                 local points=CC.CapturePlacement(frame)
                 originalPoints[frame] = points
             end
-            if originalPoints[frame] then
-                frame:ClearAllPoints()
-                frame:SetPoint("LEFT", anchor, "RIGHT", 8, 0)
-                if art then
-                    if originalLevels[frame] == nil then originalLevels[frame] = frame:GetFrameLevel() end
-                    frame:SetFrameLevel(art.badge:GetFrameLevel() + 10)
-                elseif originalLevels[frame] then
-                    frame:SetFrameLevel(originalLevels[frame])
-                    originalLevels[frame] = nil
-                end
+            frame:ClearAllPoints()
+            frame:SetPoint("LEFT", anchor, "RIGHT", 8, 0)
+            if art then
+                if originalLevels[frame] == nil then originalLevels[frame] = Read(frame.GetFrameLevel, frame) end
+                local level = Read(art.badge.GetFrameLevel, art.badge)
+                if type(level) == "number" then frame:SetFrameLevel(level + 10) end
+            elseif originalLevels[frame] then
+                frame:SetFrameLevel(originalLevels[frame])
+                originalLevels[frame] = nil
             end
         end
     end

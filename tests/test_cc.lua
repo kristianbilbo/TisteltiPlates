@@ -248,8 +248,7 @@ assert(message:find("control/stuns en amigos: desactivado",1,true))
 print=oldPrint
 print("PASS: /tistelti cc reports settings without changing them")
 
--- Switching to compact PvP must restore the real native points, not the
--- positioner's temporary right-of-badge anchor. Protected lists defer safely.
+-- CC remains to the right in both modes. Protected lists defer safely.
 local compact=false
 TisteltiPlatesPvP={IsActive=function() return compact end}
 local fresh=Frame()
@@ -266,11 +265,10 @@ assert(saved[1][1]=='BOTTOM' and saved[1][5]==4)
 compact=true; combat=true; native.protected=true
 CC.Position(fresh); assert(native.points[1][1]=='LEFT')
 combat=false; CC.Position(fresh)
-assert(native.points[1][1]=='BOTTOM' and native.points[1][5]==4 and native:GetFrameLevel()==nativeLevel)
-print('PASS: compact PvP restores native CC anchors and defers protected changes in combat')
+assert(native.points[1][1]=='LEFT' and native.points[1][4]==8 and native:GetFrameLevel()==nativeLevel)
+print('PASS: compact PvP retains right-side controls and defers protected changes in combat')
 
--- Real-client regression: IsForbidden=false is not enough. Native controls
--- can forbid FrameMeasurement and throw from GetPoint thousands of times.
+-- Measurement restrictions must prevent reads, not otherwise permitted moves.
 compact=false
 local restrictedUF=Frame()
 restrictedUF.HealthBarsContainer=Frame(restrictedUF)
@@ -278,23 +276,37 @@ restrictedUF.AurasFrame=Frame(restrictedUF)
 local restricted=Frame(restrictedUF.AurasFrame)
 restrictedUF.AurasFrame.LossOfControlFrame=restricted
 restricted:SetPoint('BOTTOM',restrictedUF.HealthBarsContainer,'TOP',0,4)
-local original=restricted.points[1]
-local measurements,mutations=0,0
+local measurements=0
 restricted.HasAnyForbiddenAspects=function() return true end
 restricted.GetPoint=function() measurements=measurements+1 error("Can't measure restricted regions") end
-restricted.ClearAllPoints=function() mutations=mutations+1 error('Restricted anchor mutation') end
 for i=1,1000 do CC.Position(restrictedUF) end
-assert(measurements==0 and mutations==0 and restricted.points[1]==original,'Forbidden aspects must be checked before reading native points')
-restricted.HasAnyForbiddenAspects=function() return false end
+assert(measurements==0 and restricted.points[1][1]=='LEFT' and restricted.points[1][4]==8)
 restricted.HasAccessConstraints=function() return true end
-CC.Position(restrictedUF) assert(measurements==0)
-restricted.HasAccessConstraints=function() return secret end
-CC.Position(restrictedUF) assert(measurements==0,'Unknown access fails closed')
-restricted.HasAccessConstraints=nil restricted.HasAnyForbiddenAspects=nil
+restricted:SetPoint('BOTTOM',restrictedUF.HealthBarsContainer,'TOP',0,4)
+CC.Position(restrictedUF)
+assert(restricted.points[1][1]=='BOTTOM', 'Unknown access remains blocked')
+restricted.CanBeAccessedInContext=function() return true end
+CC.Position(restrictedUF)
+assert(restricted.points[1][1]=='LEFT', 'Conditional restrictions do not block an accessible frame')
+restricted.CanBeAccessedInContext=function() return false end
+restricted:SetPoint('BOTTOM',restrictedUF.HealthBarsContainer,'TOP',0,4)
+CC.Position(restrictedUF); assert(restricted.points[1][1]=='BOTTOM')
+restricted.CanBeAccessedInContext=function() return secret end
+CC.Position(restrictedUF); assert(restricted.points[1][1]=='BOTTOM')
+restricted.CanBeAccessedInContext=nil
+restricted.HasAccessConstraints=nil; restricted.HasAnyForbiddenAspects=nil
 for i=1,1000 do CC.Position(restrictedUF) end
-assert(measurements==1 and mutations==0,'A client without preflight only attempts a failed snapshot once')
+assert(measurements==1 and restricted.points[1][1]=='LEFT', 'A failed snapshot is not retried, but repositioning still works')
+restricted.protected=true; combat=true
+local before=restricted.points[1]
+CC.Position(restrictedUF); assert(restricted.points[1]==before)
+restricted.protected=false; CC.Position(restrictedUF)
+assert(restricted.points[1][1]=='LEFT')
+combat=false
+restricted.forbidden=true
+before=restricted.points[1]; CC.Position(restrictedUF); assert(restricted.points[1]==before)
 local hiddenAccess=Frame()
 hiddenAccess.GetPoint=function() return secret end
 hiddenAccess.GetNumPoints=function() return 1 end
 assert(not CC.CapturePlacement(hiddenAccess),'Secret anchor values are never saved or used')
-print('PASS: restricted FrameMeasurement, access constraints and repeated GetPoint failures leave native controls untouched')
+print('PASS: measurement-restricted controls move right without reads; inaccessible/protected frames remain untouched')

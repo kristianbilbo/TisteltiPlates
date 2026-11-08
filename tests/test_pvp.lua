@@ -239,8 +239,8 @@ assert(enemy2.healthBar.color[1]==.3,'Original health color restored')
 assert(guild.scale==1.25 and guild.width==110*1.22,'Disabling PvP restores the existing classic style')
 SlashCmdList.TISTELTIPLATES('pvp on'); SlashCmdList.TISTELTIPLATES('pvp')
 assert(guild.scale==1 and guild.width==110,'Returning to PvP must restore native dimensions')
-assert(guild.AurasFrame.LossOfControlFrame.points[1][1]=='BOTTOM'
-    and guild.AurasFrame.LossOfControlFrame.points[1][5]==4,'Real Core/CC/PvP switch must restore the native aura anchor')
+assert(guild.AurasFrame.LossOfControlFrame.points[1][1]=='LEFT'
+    and guild.AurasFrame.LossOfControlFrame.points[1][4]==8,'Real Core/CC/PvP switch must keep controls to the right')
 SlashCmdList.TISTELTIPLATES('enemigos clase')
 assert(enemy2.healthBar.color[1]==RAID_CLASS_COLORS.WARLOCK.r)
 inside=true; kind='party'; core.refresh(); assert(not enemy2.TisteltiPvPArt.shown)
