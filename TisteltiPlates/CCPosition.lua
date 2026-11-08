@@ -10,6 +10,7 @@ local unreadable = setmetatable({}, {__mode = "k"})
 local keys = {"CrowdControlListFrame", "LossOfControlFrame"}
 local auraKeys = {"BuffListFrame", "DebuffListFrame", "CrowdControlListFrame", "LossOfControlFrame"}
 local moved = setmetatable({}, {__mode = "k"})
+local rectUnreadable = setmetatable({}, {__mode = "k"})
 
 function CC.OriginalPlacement(frame)
     return originalPoints[frame], originalLevels[frame]
@@ -83,17 +84,77 @@ local function HasControlIcon(uf)
     return false
 end
 
+local function Rect(frame)
+    if not frame or rectUnreadable[frame] then return end
+    for _, method in ipairs({"IsForbidden", "HasAccessConstraints", "HasAnyForbiddenAspects"}) do
+        if type(frame[method])=="function" and Read(frame[method],frame)~=false then return end
+    end
+    if type(frame.GetRect)~="function" then return end
+    local ok,x,y,w,h=pcall(frame.GetRect,frame)
+    if not ok then rectUnreadable[frame]=true return end
+    for _,value in ipairs({x,y,w,h}) do
+        if (issecretvalue and issecretvalue(value)) or type(value)~="number" then return end
+    end
+    if type(x)~="number" or type(y)~="number" or type(w)~="number" or type(h)~="number" or w<=0 or h<=0 then return end
+    local scale=Read(frame.GetEffectiveScale,frame)
+    if type(scale)~="number" or scale<=0 then return end
+    return {x*scale,y*scale,(x+w)*scale,(y+h)*scale}
+end
+
+local function AuraObstacles(uf)
+    local obstacles,unknown={},false
+    local auras=uf and uf.AurasFrame
+    if not Visible(auras) then return obstacles,unknown end
+    local seen={}
+    local function add(icon)
+        if not icon or seen[icon] or not Visible(icon) then return end
+        seen[icon]=true
+        local rect=Rect(icon)
+        if rect then obstacles[#obstacles+1]=rect else unknown=true end
+    end
+    for _,key in ipairs(auraKeys) do
+        local list=auras[key]
+        if Visible(list) then
+            add(list.AuraItemFrame)
+            if type(list.GetChildren)=="function" then
+                local ok=pcall(function()
+                    for _,child in ipairs({list:GetChildren()}) do
+                        if child.Icon and child.Cooldown then add(child) end
+                    end
+                end)
+                if not ok then unknown=true end
+            end
+        end
+    end
+    return obstacles,unknown
+end
+
 function CC.UpdatePvPArt(art, uf)
-    -- En compacto el nivel y los controles conservan sus anclajes nativos.
-    -- El ala derecha cede espacio mientras dure un control visible. El icono
-    -- de clase tiene su propio espacio al otro lado y permanece legible.
-    local hide=HasControlIcon(uf)
-    art.wings[2]:SetShown(art.pvpShowRightWing and not hide or false)
-    art.classFrame:SetShown(art.pvpShowClassIcon and true or false)
+    local obstacles,unknown=AuraObstacles(uf)
+    local function blocked(frame)
+        if unknown then return true end
+        if #obstacles==0 then return false end
+        -- Test hidden ornaments too, so they can reappear without moving auras.
+        local rect=Rect(frame)
+        if not rect then return true end
+        for _,other in ipairs(obstacles) do
+            if rect[1]<other[3]+4 and rect[3]>other[1]-4
+                and rect[2]<other[4]+4 and rect[4]>other[2]-4 then return true end
+        end
+        return false
+    end
+    art.wings[1]:SetShown(art.pvpShowLeftWing and not blocked(art.wings[1]) or false)
+    art.wings[2]:SetShown(art.pvpShowRightWing and not HasControlIcon(uf) and not blocked(art.wings[2]) or false)
+    local showClass=art.pvpShowClassIcon and not blocked(art.classFrame)
+    art.classFrame:SetShown(showClass and true or false)
+    if art.factionFrame then
+        art.factionFrame:SetShown(art.pvpShowFaction and (not art.pvpShowClassIcon or showClass)
+            and not blocked(art.factionFrame) or false)
+    end
 end
 
 function CC.AttachPvPArt(art, uf)
-    if not uf.AurasFrame or art.pvpControlHooks then return end
+    if art.pvpControlHooks then return end
     art.pvpControlHooks=true
     art.pvpUnitFrame=uf
     local elapsed=0

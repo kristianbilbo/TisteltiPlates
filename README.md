@@ -1,6 +1,14 @@
 # TisteltiPlates
 
-Addon para WoW Forever (interfaz 16001). Versión actual: **0.8.8**.
+Addon para WoW Forever (interfaz 16001). Versión actual: **0.8.9**.
+
+## Auras prioritarias y nombres por facción 0.8.9
+
+En modo PvP los nombres son azules para la Alianza y rojos para la Horda, independientemente del color de clase o barra. Se mantienen fuente, tamaño, posición y alfa del texto y se restaura su color previo al retirar el estilo. Una restauración protegida se aplaza hasta que sea posible.
+
+Las auras tienen prioridad sobre la decoración: si un icono visible coincide con un ala o el icono de clase, se oculta temporalmente el adorno afectado. La insignia integrada acompaña al icono de clase. Cuando el aura cambia de sitio o desaparece, los adornos recuperan su estado configurado. Las listas vacías no los ocultan. Se comparan rectángulos en espacio de pantalla, incluyendo sus escalas efectivas y un pequeño margen. Si un aura visible no se puede medir, se reservan los laterales ocultando los adornos. Nunca se cambian los anclajes, filtros ni temporizadores de las auras PvP.
+
+Verificado en Lua 5.1: colores de ambas facciones, alfa, cambios del nombre, restauración diferida, colisiones, escalas distintas, combate, contenedores vacíos y regiones restringidas. Falta validación visual en el cliente con EllesmereUI.
 
 ## Rediseño PvP heráldico 0.8.8
 
@@ -46,7 +54,7 @@ Las alas usan las plumas del diseño de hermandad, unidas al icono de clase y al
 
 Funciona en mundo abierto y permite dibujar en campos de batalla/arenas; las mazmorras y bandas siguen excluidas. Cambiar de modo en combate espera al final para restaurar la geometría anterior. El modo compacto conserva los anclajes nativos de auras y controles. Si la clase no se puede leer, oculta su icono y usa un color de reacción como respaldo.
 
-El ala derecha cede espacio a los controles o pérdidas de control nativos visibles y reaparece al terminar. El icono de clase permanece visible en su espacio a la izquierda. Los anclajes de auras, las barras de lanzamiento y los temporizadores se conservan. Los contenedores vacíos u ocultos no ocultan el ala. Funciona también en combate sin recolocar marcos protegidos.
+El ala derecha cede espacio a los controles o pérdidas de control nativos visibles y reaparece al terminar. Las demás alas y el icono de clase ceden solo cuando coinciden con un icono de aura, o no puede medirse un aura visible. Los anclajes de auras, las barras de lanzamiento y los temporizadores se conservan. Los contenedores vacíos u ocultos no ocultan los adornos. Funciona también en combate sin recolocar marcos protegidos.
 
 Comandos: `/tistelti pvp on/off` y `/tistelti enemigos rojo/clase`. `/tistelti vista` mantiene la vista del diseño clásico; la de PvP está en su sección de opciones.
 

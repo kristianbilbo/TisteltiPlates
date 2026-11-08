@@ -33,6 +33,9 @@ local function Frame(parent)
     function f:SetScale(v) if self.native then nativeMutations=nativeMutations+1; assert(not combat) end; self.scale=v end
     function f:GetScale() return self.scale end
     function f:GetEffectiveScale() return self.scale end
+    function f:GetRect() return unpack(self.rect or {0,0,self.width,self.height}) end
+    function f:SetTextColor(...) self.textColor={...} end
+    function f:GetTextColor() return unpack(self.textColor or {.8,.8,.8,1}) end
     function f:SetStatusBarColor(...) self.color={...} end
     function f:GetStatusBarColor() return unpack(self.color) end
     function f:SetValue(v) self.value=v end
@@ -155,6 +158,7 @@ assert(guild.TisteltiPvPArt.wings[1].shown and guild.TisteltiPvPArt.wings[2].sho
 -- CC and native ability timers must win the right-hand space in compact mode.
 local controls=guild.AurasFrame.LossOfControlFrame
 controls.AuraItemFrame=Frame(controls)
+controls.AuraItemFrame.rect={200,0,18,18}
 controls.AuraItemFrame:Hide()
 controls.AuraItemFrame.Icon={}
 local nativeCooldown={duration=12,expiration=120}
@@ -182,6 +186,7 @@ controls:Show(); controls.AuraItemFrame:Hide()
 local crowd=Frame(guild.AurasFrame)
 guild.AurasFrame.CrowdControlListFrame=crowd
 local crowdIcon=Frame(crowd); crowdIcon.Icon={}; crowdIcon.Cooldown={}
+crowdIcon.rect={200,0,18,18}
 tickControls(); assert(not guild.TisteltiPvPArt.wings[2].shown and guild.TisteltiPvPArt.classFrame.shown,'Child controls reserve the right side, class icon stays left')
 crowdIcon:Hide(); tickControls(); assert(guild.TisteltiPvPArt.classFrame.shown)
 local isVisible=controls.AuraItemFrame.IsVisible
@@ -360,3 +365,74 @@ db.enabled=false; core.refresh()
 assert(guild.scale==.9 and guild.width==145,'Standalone removal restores the latest base geometry')
 assert(#errors==0,table.concat(errors,'\n'))
 print('PASS: EllesmereUI external names, live geometry, legacy detection, combat, disable and standalone restoration')
+
+-- Faction names are independent of bar/class/reaction colours and restore fully.
+db.enabled=true
+SlashCmdList.TISTELTIPLATES('pvp on')
+pvp.Update('guild',guild)
+assert(guild.name.textColor[1]==.35 and guild.name.textColor[3]==1,'Alliance names are readable blue')
+enemy2.name:SetTextColor(.7,.6,.5,.4)
+pvp.Update('enemy',enemy2)
+assert(enemy2.name.textColor[1]==1 and enemy2.name.textColor[2]==.3 and enemy2.name.textColor[4]==.4,
+    'Horde names are red while preserving alpha')
+enemy2.name:SetTextColor(0,1,0,1)
+assert(enemy2.name.textColor[1]==1 and enemy2.name.textColor[2]==.3,'Native recolours cannot erase faction names')
+local oldName=enemy2.name
+enemy2.name=Frame(enemy2)
+enemy2.name:SetTextColor(.2,.3,.4,.9)
+pvp.Update('enemy',enemy2)
+assert(oldName.textColor[1]==.7 and oldName.textColor[4]==.4,'Replacing the name restores the previous text region')
+combat=true; enemy2.name.protected=true
+pvp.Remove(enemy2)
+assert(enemy2.name.textColor[1]==1,'Protected text waits for safe restoration')
+combat=false; enemy2.name.protected=false; pvp.Sync()
+assert(enemy2.name.textColor[1]==.2 and enemy2.name.textColor[4]==.9,'Deferred restoration keeps original colour and alpha')
+pvp.Update('enemy',enemy2)
+units.enemy.faction=nil
+pvp.Update('enemy',enemy2)
+assert(enemy2.name.textColor[1]==.2,'An unknown faction retains the original name colour')
+units.enemy.faction='Horde'
+print('PASS: faction name colours, alpha, external recolours, replacement, unknown faction and combat restoration')
+
+-- Auras always win; hide only ornaments that actually overlap their rectangles.
+local guildArt=guild.TisteltiPvPArt
+guildArt.wings[1].rect={0,0,20,20}
+guildArt.classFrame.rect={30,0,20,20}
+guildArt.factionFrame.rect={48,-5,12,12}
+guildArt.wings[2].rect={160,0,20,20}
+local buffs=Frame(guild.AurasFrame)
+guild.AurasFrame.BuffListFrame=buffs
+local buffIcon=Frame(buffs)
+buffIcon.Icon={}; buffIcon.Cooldown={duration=12}
+buffIcon.rect={30,0,18,18}
+buffIcon:SetPoint('BOTTOM',guild.healthBar,'TOP',0,4)
+local buffPoint=buffIcon.points[1]
+combat=true
+tickControls()
+assert(not guildArt.classFrame.shown and not guildArt.factionFrame.shown
+    and guildArt.wings[1].shown and guildArt.wings[2].shown,'Only overlapping ornaments yield')
+assert(buffIcon.points[1]==buffPoint and buffIcon.Cooldown.duration==12,'Aura anchors and timers stay untouched in combat')
+buffIcon.rect={0,0,18,18}; tickControls()
+assert(not guildArt.wings[1].shown and guildArt.classFrame.shown,'Moving a buff restores class and hides the affected wing')
+buffIcon.rect={400,80,18,18}; tickControls()
+assert(guildArt.wings[1].shown and guildArt.classFrame.shown,'Non-overlapping buffs leave the full design visible')
+buffIcon.scale=2; buffIcon.rect={15,0,9,9}; tickControls()
+assert(not guildArt.classFrame.shown,'Collision compares screen space across different effective scales')
+buffIcon.scale=1
+local auraMeasurements=0
+buffIcon.HasAnyForbiddenAspects=function() return true end
+buffIcon.GetRect=function() auraMeasurements=auraMeasurements+1 error('Cannot measure restricted aura') end
+tickControls()
+assert(auraMeasurements==0,'Restricted geometry is checked before measuring')
+assert(not guildArt.wings[1].shown and not guildArt.wings[2].shown and not guildArt.classFrame.shown,
+    'Unreadable visible auras conservatively reserve all ornament space')
+buffIcon.HasAnyForbiddenAspects=nil
+for i=1,100 do tickControls() end
+assert(auraMeasurements==1,'A failing GetRect is never retried every frame')
+buffIcon:Hide(); tickControls()
+assert(guildArt.wings[1].shown and guildArt.classFrame.shown,'Empty visible containers never hide ornaments')
+combat=false
+db.pvp.classIcon=false; pvp.Update('guild',guild); tickControls()
+assert(not guildArt.classFrame.shown,'Aura ending respects disabled class icons')
+assert(#errors==0,table.concat(errors,'\n'))
+print('PASS: overlapping buffs, scaled rectangles, moving icons, combat, restricted geometry, empty containers and saved preferences')

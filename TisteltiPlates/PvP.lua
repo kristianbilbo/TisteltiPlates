@@ -3,9 +3,11 @@ local PvP = {}
 TisteltiPlatesPvP = PvP
 local config, enabled
 local states = {}
+local pendingNames=setmetatable({}, {__mode="k"})
 local WHITE = "Interface\\Buttons\\WHITE8X8"
 local WINGS = "Interface\\AddOns\\TisteltiPlates\\Media\\Wings.tga"
 local RED, BLUE = {r=1,g=.08,b=.08}, {r=.16,g=.58,b=1}
+local nameColors={Alliance={.35,.7,1},Horde={1,.3,.3}}
 local palette = {bronce={r=1,g=.48,b=.16}, plata={r=.82,g=.9,b=1},
     oro={r=1,g=.86,b=.08}, violeta={r=.72,g=.38,b=1}, azul=BLUE,
     verde={r=.15,g=1,b=.42}}
@@ -46,6 +48,12 @@ end
 function PvP.Sync()
     -- Returning from the old enlarged style requires protected geometry restoration.
     if config and not InCombatLockdown() then enabled = config.enabled end
+    for frame,color in pairs(pendingNames) do
+        if TisteltiPlatesCC.CanPosition(frame) then
+            local ok=pcall(frame.SetTextColor,frame,unpack(color))
+            if ok then pendingNames[frame]=nil end
+        end
+    end
 end
 
 function PvP.IsActive()
@@ -252,8 +260,10 @@ function PvP.Paint(art, bar, color, class, faction, guild, rank, iconAnchor, bor
         art.wings[1]:ClearAllPoints()
         art.wings[1]:SetPoint("RIGHT",showClass and art.classFrame or art.body,"LEFT",2,0)
     end
-    art.pvpShowRightWing=config.wings and guild and true or false
+    art.pvpShowLeftWing=config.wings and guild and true or false
+    art.pvpShowRightWing=art.pvpShowLeftWing
     art.pvpShowClassIcon=config.classIcon and uv~=nil and classColor~=nil
+    art.pvpShowFaction=emblem and true or false
     if art.pvpUnitFrame and TisteltiPlatesCC then
         TisteltiPlatesCC.UpdatePvPArt(art,art.pvpUnitFrame)
     end
@@ -269,12 +279,60 @@ local function Tint(uf)
     state.tinting = false
 end
 
+local function RestoreName(state)
+    local entry=state and state.name
+    if not entry then return end
+    state.nameTinting=true
+    if TisteltiPlatesCC.CanPosition(entry.frame) then
+        local ok=pcall(entry.frame.SetTextColor,entry.frame,unpack(entry.color))
+        if not ok then pendingNames[entry.frame]=entry.color end
+    else
+        pendingNames[entry.frame]=entry.color
+    end
+    state.nameTinting=false
+    state.name=nil
+end
+
+local function TintName(uf)
+    local state=states[uf]
+    local entry=state and state.name
+    if not entry or not state.nameColor or state.nameTinting or not TisteltiPlatesCC.CanPosition(entry.frame) then return end
+    state.nameTinting=true
+    pcall(entry.frame.SetTextColor,entry.frame,state.nameColor[1],state.nameColor[2],state.nameColor[3],entry.color[4])
+    state.nameTinting=false
+end
+
+local function ColorName(uf,state,faction)
+    local frame=uf.name or uf.Name or (uf.NameContainer and uf.NameContainer.Name)
+    state.nameColor=nameColors[faction]
+    if state.name and (state.name.frame~=frame or not state.nameColor) then RestoreName(state) end
+    if not state.nameColor or not frame or not TisteltiPlatesCC.CanPosition(frame) then return end
+    if not state.name then
+        if type(frame.GetTextColor)~="function" or type(frame.SetTextColor)~="function" then return end
+        local ok,r,g,b,a=pcall(frame.GetTextColor,frame)
+        if not ok then return end
+        for _,value in ipairs({r,g,b,a}) do
+            if not Public(value) or type(value)~="number" then return end
+        end
+        if type(r)~="number" or type(g)~="number" or type(b)~="number" or type(a)~="number" then return end
+        state.name={frame=frame,color=pendingNames[frame] or {r,g,b,a}}
+        pendingNames[frame]=nil
+        uf.TisteltiPvPNameHooks=uf.TisteltiPvPNameHooks or setmetatable({}, {__mode="k"})
+        if not uf.TisteltiPvPNameHooks[frame] then
+            hooksecurefunc(frame,"SetTextColor",function() TintName(uf) end)
+            uf.TisteltiPvPNameHooks[frame]=true
+        end
+    end
+    TintName(uf)
+end
+
 function PvP.Remove(uf)
     if uf.TisteltiPvPArt then uf.TisteltiPvPArt:Hide() end
     if uf.TisteltiPvPEmphasis then uf.TisteltiPvPEmphasis:Hide() end
     local state = states[uf]
     if not state then return end
     states[uf] = nil
+    RestoreName(state)
     if CompactUnitFrame_UpdateHealthColor and type(uf.unit) == "string" and Public(uf.unit) and Read(UnitExists, uf.unit) then
         local ok = pcall(CompactUnitFrame_UpdateHealthColor, uf)
         if ok then return end
@@ -313,6 +371,7 @@ function PvP.Update(unit, uf)
         end
     end
     state.color = color
+    ColorName(uf,state,faction)
     local art = uf.TisteltiPvPArt or Art(uf)
     uf.TisteltiPvPArt = art
     local identity = unit
@@ -409,6 +468,7 @@ function PvP.RegisterOptions(category, refresh)
         local name=bar:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
         name:SetPoint("CENTER",bar,"CENTER",0,0)
         name:SetText(i==1 and "Hermandad · Mago" or "Enemigo · Brujo")
+        name:SetTextColor(unpack(nameColors[i==1 and "Alliance" or "Horde"]))
         samples[#samples+1]={bar=bar,art=Art(bar),class=data[1],enemy=data[2],rank=data[3]}
     end
     text("Los cambios de modo durante combate se aplican al terminar. No activa placas ocultas del juego.",20,-480)

@@ -1,4 +1,16 @@
-TISTELTI - ALAS DE GRUPO · v0.8.8 · Forever 1.60.1 / interfaz 16001
+TISTELTI - ALAS DE GRUPO · v0.8.9 · Forever 1.60.1 / interfaz 16001
+
+AURAS PRIORITARIAS Y NOMBRES POR FACCIÓN 0.8.9
+- En PvP, nombres azules para Alianza y rojos para Horda, sin cambiar fuente o posición.
+- Se conserva el alfa original y se restaura el color al desactivar el modo.
+- Ante un bufo/perjuicio superpuesto, cede solo el ala o icono de clase afectado.
+- La insignia de facción acompaña la ocultación del icono de clase.
+- Los adornos reaparecen cuando el espacio queda libre, respetando las opciones.
+- Nunca se mueven, ocultan ni cambian los filtros o temporizadores de las auras PvP.
+- Si un aura visible no puede medirse, los adornos ceden espacio por precaución.
+- Las restauraciones de texto protegido esperan hasta poder realizarse.
+- Pruebas Lua 5.1 superadas; pendiente comprobar la configuración real dentro del juego.
+- Ejecuta /reload tras actualizar.
 
 REDISEÑO PVP HERÁLDICO 0.8.8 (prevalece sobre el historial inferior)
 - Doble marco metálico inspirado en hermandad: plata y oro, con acento de clase/reacción.
