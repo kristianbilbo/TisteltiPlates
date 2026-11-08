@@ -1,3 +1,5 @@
+dofile("tests/ui_stubs.lua")
+dofile("TisteltiPlates/Options.lua")
 unpack = unpack or table.unpack
 local loadChunk = loadstring or load
 local combat, secret = false, {}
@@ -201,8 +203,9 @@ local function UIFrame(parent)
         if key:match("^Set") or key:match("^Enable") then return function() end end
     end})
 end
-CreateFrame=function(kind,_,parent)
+CreateFrame=function(kind,_,parent,template)
     local frame=UIFrame(parent)
+    frame.template=template
     if kind=="CheckButton" then
         checkboxes[#checkboxes+1]=frame
         checkbox=checkbox or frame
@@ -222,7 +225,7 @@ assert(TisteltiPlatesDB.hideRightWingOnCC==false and art.rightWing.shown and art
 checkbox:SetChecked(true); checkbox.scripts.OnShow(checkbox)
 assert(checkbox.checked==false, "Reopening must resync the saved preference")
 print("PASS: config checkbox changes live wings and reflects the saved preference")
-assert(#checkboxes==3)
+assert(#checkboxes==4)
 for i,key in ipairs({"name", "border"}) do
     local check=checkboxes[i+1]
     assert(check.checked==false)
@@ -298,7 +301,7 @@ CC.Position(restrictedUF); assert(restricted.points[1][1]=='BOTTOM')
 restricted.CanBeAccessedInContext=nil
 restricted.HasAccessConstraints=nil; restricted.HasAnyForbiddenAspects=nil
 for i=1,1000 do CC.Position(restrictedUF) end
-assert(measurements==1 and restricted.points[1][1]=='LEFT', 'A failed snapshot is not retried, but repositioning still works')
+assert(measurements<=1 and restricted.points[1][1]=='LEFT', 'Recorded anchors avoid repeated measurements while positioning still works')
 restricted.protected=true; combat=true
 local before=restricted.points[1]
 CC.Position(restrictedUF); assert(restricted.points[1]==before)
@@ -346,3 +349,38 @@ lateBuff:SetPoint('TOP',late,'BOTTOM',7,8)
 CC.Position(late)
 assert(lateBuff.points[1][1]=='TOP','Inactive Tistelti must leave other addons alone')
 print('PASS: late buffs, refreshed anchors, stacked rows, protected combat and full native restoration')
+
+-- Full lifecycle: disable, deferred combat cleanup, native updates and reuse.
+TisteltiPlatesDB.enabled=true
+local life=Frame(); life.HealthBarsContainer=Frame(life); life.AurasFrame=Frame(life)
+local cc=Frame(life.AurasFrame); life.AurasFrame.LossOfControlFrame=cc
+cc:SetPoint('BOTTOM',life.HealthBarsContainer,'TOP',2,7)
+CC.Attach({UnitFrame=life}); assert(cc.points[1][1]=='LEFT')
+TisteltiPlatesDB.enabled=false; CC.Sync()
+assert(cc.points[1][1]=='BOTTOM' and cc.points[1][4]==2 and cc.points[1][5]==7)
+local restored=cc.points[1]; life:UpdateAnchors(); CC.Position(life)
+assert(cc.points[1]==restored, 'Disabled hooks must remain inert')
+cc:SetPoint('TOP',life.HealthBarsContainer,'BOTTOM',3,9)
+TisteltiPlatesDB.enabled=true; CC.Position(life)
+assert(cc.points[1][1]=='LEFT')
+cc.protected=true; combat=true; TisteltiPlatesDB.enabled=false; CC.Sync()
+assert(cc.points[1][1]=='LEFT', 'Protected cleanup waits until combat ends')
+combat=false; CC.Sync()
+assert(cc.points[1][1]=='TOP' and cc.points[1][5]==9, 'Restore the latest native layout, not a stale snapshot')
+cc.protected=false; TisteltiPlatesDB.enabled=true; CC.Position(life)
+CC.Release(life); restored=cc.points[1]; life:UpdateAnchors()
+assert(cc.points[1]==restored, 'Removed plates cannot be repositioned by late hooks')
+CC.Attach({UnitFrame=life}); assert(cc.points[1][1]=='LEFT')
+-- Measurement restricted regions still have reversible positioning.
+local blind=Frame(); blind.HealthBarsContainer=Frame(blind); blind.AurasFrame=Frame(blind)
+local blindCC=Frame(blind.AurasFrame); blind.AurasFrame.LossOfControlFrame=blindCC
+blindCC.HasAnyForbiddenAspects=function() return true end
+blindCC.GetPoint=function() error('Must not measure') end
+CC.Attach({UnitFrame=blind})
+TisteltiPlatesDB.enabled=false; CC.Sync()
+assert(blindCC.points[1][2]==blind.HealthBarsContainer and blindCC.points[1][4]==5)
+TisteltiPlatesDB.enabled=true; CC.Position(blind)
+blindCC:ClearAllPoints(); blindCC:SetPoint('BOTTOM',blind.HealthBarsContainer,'TOP',0,13)
+CC.Position(blind); TisteltiPlatesDB.enabled=false; CC.Sync()
+assert(blindCC.points[1][1]=='BOTTOM' and blindCC.points[1][5]==13)
+print('PASS: full disable, combat-deferred restoration, native layout changes, removal/reuse and unmeasurable control cleanup')

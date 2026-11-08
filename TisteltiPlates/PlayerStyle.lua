@@ -19,6 +19,13 @@ function Players.Kind(unit)
         return faction == ownFaction and "ally" or "enemy"
     end
 end
+-- Shared by classic accents and compact PvP: one configured color source.
+function Players.BorderColor(unit)
+    local db = TisteltiPlatesDB
+    local kind = Players.Kind(unit)
+    local config = db and db.enabled and db.playerColors and db.playerColors[kind]
+    return config and config.border and config.borderColor or nil
+end
 local function PaintName(uf, state)
     if state.painting or not state.name or not state.db.enabled
         or not state.config.name or Players.Kind(uf.unit) ~= state.kind then return end
@@ -38,7 +45,7 @@ function Players.Remove(uf)
     if state then RestoreName(state); states[uf] = nil end
     if borders[uf] then borders[uf]:Hide() end
 end
-function Players.Update(uf, unit, db, decorated)
+function Players.Update(uf, unit, db, decorated, pvpOwnsBorder)
     if not uf or Read(uf.IsForbidden, uf) then return end
     local kind = Players.Kind(unit)
     if not db.enabled or not kind or (kind == "ally" and decorated) then Players.Remove(uf); return end
@@ -76,7 +83,7 @@ function Players.Update(uf, unit, db, decorated)
         RestoreName(state)
     end
     local anchor = uf.HealthBarsContainer or uf.healthBar
-    if config.border and anchor and not Read(anchor.IsForbidden, anchor)
+    if config.border and not pvpOwnsBorder and anchor and not Read(anchor.IsForbidden, anchor)
         and Read(anchor.IsShown, anchor) then
         local border = borders[uf]
         if not border then
@@ -84,6 +91,7 @@ function Players.Update(uf, unit, db, decorated)
             border:EnableMouse(false)
             border:SetBackdrop({edgeFile="Interface\\Tooltips\\UI-Tooltip-Border", edgeSize=14})
             borders[uf] = border
+            uf.TisteltiPlayerBorder = border
         end
         border:SetBackdropBorderColor(unpack(config.borderColor))
         border:ClearAllPoints()

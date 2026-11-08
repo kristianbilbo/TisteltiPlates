@@ -1,3 +1,5 @@
+dofile("tests/ui_stubs.lua")
+dofile("TisteltiPlates/Options.lua")
 -- Run from the repository root with Lua 5.1 or later.
 unpack = unpack or table.unpack
 local frames, panel = {}, nil
@@ -31,7 +33,7 @@ local function Frame(parent)
     frames[#frames+1]=f
     return f
 end
-CreateFrame=function(_,_,parent) return Frame(parent) end
+CreateFrame=function(_,_,parent,template) local f=Frame(parent); f.template=template; return f end
 UIParent=Frame()
 SlashCmdList={}
 RAID_CLASS_COLORS={MAGE={r=.2,g=.6,b=1}}
@@ -81,7 +83,7 @@ local function choose(caption, text)
 end
 local function selectTab(text)
     for i=#frames,1,-1 do
-        if frames[i].text==text and frames[i].scripts.OnClick and not (frames[i].parent and frames[i].parent.owner) then
+        if frames[i].template=='PanelTopTabButtonTemplate' and frames[i].text==text and frames[i].scripts.OnClick then
             frames[i].scripts.OnClick(); return
         end
     end
@@ -221,3 +223,9 @@ assert(TisteltiPlatesDB.appearance.guild.border=='color')
 ColorPickerFrame.info.cancelFunc()
 assert(TisteltiPlatesDB.appearance.guild.border==oldMode)
 print('PASS: four tabs, live enemy/ally previews, independent RGB colors, cancel and tab-switch isolation')
+
+assert(panel.numTabs==4 and #panel.Tabs==4)
+selectTab('Enemigos'); assert(panel.selectedTab==4 and panel.Tabs[4].selected)
+selectTab('Hermandad'); assert(panel.selectedTab==1 and not panel.Tabs[4].selected)
+for _,tab in ipairs(panel.Tabs) do assert(tab.template=='PanelTopTabButtonTemplate') end
+print('PASS: native WoW tab templates and selection API, not ordinary button navigation')

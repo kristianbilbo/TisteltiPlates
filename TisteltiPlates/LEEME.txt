@@ -1,9 +1,15 @@
 TISTELTI - ALAS DE GRUPO · v0.8.7 · Forever 1.60.1 / interfaz 16001
 
 AJUSTES LOCALES
-- Pestañas, vista previa y colores para aliados y jugadores enemigos.
+- Configuración separada en Options.lua, con pestañas nativas de WoW,
+  etiquetas legibles, muestras de color y una zona de vista previa.
+- Colores para aliados y jugadores enemigos, compartidos con el modo PvP.
+- Un solo módulo dibuja el borde de cada placa; se respeta la selección PvP.
 - Controles a la derecha también en enemigos y modo compacto, sin exigir medir su posición.
+- Desactivar el addon restaura los controles; las operaciones protegidas
+  pendientes se completan al terminar el combate.
 - Conserva la corrección del nombre de hermandad gigante.
+- Pruebas conjuntas con APIs simuladas superadas; pendiente validación visual en WoW.
 
 NOMBRE EXTERNO Y ESCALA CON ELLESMEREUI 0.8.7
 - Si está cargado EllesmereUINameplates, conserva su anchura y escala de placa.

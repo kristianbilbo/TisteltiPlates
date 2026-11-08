@@ -255,12 +255,10 @@ function PvP.Remove(uf)
 end
 
 function PvP.Update(unit, uf)
-    if not Read(UnitIsPlayer, unit) or Read(UnitIsUnit, unit, "player") then PvP.Remove(uf); return end
-    local friend = Read(UnitIsFriend, "player", unit)
+    local relation = TisteltiPlatesPlayers.Kind(unit)
+    if not relation then PvP.Remove(uf); return end
+    local friend, enemy = relation == "ally", relation == "enemy"
     local faction = Read(UnitFactionGroup, unit)
-    local playerFaction = Read(UnitFactionGroup, "player")
-    local enemy = Read(UnitCanAttack, "player", unit) or
-        (faction and playerFaction and faction ~= playerFaction and not friend)
     if not ((friend and config.friends) or (enemy and config.enemies)) then PvP.Remove(uf); return end
     local bar = uf.healthBar or (uf.HealthBarsContainer and uf.HealthBarsContainer.healthBar)
     if not bar or Read(bar.IsForbidden, bar) or not Read(bar.IsShown, bar) then PvP.Remove(uf); return end
@@ -306,7 +304,9 @@ function PvP.Update(unit, uf)
     if not iconAnchor or not Read(iconAnchor.IsShown, iconAnchor) then iconAnchor = nil end
     if TisteltiPlatesCC then TisteltiPlatesCC.AttachPvPArt(art,uf) end
     local display=Emphasize(uf,bar,unit,color,enemy)
-    PvP.Paint(art, display, color, class, faction, guild, Read(TisteltiMerito, identity) or 0, iconAnchor, enemy and RED or color)
+    local rgb = TisteltiPlatesPlayers.BorderColor(unit)
+    local borderColor = rgb and {r=rgb[1],g=rgb[2],b=rgb[3]} or (enemy and RED or color)
+    PvP.Paint(art, display, color, class, faction, guild, Read(TisteltiMerito, identity) or 0, iconAnchor, borderColor)
     if display~=bar then
         display.marker:ClearAllPoints()
         display.marker:SetPoint("RIGHT",art.classFrame,"LEFT",-6,0)

@@ -1,3 +1,5 @@
+dofile("tests/ui_stubs.lua")
+dofile("TisteltiPlates/Options.lua")
 -- Lua 5.1 behavioral checks: actual PvP module, Core events and option callbacks.
 unpack = unpack or table.unpack
 local frames, panels = {}, {}
@@ -35,6 +37,7 @@ local function Frame(parent)
     function f:GetEffectiveScale() return self.scale end
     function f:SetStatusBarColor(...) self.color={...} end
     function f:GetStatusBarColor() return unpack(self.color) end
+    function f:SetBackdropBorderColor(...) self.borderColor={...} end
     function f:SetValue(v) self.value=v end
     function f:GetValue() return self.value or 78 end
     function f:SetMinMaxValues(a,b) self.minimum,self.maximum=a,b end
@@ -50,6 +53,8 @@ local function Frame(parent)
     function f:SetTexture(v) self.texture=v end
     function f:SetRotation(v) self.rotation=v end
     function f:SetText(v) self.text=v end
+    function f:SetTextColor(...) self.textColor={...} end
+    function f:GetTextColor() return unpack(self.textColor or {1,1,1,1}) end
     function f:SetChecked(v) self.checked=v end
     function f:GetChecked() return self.checked end
     function f:SetAlpha(v) self.alpha=v end
@@ -71,7 +76,7 @@ local function Frame(parent)
     frames[#frames+1]=f
     return f
 end
-CreateFrame=function(_,_,parent) return Frame(parent) end
+CreateFrame=function(_,_,parent,template) local f=Frame(parent); f.template=template; return f end
 UIParent=Frame(); SlashCmdList={}
 issecretvalue=function(v) return v==secret end
 InCombatLockdown=function() return combat end
@@ -110,6 +115,7 @@ Settings={
 local plates={}
 C_NamePlate={GetNamePlateForUnit=function(u) return plates[u] end}
 assert(loadfile('TisteltiPlates/Prioridad.lua'))()
+assert(loadfile('TisteltiPlates/PlayerStyle.lua'))()
 assert(loadfile('TisteltiPlates/PvP.lua'))()
 assert(loadfile('TisteltiPlates/CCPosition.lua'))()
 local file=assert(io.open('TisteltiPlates/Core.lua','rb')); local source=file:read('*a'); file:close()
@@ -127,7 +133,9 @@ assert(db.pvp.enabled and pvp.IsActive(),'activación explícita')
 local function add(unit)
     local uf=Frame(); uf.unit=unit; uf.native=true
     uf.healthBar=Frame(uf); uf.healthBar.native=true
-    if unit=='guild' then
+    uf.HealthBarsContainer=uf.healthBar
+    uf.name=Frame(uf)
+    if not units[unit].npc then
         uf.AurasFrame=Frame(uf)
         uf.AurasFrame.LossOfControlFrame=Frame(uf.AurasFrame)
         uf.AurasFrame.LossOfControlFrame:SetPoint('BOTTOM',uf.healthBar,'TOP',0,4)
@@ -140,7 +148,7 @@ local enemy=add('enemy'); local art=enemy.TisteltiPvPArt
 assert(art and art.shown and enemy.width==110 and enemy.scale==1)
 assert(nativeMutations==0,'Compact mode must never enlarge native plates')
 assert(enemy.healthBar.color[1]==RAID_CLASS_COLORS.WARLOCK.r)
-assert(art.edges[1].texture.vertex[1]==1 and art.edges[1].texture.vertex[2]==.08,'Enemy border is red independently of class-colored health')
+assert(art.edges[1].texture.vertex[1]==1 and art.edges[1].texture.vertex[2]==.12,'Enemy border uses the shared configured color')
 assert(art.faction.texture:find('Horde') and art.faction.points[1][4]==-.5)
 assert(not art.wings[1].shown and not art.wings[2].shown,'No Horde guild wings, even with bad guild membership data')
 assert(art.classFrame.shown and art.classFrame.edges[1].texture.vertex[1]==RAID_CLASS_COLORS.WARLOCK.r)
@@ -199,7 +207,7 @@ local function clickText(prefix)
 end
 clickText('Enemigos · barra:')
 assert(db.pvp.enemyColor=='red' and enemy.healthBar.color[1]==1 and enemy.healthBar.color[2]==.08)
-assert(art.edges[1].texture.vertex[2]==.08,'Red frame follows red bar')
+assert(art.edges[1].texture.vertex[2]==.12,'Border setting remains independent of the bar color')
 assert(art.classFrame.edges[1].texture.vertex[1]==RAID_CLASS_COLORS.WARLOCK.r,'Class icon neon stays class-colored on red plate')
 local function toggle(caption,value)
     for _,f in ipairs(frames) do
@@ -341,3 +349,49 @@ db.enabled=false; core.refresh()
 assert(guild.scale==.9 and guild.width==145,'Standalone removal restores the latest base geometry')
 assert(#errors==0,table.concat(errors,'\n'))
 print('PASS: EllesmereUI external names, live geometry, legacy detection, combat, disable and standalone restoration')
+
+-- Real Core + PlayerStyle + PvP + CC, all loaded together as in the TOC.
+inside=false; combat=false; db.enabled=true; db.pvp.enabled=false
+local together=add('enemy')
+db.playerColors.enemy.nameColor={.2,.9,.3}
+db.playerColors.enemy.borderColor={.1,.4,1}
+core.refresh()
+assert(together.name.textColor[2]==.9)
+assert(together.TisteltiPlayerBorder.shown and together.TisteltiPlayerBorder.borderColor[2]==.4)
+assert(together.AurasFrame.LossOfControlFrame.points[1][4]==8)
+SlashCmdList.TISTELTIPLATES('pvp on')
+assert(together.TisteltiPvPArt.shown and not together.TisteltiPlayerBorder.shown, 'Exactly one module owns the plate border')
+assert(together.TisteltiPvPArt.edges[1].texture.vertex[2]==.4, 'PvP uses the same configured border color')
+db.pvp.enemies=false; core.refresh()
+assert(not together.TisteltiPvPArt.shown and together.TisteltiPlayerBorder.shown,
+    'A category excluded from compact PvP keeps its normal configured border')
+db.pvp.enemies=true; core.refresh()
+assert(together.TisteltiPvPArt.shown and not together.TisteltiPlayerBorder.shown)
+assert(together.name.textColor[2]==.9, 'Custom name color survives mode changes')
+SlashCmdList.TISTELTIPLATES('pvp off')
+assert(not together.TisteltiPvPArt.shown and together.TisteltiPlayerBorder.shown)
+-- Group/guild styling takes precedence over generic ally accents.
+db.playerColors.ally.name=true; db.playerColors.ally.border=true
+core.refresh()
+assert(not guild.TisteltiPlayerBorder or not guild.TisteltiPlayerBorder.shown)
+local togetherCC=together.AurasFrame.LossOfControlFrame
+togetherCC.protected=true; combat=true
+SlashCmdList.TISTELTIPLATES('off')
+assert(not together.TisteltiPlayerBorder.shown and together.name.textColor[1]==1)
+assert(togetherCC.points[1][1]=='LEFT')
+combat=false; core.driver.scripts.OnEvent(core.driver,'PLAYER_REGEN_ENABLED')
+assert(togetherCC.points[1][1]=='BOTTOM' and togetherCC.points[1][5]==4)
+local offPoint=togetherCC.points[1]
+together:UpdateAnchors(); core.refresh()
+assert(togetherCC.points[1]==offPoint, 'Disabled addon stays inert across native refreshes')
+SlashCmdList.TISTELTIPLATES('on')
+assert(together.TisteltiPlayerBorder.shown)
+assert(togetherCC.points[1][4]==8, 'Re-enabling immediately restores the configured control position')
+core.driver.scripts.OnEvent(core.driver,'NAME_PLATE_UNIT_REMOVED','enemy')
+assert(not together.TisteltiPlayerBorder.shown and together.name.textColor[1]==1)
+local removalPoint=togetherCC.points[1]; together:UpdateAnchors()
+assert(togetherCC.points[1]==removalPoint)
+core.driver.scripts.OnEvent(core.driver,'NAME_PLATE_UNIT_ADDED','enemy')
+assert(together.TisteltiPlayerBorder.shown and togetherCC.points[1][4]==8)
+assert(#errors==0,table.concat(errors,'\n'))
+print('PASS: combined modes use one border/color source; disable, combat, guild priority and recycled plates clean up all modules')
