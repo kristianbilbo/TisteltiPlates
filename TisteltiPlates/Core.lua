@@ -598,6 +598,9 @@ end
 Refresh = function()
     if not db then return end
     if TisteltiPlatesPvP then TisteltiPlatesPvP.Sync() end
+    if TisteltiPlatesPriority then
+        TisteltiPlatesPriority.Update(tracked,Allowed() and TisteltiPlatesPvP and TisteltiPlatesPvP.IsActive())
+    end
     if InCombatLockdown() then
         for unit, plate in pairs(tracked) do
             local ok, err = pcall(UpdateCombat, unit, plate)
@@ -920,7 +923,7 @@ driver:SetScript("OnEvent", function(_, event, unit)
 end)
 for _, event in ipairs({"ADDON_LOADED", "NAME_PLATE_UNIT_ADDED", "NAME_PLATE_UNIT_REMOVED",
     "GROUP_ROSTER_UPDATE", "PLAYER_GUILD_UPDATE", "PLAYER_ENTERING_WORLD",
-    "PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "UNIT_FACTION"}) do driver:RegisterEvent(event) end
+    "PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "UNIT_FACTION", "PLAYER_TARGET_CHANGED", "RAID_TARGET_UPDATE"}) do driver:RegisterEvent(event) end
 local elapsed = 0
 driver:SetScript("OnUpdate", function(_, dt)
     if InCombatLockdown() then

@@ -54,11 +54,11 @@ end
 
 function CC.UpdatePvPArt(art, uf)
     -- En compacto el nivel y los controles conservan sus anclajes nativos.
-    -- El ala y el icono de clase ocupan ese mismo lateral: sólo nuestras
-    -- decoraciones ceden el espacio mientras dure un control visible.
+    -- El ala derecha cede espacio mientras dure un control visible. El icono
+    -- de clase tiene su propio espacio al otro lado y permanece legible.
     local hide=HasControlIcon(uf)
     art.wings[2]:SetShown(art.pvpShowRightWing and not hide or false)
-    art.classFrame:SetShown(art.pvpShowClassIcon and not hide or false)
+    art.classFrame:SetShown(art.pvpShowClassIcon and true or false)
 end
 
 function CC.AttachPvPArt(art, uf)

@@ -1,6 +1,6 @@
 # TisteltiPlates
 
-Addon para WoW Forever (interfaz 16001). Versión actual: **0.8.2**.
+Addon para WoW Forever (interfaz 16001). Versión actual: **0.8.4**.
 
 Personalización de placas para grupo y jugadores amistosos, con alas, escudos y colores de clase.
 
@@ -8,13 +8,21 @@ Personalización de placas para grupo y jugadores amistosos, con alas, escudos y
 
 Se abre con `/tistelti pvp` o en **Opciones → AddOns → TisteltiPlates → Modo PvP**. Desde 0.8.2 está **desactivado por defecto**; se puede activar con `/tistelti pvp on`. Se respetan las activaciones y desactivaciones ya guardadas. Si se había activado antes y se desea apagarlo, usar `/tistelti pvp off`. Al activarlo conserva el tamaño original y sustituye las alas grandes por un marco con neón y un emblema de facción pequeño pegado al borde. Desactivar el modo recupera el diseño clásico con sus ajustes anteriores. No fuerza CVars ni muestra placas que el juego tenga ocultas.
 
-Los aliados admiten color de clase o azul. Los enemigos admiten **barra, marco y neón por clase** o **los tres rojos**. El icono de clase opcional conserva siempre su propio contorno neón de clase, incluso cuando la barra es roja. Se mantiene el emblema de facción, sin sustituirlo todavía por los escudos de mérito de los bocetos.
+Los aliados admiten color de clase o azul. Los enemigos llevan **borde rojo** con barra por clase o roja, según la opción elegida. El icono de clase opcional conserva siempre su propio contorno de clase; se coloca fuera del lateral izquierdo, separado del emblema y del ala, con tamaño inicial 22 y selector de 18/22/26/30 en las opciones de PvP. Se mantiene el emblema de facción.
+
+### Objetivo actual y recomendado
+
+La opción **Ampliar objetivo y recomendado**, activada inicialmente dentro del modo PvP, dibuja una barra visual propia un 35 % más ancha y un 50 % más alta (mínimo 14), creciendo hacia la izquierda. La vida y sus límites se reenvían desde la barra nativa, también cuando cambian, sin usar valores de vida restringidos para tomar decisiones. Si no se puede copiar la barra, se mantiene la nativa.
+
+Tu objetivo enemigo lleva contorno blanco. El recomendado lleva contorno dorado, una marca grande de 24 y el motivo. La recomendación prioriza una calavera real ya existente o un enemigo visible al que estén apuntando al menos dos compañeros. Se estabiliza durante dos segundos mientras siga siendo válido. No infiere sanadores por clase ni emplea criterios de poca vida o curación. Los datos restringidos se omiten; sin información suficiente no se inventa una prioridad.
+
+La marca de recomendación es visual y local: el addon no coloca marcas reales, cambia objetivos ni ataca. Los clics, anclajes de bufos/controles y barras de lanzamiento nativos conservan su comportamiento. La zona clicable mantiene su tamaño original, incluida la del objetivo ampliado. La ampliación desaparece al cambiar objetivo, desaparecer la prioridad, reciclar una placa o desactivar la opción/modo PvP. Falta validar visualmente el resultado dentro de WoW.
 
 Las alas son trazos pequeños de un solo color, pegados a ambos lados, solo para miembros de tu hermandad de la Alianza. Los colores iniciales son bronce (mérito 1–4), plata (5–9) y oro (10–14); cada tramo permite elegir otro color. Sin datos se usa gris azulado neutro. Son categorías de `TisteltiMerito`, no una afirmación de rango oficial. Brillo y tamaño de alas se ajustan en la misma sección, con vista previa.
 
 Funciona en mundo abierto y permite dibujar en campos de batalla/arenas; las mazmorras y bandas siguen excluidas. Cambiar de modo en combate espera al final para restaurar la geometría anterior. El modo compacto conserva los anclajes nativos de auras y controles. Si la clase no se puede leer, oculta su icono y usa un color de reacción como respaldo.
 
-En 0.8.1 se evita que el ala derecha y el icono de clase compactos tapen indicadores de control o pérdida de control: ambos se ocultan mientras haya un icono nativo visible y recuperan sus opciones al terminar. El ala izquierda, los anclajes de auras, las barras de lanzamiento y los temporizadores de habilidades se conservan. Los contenedores vacíos u ocultos no ocultan la decoración. La comprobación funciona también en combate, sin recolocar marcos protegidos.
+El ala derecha cede espacio a los controles o pérdidas de control nativos visibles y reaparece al terminar. El icono de clase permanece visible en su espacio a la izquierda. Los anclajes de auras, las barras de lanzamiento y los temporizadores se conservan. Los contenedores vacíos u ocultos no ocultan el ala. Funciona también en combate sin recolocar marcos protegidos.
 
 Comandos: `/tistelti pvp on/off` y `/tistelti enemigos rojo/clase`. `/tistelti vista` mantiene la vista del diseño clásico; la de PvP está en su sección de opciones.
 
@@ -46,7 +54,7 @@ Los marcos protegidos no se recolocan durante el combate: se actualizan al termi
 
 ## Código y datos
 
-`TisteltiPlates/Honor.lua`, `TisteltiPlates/PvP.lua`, `TisteltiPlates/CCPosition.lua` y `TisteltiPlates/Core.lua` contienen el código; el manifiesto TOC define el orden de carga. Las texturas necesarias están en `TisteltiPlates/Media/`.
+`TisteltiPlates/Honor.lua`, `TisteltiPlates/Prioridad.lua`, `TisteltiPlates/PvP.lua`, `TisteltiPlates/CCPosition.lua` y `TisteltiPlates/Core.lua` contienen el código; el manifiesto TOC define el orden de carga. Las texturas necesarias están en `TisteltiPlates/Media/`.
 
 El addon se mantiene separado de TisteltiGuild y no lo requiere. La configuración se guarda en `TisteltiPlatesDB`. Este repositorio no incluye SavedVariables, datos de jugadores ni credenciales.
 
@@ -65,3 +73,5 @@ Las pruebas simuladas no sustituyen la comprobación en WoW Forever: recarga la 
 `lua tests/test_wings.lua` comprueba las tres opciones de estilo y sus vistas previas estando en banda, los ajustes independientes, la migración de configuración y la selección de grupo/banda.
 
 `lua tests/test_pvp.lua` comprueba la integración real de Core, CC y PvP, las opciones, los colores, cambios de modo, instancias y reciclaje. Incluye aparición/desaparición de controles en combate, contenedores vacíos/ocultos, visibilidad restringida y conservación de anclajes y temporizadores nativos de habilidades y lanzamientos. Pendiente validar el resultado visual en WoW Forever.
+
+La misma prueba cubre el tamaño y posición del icono de clase y la ampliación visual en combate, actualización inmediata de vida y restauración sin cambios de geometría nativa. `lua tests/test_priority.lua` comprueba consenso de grupo, calavera existente, estabilidad, retirada de candidatos inválidos y datos restringidos.

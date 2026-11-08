@@ -1,4 +1,17 @@
-TISTELTI - ALAS DE GRUPO · v0.8.2 · Forever 1.60.1 / interfaz 16001
+TISTELTI - ALAS DE GRUPO · v0.8.4 · Forever 1.60.1 / interfaz 16001
+
+OBJETIVO Y PRIORIDAD 0.8.4 (prevalece sobre el historial inferior)
+- Enemigos con borde rojo y barra de clase, o roja si así se configura.
+- Icono de clase a la izquierda, tamaño inicial 22; opciones 18/22/26/30.
+- Objetivo actual: barra visual propia un 35% más ancha y 50% más alta, borde blanco.
+- Recomendado: ampliación dorada y marca grande con el motivo.
+- Prioridad: calavera real existente o enemigo al que apunten dos compañeros.
+- No se infieren sanadores ni se usan datos restringidos para elegir enemigos.
+- La vida de la barra ampliada sigue inmediatamente a la nativa.
+- No cambia el objetivo ni pone marcas reales automáticamente.
+- No se amplía la zona clicable ni se recolocan controles, bufos o lanzamientos.
+- Opción Ampliar objetivo y recomendado en Modo PvP. PvP sigue apagado por defecto.
+- Pruebas Lua 5.1 superadas. Pendiente validación visual en WoW Forever.
 
 MODO PVP OPCIONAL 0.8.2 (prevalece sobre el historial inferior)
 - Desactivado por defecto para configuraciones nuevas.

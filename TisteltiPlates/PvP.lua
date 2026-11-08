@@ -28,13 +28,14 @@ function PvP.Initialize(db)
     if type(db.pvp) ~= "table" then db.pvp = {} end
     config = db.pvp
     if type(config.enabled) ~= "boolean" then config.enabled = false end
-    for _, key in ipairs({"friends", "enemies", "emblem", "wings", "classIcon"}) do
+    for _, key in ipairs({"friends", "enemies", "emblem", "wings", "classIcon", "emphasizeTargets"}) do
         if type(config[key]) ~= "boolean" then config[key] = true end
     end
     if config.enemyColor ~= "red" and config.enemyColor ~= "class" then config.enemyColor = "class" end
     if config.friendColor ~= "blue" and config.friendColor ~= "class" then config.friendColor = "class" end
     if type(config.intensity) ~= "number" or config.intensity < .6 or config.intensity > 1.4 then config.intensity = 1 end
     if type(config.wingSize) ~= "number" or config.wingSize < .6 or config.wingSize > 1.2 then config.wingSize = .8 end
+    if type(config.classIconSize) ~= "number" or config.classIconSize < 16 or config.classIconSize > 32 then config.classIconSize = 22 end
     for key, fallback in pairs({low="bronce", middle="plata", high="oro"}) do
         if not palette[config[key] or ""] then config[key] = fallback end
     end
@@ -82,6 +83,64 @@ local function PaintGlow(frame, color)
     end
 end
 
+local function Emphasize(uf,bar,unit,color,enemy)
+    local selected=enemy and Read(UnitIsUnit,unit,"target")
+    local reason=enemy and TisteltiPlatesPriority and TisteltiPlatesPriority.Reason(unit)
+    local display=uf.TisteltiPvPEmphasis
+    if not config.emphasizeTargets or not (selected or reason) then
+        if display then display:Hide() end
+        return bar
+    end
+    if not display then
+        display=CreateFrame("StatusBar",nil,uf)
+        display:EnableMouse(false)
+        display:SetStatusBarTexture(WHITE)
+        display.background=display:CreateTexture(nil,"BACKGROUND")
+        display.background:SetAllPoints() display.background:SetColorTexture(.025,.025,.035,.95)
+        display.outline=Glow(display)
+        display.outline:SetPoint("TOPLEFT",-2,2) display.outline:SetPoint("BOTTOMRIGHT",2,-2)
+        display.marker=display:CreateTexture(nil,"OVERLAY")
+        display.marker:SetTexture("Interface\\TargetingFrame\\UI-RaidTargetingIcon_8")
+        display.marker:SetSize(24,24) display.marker:SetPoint("RIGHT",display,"LEFT",-42,0)
+        display.reason=display:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
+        display.reason:SetPoint("RIGHT",display.marker,"LEFT",-4,0)
+        uf.TisteltiPvPEmphasis=display
+    end
+    -- Crece hacia la izquierda; el nivel y los controles conservan su lateral.
+    display:ClearAllPoints() display:SetPoint("RIGHT",bar,"RIGHT",0,0)
+    display:SetSize(bar:GetWidth()*1.35,math.max(14,bar:GetHeight()*1.5))
+    display:SetFrameLevel(bar:GetFrameLevel()+2)
+    display:SetStatusBarColor(color.r,color.g,color.b)
+    if display.sourceBar~=bar then
+        display.sourceBar=bar
+        if type(bar.SetValue)=="function" then
+            hooksecurefunc(bar,"SetValue",function(_,value)
+                if display.sourceBar==bar and display:IsShown() then pcall(display.SetValue,display,value) end
+            end)
+        end
+        if type(bar.SetMinMaxValues)=="function" then
+            hooksecurefunc(bar,"SetMinMaxValues",function(_,minimum,maximum)
+                if display.sourceBar==bar and display:IsShown() then pcall(display.SetMinMaxValues,display,minimum,maximum) end
+            end)
+        end
+    end
+    -- Los valores nativos se reenvían al widget sin compararlos ni operar
+    -- con ellos: los datos restringidos no se usan para decidir prioridades.
+    local ok=false
+    if type(bar.GetMinMaxValues)=="function" and type(bar.GetValue)=="function" then
+        ok=pcall(function()
+            display:SetMinMaxValues(bar:GetMinMaxValues())
+            display:SetValue(bar:GetValue())
+        end)
+    end
+    if not ok then display:Hide() return bar end
+    PaintGlow(display.outline,selected and {r=1,g=1,b=1} or {r=1,g=.8,b=.05})
+    display.marker:SetShown(reason~=nil and reason~=false)
+    display.reason:SetText(reason or "TU OBJETIVO")
+    display:Show()
+    return display
+end
+
 local function Art(parent)
     local art = Glow(parent)
     art.faction = art:CreateTexture(nil, "OVERLAY")
@@ -114,11 +173,11 @@ function PvP.WingColor(rank)
     return palette[rank <= 4 and config.low or rank <= 9 and config.middle or config.high]
 end
 
-function PvP.Paint(art, bar, color, class, faction, guild, rank, iconAnchor)
+function PvP.Paint(art, bar, color, class, faction, guild, rank, iconAnchor, borderColor)
     art:ClearAllPoints()
     art:SetAllPoints(bar)
     art:SetFrameLevel(bar:GetFrameLevel()+10)
-    PaintGlow(art, color)
+    PaintGlow(art, borderColor or color)
     local height = math.max(6, math.min(14, bar:GetHeight()))
     local emblem = config.emblem and (faction == "Alliance" or faction == "Horde")
     art.faction:ClearAllPoints()
@@ -133,8 +192,8 @@ function PvP.Paint(art, bar, color, class, faction, guild, rank, iconAnchor)
     local uv = (CLASS_ICON_TCOORDS or coords)[class or ""]
     local classColor = RAID_CLASS_COLORS and RAID_CLASS_COLORS[class or ""]
     art.classFrame:ClearAllPoints()
-    art.classFrame:SetSize(height, height)
-    art.classFrame:SetPoint("LEFT", iconAnchor or bar, "RIGHT", 3, 0)
+    art.classFrame:SetSize(config.classIconSize, config.classIconSize)
+    art.classFrame:SetPoint("RIGHT", emblem and art.faction or bar, "LEFT", -6, 0)
     if uv and classColor then
         art.classIcon:SetTexCoord(unpack(uv))
         PaintGlow(art.classFrame, classColor)
@@ -159,10 +218,11 @@ function PvP.Paint(art, bar, color, class, faction, guild, rank, iconAnchor)
         end
         wing:SetShown(config.wings and guild and true or false)
     end
-    -- The icon sits beyond a short wing when both are present.
+    -- El icono de clase queda fuera del lateral izquierdo, separado del
+    -- emblema/ala. Los bufos superiores y los controles a la derecha son nativos.
     if guild and config.wings then
         art.classFrame:ClearAllPoints()
-        art.classFrame:SetPoint("LEFT", art.wings[2], "RIGHT", 3, 0)
+        art.classFrame:SetPoint("RIGHT", art.wings[1], "LEFT", -6, 0)
     end
     art.pvpShowRightWing=config.wings and guild and true or false
     art.pvpShowClassIcon=config.classIcon and uv~=nil and classColor~=nil
@@ -183,6 +243,7 @@ end
 
 function PvP.Remove(uf)
     if uf.TisteltiPvPArt then uf.TisteltiPvPArt:Hide() end
+    if uf.TisteltiPvPEmphasis then uf.TisteltiPvPEmphasis:Hide() end
     local state = states[uf]
     if not state then return end
     states[uf] = nil
@@ -244,7 +305,12 @@ function PvP.Update(unit, uf)
     local iconAnchor = uf.PlayerLevelDiffFrame
     if not iconAnchor or not Read(iconAnchor.IsShown, iconAnchor) then iconAnchor = nil end
     if TisteltiPlatesCC then TisteltiPlatesCC.AttachPvPArt(art,uf) end
-    PvP.Paint(art, bar, color, class, faction, guild, Read(TisteltiMerito, identity) or 0, iconAnchor)
+    local display=Emphasize(uf,bar,unit,color,enemy)
+    PvP.Paint(art, display, color, class, faction, guild, Read(TisteltiMerito, identity) or 0, iconAnchor, enemy and RED or color)
+    if display~=bar then
+        display.marker:ClearAllPoints()
+        display.marker:SetPoint("RIGHT",art.classFrame,"LEFT",-6,0)
+    end
     Tint(uf)
 end
 
@@ -257,7 +323,7 @@ function PvP.RegisterOptions(category, refresh)
         return label
     end
     text("Modo PvP · Placas compactas", 20, -20, "GameFontNormalLarge")
-    text("Tamaño original. Emblema pegado. Marco y neón acompañan al color de la barra.", 20, -52)
+    text("Enemigos con borde rojo y barra por clase. Objetivo y recomendado destacados.", 20, -52)
     local controls, samples = {}, {}
     local labels = {class="Clase", red="Rojo", blue="Azul", bronce="Bronce", plata="Plata",
         oro="Oro", violeta="Violeta", azul="Azul", verde="Verde"}
@@ -268,7 +334,7 @@ function PvP.RegisterOptions(category, refresh)
                 not sample.enemy and config.friendColor == "blue" and BLUE or RAID_CLASS_COLORS[sample.class]
             sample.bar:SetStatusBarColor(color.r,color.g,color.b)
             PvP.Paint(sample.art, sample.bar, color, sample.class, sample.enemy and "Horde" or "Alliance",
-                not sample.enemy, sample.rank)
+                not sample.enemy, sample.rank,nil,sample.enemy and RED or color)
         end
     end
     local function changed()
@@ -300,27 +366,29 @@ function PvP.RegisterOptions(category, refresh)
     check("enemies","Jugadores enemigos",300,-113)
     check("wings","Alas solo tu hermandad (Alianza)",20,-146)
     check("classIcon","Icono de clase con neón de clase",300,-146)
+    check("emphasizeTargets","Ampliar objetivo y recomendado",20,-329)
     cycle("friendColor","Aliados · barra y marco",{"class","blue"},20,-187)
-    cycle("enemyColor","Enemigos · barra y marco",{"class","red"},300,-187)
+    cycle("enemyColor","Enemigos · barra",{"class","red"},300,-187)
     cycle("intensity","Brillo (0.6 / 1 / 1.4)",{.6,1,1.4},20,-223)
     cycle("wingSize","Tamaño de alas",{.6,.8,1,1.2},300,-223)
     local colors = {"bronce","plata","oro","violeta","azul","verde"}
     cycle("low","Alas · mérito 1–4",colors,20,-259)
     cycle("middle","Alas · mérito 5–9",colors,300,-259)
     cycle("high","Alas · mérito 10–14",colors,20,-295)
-    text("Sin datos de mérito: alas gris azulado. Se usa el mérito del addon, no un rango oficial supuesto.",20,-335)
-    text("Vista previa · icono con neón por clase incluso usando barra roja",20,-364,"GameFontNormal")
+    cycle("classIconSize","Tamaño de icono de clase",{18,22,26,30},300,-295)
+    text("Sin datos de mérito: alas gris azulado. Se usa el mérito del addon, no un rango oficial supuesto.",20,-365)
+    text("Vista previa · icono con neón por clase incluso usando barra roja",20,-395,"GameFontNormal")
     for i, data in ipairs({{"MAGE",false,4},{"WARLOCK",true,0}}) do
         local bar = CreateFrame("StatusBar",nil,panel)
-        bar:SetSize(110,10); bar:SetPoint("TOPLEFT",65+(i-1)*280,-414)
+        bar:SetSize(110,10); bar:SetPoint("TOPLEFT",65+(i-1)*280,-440)
         bar:SetStatusBarTexture(WHITE); bar:SetMinMaxValues(0,100); bar:SetValue(78)
         local name=bar:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
         name:SetPoint("BOTTOMLEFT",bar,"TOPLEFT",0,5)
         name:SetText(i==1 and "Tu hermandad · Mago" or "Horda · Brujo")
         samples[#samples+1]={bar=bar,art=Art(bar),class=data[1],enemy=data[2],rank=data[3]}
     end
-    text("Los cambios de modo durante combate se aplican al terminar. No activa placas ocultas del juego.",20,-453)
-    text("Mundo abierto y campos de batalla/arenas. Las mazmorras y bandas mantienen la exclusión.",20,-477)
+    text("Los cambios de modo durante combate se aplican al terminar. No activa placas ocultas del juego.",20,-480)
+    text("Mundo abierto y campos de batalla/arenas. Las mazmorras y bandas mantienen la exclusión.",20,-504)
     panel:SetScript("OnShow",redraw)
     local subcategory = Settings.RegisterCanvasLayoutSubcategory(category,panel,"Modo PvP")
     Settings.RegisterAddOnCategory(subcategory)
