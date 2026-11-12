@@ -1,6 +1,23 @@
+# Base 0.8.10 con compacto de grupo · 0.8.10.1
+
+BASE 0.8.10 + COMPACTO SOLO PARA EL GRUPO (0.8.10.1)
+- Recuperado el código a4da92e / 0.8.10. Todo el trabajo experimental posterior se conserva en work/antes-volver-base-0810-20261109-012943.
+- Única función añadida: compactar adornos de aliados jugadores del grupo/banda durante combate, manteniendo el marco y el nivel de 0.8.10.
+- Ambas alas son más pequeñas. Se ocultan rango, hermandad y emblemas secundarios mientras dura el compacto.
+- El aspecto normal vuelve tras 30 segundos sin combate para evitar cambios entre encuentros consecutivos.
+- El compacto no escribe ancho, escala, textura, valores ni color de la barra nativa.
+- No se aplica a enemigos, NPC, mascotas ni miembros de hermandad fuera del grupo. Respeta las opciones de grupo/banda y los ámbitos de 0.8.10.
+- PvP, Honor, Prioridad y HoverWidth son exactamente los archivos de la base 0.8.10. No se añaden controles ni cambios nuevos de objetivo.
+- CC Position solo añade la excepción de mantener las dos alas pequeñas en compacto; conserva su funcionamiento original fuera de él.
+- Limpieza única de la antigua escala experimental si su valor guardado sigue perteneciendo a Tistelti. No introduce una función nueva de escalado.
+- Pasan las seis suites originales sin modificarlas y la nueva regresión del compacto de grupo (Lua 5.1).
+- Código instalado y repositorio coinciden. Ejecutar /reload fuera de combate; pendiente validar el aspecto en el cliente.
+- Fetch y revisión de main, ramas y PR de Iván: conserva limpieza sin unidad, CC, escala de hermandad y hover hasta 7bbb472; sin novedades conocidas pendientes.
+- Publicación 0.8.10.1: revisión de las cuatro ramas remotas y PR de Iván; todas ya incluidas en main. No hay commits adicionales pendientes en esas ramas.
+
 # TisteltiPlates
 
-Addon para WoW Forever (interfaz 16001). Versión actual: **0.8.10**.
+Addon para WoW Forever (interfaz 16001). Versión actual: **0.8.10.1**.
 
 ## Integración de Iván 0.8.10
 

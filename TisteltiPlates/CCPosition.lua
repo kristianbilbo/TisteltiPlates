@@ -168,7 +168,7 @@ end
 
 local function UpdateWing(art, uf)
     local enabled = not TisteltiPlatesDB or TisteltiPlatesDB.hideRightWingOnCC ~= false
-    local hide = enabled and HasControlIcon(uf)
+    local hide = not art.groupCompact and enabled and HasControlIcon(uf)
     art.rightWing:SetShown(not hide)
     art.rightWingLight:SetShown(not hide)
 end
