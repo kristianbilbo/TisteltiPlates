@@ -145,7 +145,6 @@ assert(art.rightWing.shown, "Reused decoration restores wing")
 print("PASS: icon visibility, glow, empty containers, parents, combat, reuse, previews and positioning")
 
 -- Exercise the actual Core layout so it cannot move CC back above the plate.
-assert(loadfile("HoverWidth.lua"))()
 local f=assert(io.open("Core.lua","rb"))
 local source=f:read("*a"); f:close()
 local core=assert(loadChunk(source .. [[

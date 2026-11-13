@@ -125,7 +125,6 @@ assert(loadfile('NamesOnly.lua'))()
 assert(loadfile('PlayerStyle.lua'))()
 assert(loadfile('PvP.lua'))()
 assert(loadfile('CCPosition.lua'))()
-assert(loadfile('HoverWidth.lua'))()
 local file=assert(io.open('Core.lua','rb')); local source=file:read('*a'); file:close()
 local core=assert(loadstring(source..'\nreturn {driver=driver,refresh=Refresh,active=active,allowed=Allowed}'))('TisteltiPlates')
 local pvp=TisteltiPlatesPvP

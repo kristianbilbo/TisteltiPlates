@@ -436,7 +436,6 @@ end
 local function Remove(uf)
     if TisteltiPlatesNamesOnly then TisteltiPlatesNamesOnly.Remove(uf) end
     if TisteltiPlatesPvP then TisteltiPlatesPvP.Remove(uf) end
-    if active[uf] or combatArt[uf] then TisteltiPlatesHover.Release(uf) end
     if combatArt[uf] then combatArt[uf]:Hide(); combatArt[uf] = nil end
     if guildLabels[uf] then guildLabels[uf]:Hide() end
     local state = active[uf]
@@ -548,7 +547,7 @@ local function Update(unit, plate)
     if not state then
         local art = uf.TisteltiArt or Ornament(uf)
         uf.TisteltiArt = art
-        state = {art = art, bar = bar, baseScale = uf:GetScale(), baseWidth = TisteltiPlatesHover.GetBaseWidth(uf), originalColor = {bar:GetStatusBarColor()},
+        state = {art = art, bar = bar, baseScale = uf:GetScale(), baseWidth = uf:GetWidth(), originalColor = {bar:GetStatusBarColor()},
             levels = {}, levelSeen = {}}
         -- Both exist in Forever. PlayerLevelDiffFrame is the extra native box
         -- visible beside the custom badge in the reported screenshot.
@@ -574,7 +573,6 @@ local function Update(unit, plate)
     -- Leave geometry and text sizing to its nameplate module.
     local externalGeometry = ExternalGeometry()
     if externalGeometry then
-        TisteltiPlatesHover.Release(uf)
         if state.geometryChanged then
             uf:SetScale(state.baseScale)
             uf:SetWidth(state.baseWidth)
@@ -582,12 +580,13 @@ local function Update(unit, plate)
         end
     else
         if not state.geometryChanged then
-            state.baseScale, state.baseWidth = uf:GetScale(), TisteltiPlatesHover.GetBaseWidth(uf)
+            state.baseScale, state.baseWidth = uf:GetScale(), uf:GetWidth()
             state.geometryChanged = true
         end
         local desiredScale = state.baseScale * 1.25
         if math.abs(uf:GetScale()-desiredScale) > .001 then uf:SetScale(desiredScale) end
-        TisteltiPlatesHover.Track(uf, state.baseWidth * 1.22, state.baseWidth)
+        local desiredWidth = state.baseWidth * 1.22
+        if math.abs(uf:GetWidth()-desiredWidth) > .001 then uf:SetWidth(desiredWidth) end
     end
     state.color = color
     -- Enclose the whole native name/health rectangle, not just its colored fill.
@@ -627,7 +626,7 @@ local function UpdateCombat(unit, plate)
         return
     end
     -- Existing decorated plates retain their layout. New plates get only
-    -- addon-owned artwork; hover expansion stays disabled during combat.
+    -- addon-owned artwork without changing native geometry during combat.
     local state = active[uf]
     if state and not state.pendingRemoval then
         PaintWings(state.art, style)
@@ -647,10 +646,6 @@ local function UpdateCombat(unit, plate)
     if not bar or Safe(bar.IsForbidden, bar) or not bar:IsShown() or not color then return end
     local art = uf.TisteltiCombatArt or Ornament(uf)
     uf.TisteltiCombatArt = art
-    if not combatArt[uf] and not ExternalGeometry() then
-        local baseWidth = state and state.baseWidth or TisteltiPlatesHover.GetBaseWidth(uf)
-        TisteltiPlatesHover.Track(uf, baseWidth, baseWidth)
-    end
     combatArt[uf] = art
     local level = Safe(UnitLevel, unit)
     if type(level) ~= "number" or level < 1 then level = "?" end
@@ -669,17 +664,6 @@ local function RefreshOverlays()
             decorated = decorated or (uf and uf.TisteltiNameWings and Safe(uf.TisteltiNameWings.IsShown, uf.TisteltiNameWings))
             local pvpArt = uf and uf.TisteltiPvPArt
             TisteltiPlatesPlayers.Update(uf, unit, db, decorated, pvpArt and Safe(pvpArt.IsShown, pvpArt))
-        end
-    end
-end
-
-local function RefreshHover()
-    local allowHover=db.enabled and not ExternalGeometry()
-    for _, plate in pairs(tracked) do
-        local uf = plate and plate.UnitFrame
-        if uf then
-            if allowHover and not (TisteltiPlatesNamesOnly and TisteltiPlatesNamesOnly.IsActive(uf)) then TisteltiPlatesHover.TrackPlayer(uf)
-            else TisteltiPlatesHover.Release(uf) end
         end
     end
 end
@@ -703,11 +687,9 @@ Refresh = function()
             end
         end
         RefreshOverlays()
-        RefreshHover()
         return
     end
     for uf, art in pairs(combatArt) do
-        TisteltiPlatesHover.Release(uf)
         art:Hide()
         combatArt[uf] = nil
     end
@@ -726,7 +708,6 @@ Refresh = function()
         for uf in pairs(active) do Remove(uf) end
         for _, label in pairs(guildLabels) do label:Hide() end
         RefreshOverlays()
-        RefreshHover()
         return
     end
     for unit, plate in pairs(tracked) do
@@ -737,7 +718,6 @@ Refresh = function()
         end
     end
     RefreshOverlays()
-    RefreshHover()
 end
 
 local function Preview()
@@ -951,7 +931,6 @@ driver:SetScript("OnEvent", function(_, event, unit)
             if TisteltiPlatesCC.Release then TisteltiPlatesCC.Release(plate.UnitFrame) end
             Remove(plate.UnitFrame)
             if TisteltiPlatesPlayers then TisteltiPlatesPlayers.Remove(plate.UnitFrame) end
-            TisteltiPlatesHover.Release(plate.UnitFrame)
         end
         tracked[unit] = nil
     end

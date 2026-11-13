@@ -10,7 +10,6 @@ NamesOnly.lua
 PlayerStyle.lua
 PvP.lua
 CCPosition.lua
-HoverWidth.lua
 Options.lua
 Core.lua
 

@@ -1,17 +1,17 @@
 INTEGRACIÓN SOBRE 0.8.10.2 (SIN NUEVA PUBLICACIÓN)
-- Conviven colores personalizados, pestañas nativas, mini alas, hover,
+- Conviven colores personalizados, pestañas nativas, mini alas,
   compacto de grupo, PvP heráldico, auras prioritarias y EllesmereUI.
 - Un único módulo controla cada nombre/borde: en PvP el color personalizado
   prevalece sobre el de facción; al desactivarlo vuelve el de facción.
 - Se conserva el alfa del nombre y se aplaza la restauración protegida.
-- Solo nombres desactiva hover y decoración completa. Las restauraciones
+- Solo nombres desactiva la decoración completa. Las restauraciones
   de ancho del marco clásico esperan al final del combate.
 - Controles a la derecha en todas las placas compatibles; se restauran al
   desactivar o retirar la placa. No se cambian filtros ni temporizadores.
 - Se mantiene el compacto de grupo con sus dos alas y espera de 30 segundos.
 - Sin consultas automáticas de logros al seleccionar otros jugadores.
 - Se conserva el formato raíz para CurseForge y las preferencias guardadas.
-- Doce suites simuladas superadas con Lua 5.4 (loadstring = load), incluida
+- Once suites simuladas superadas con Lua 5.4 (loadstring = load), incluida
   carga del TOC y regresiones de convivencia. Falta validación visual en WoW.
 - Los apartados inferiores son historial; prevalece esta integración.
 
@@ -28,20 +28,16 @@ BASE 0.8.10 + COMPACTO SOLO PARA EL GRUPO (0.8.10.1)
 - El aspecto normal vuelve tras 30 segundos sin combate para evitar cambios entre encuentros consecutivos.
 - El compacto no escribe ancho, escala, textura, valores ni color de la barra nativa.
 - No se aplica a enemigos, NPC, mascotas ni miembros de hermandad fuera del grupo. Respeta las opciones de grupo/banda y los ámbitos de 0.8.10.
-- PvP, Honor, Prioridad y HoverWidth son exactamente los archivos de la base 0.8.10. No se añaden controles ni cambios nuevos de objetivo.
 - CC Position solo añade la excepción de mantener las dos alas pequeñas en compacto; conserva su funcionamiento original fuera de él.
 - Limpieza única de la antigua escala experimental si su valor guardado sigue perteneciendo a Tistelti. No introduce una función nueva de escalado.
 - Pasan las seis suites originales sin modificarlas y la nueva regresión del compacto de grupo (Lua 5.1).
 - Código instalado y repositorio coinciden. Ejecutar /reload fuera de combate; pendiente validar el aspecto en el cliente.
-- Fetch y revisión de main, ramas y PR de Iván: conserva limpieza sin unidad, CC, escala de hermandad y hover hasta 7bbb472; sin novedades conocidas pendientes.
 - Publicación 0.8.10.1: revisión de las cuatro ramas remotas y PR de Iván; todas ya incluidas en main. No hay commits adicionales pendientes en esas ramas.
 
 INTEGRACIÓN DE IVÁN 0.8.10
 - Integrada fix/guild-name-scale (598939b): los nombres de hermandad siguen la escala nativa sin multiplicadores gigantes.
-- Integrada expand-nameplate-on-hover (hasta 7bbb472): ancho animado al pasar el cursor para leer nombres completos.
 - Conserva el rediseño PvP, los nombres por facción y la prioridad visual de auras de 0.8.9.
-- Con EllesmereUINameplates se deja la geometría a ese addon y no se aplica ampliación al pasar el ratón.
-- La ampliación independiente respeta combate, marcos protegidos y restricciones parciales de acceso.
+- Con EllesmereUINameplates se deja la geometría a ese addon sin cambiar su tamaño.
 - Las seis suites Lua 5.1 superadas, incluidas las pruebas de Iván y de integración.
 - Ninguna rama remota conocida de Iván queda pendiente tras esta integración.
 - Pendiente validación visual en el cliente. Ejecuta /reload.

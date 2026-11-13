@@ -16,7 +16,7 @@ for line in toc:lines() do
 end
 toc:close()
 for _,path in ipairs({'Honor.lua','Prioridad.lua','NamesOnly.lua','PlayerStyle.lua',
-    'PvP.lua','CCPosition.lua','HoverWidth.lua','Options.lua','Core.lua'}) do
+    'PvP.lua','CCPosition.lua','Options.lua','Core.lua'}) do
     assert(loaded[path], 'Missing module: '..path)
 end
 local driver=frames[#frames]
@@ -34,6 +34,6 @@ assert(uf.name.textColor[2]==.12)
 SlashCmdList.TISTELTIPLATES('off')
 assert(not uf.TisteltiPvPArt.shown and uf.name.textColor[1]==1)
 assert(#errors==0,table.concat(errors,'\n'))
-print('PASS: all nine shipped TOC modules load, initialize, render, switch modes and restore together')
+print('PASS: all eight shipped TOC modules load, initialize, render, switch modes and restore together')
 ]=]
 assert((loadstring or load)(fixture..cases))()

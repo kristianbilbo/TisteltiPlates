@@ -4,11 +4,11 @@ Addon para WoW Forever (interfaz 16001). Integración de los cambios de jugadore
 
 ## Funciones integradas
 
-- Conserva el diseño PvP heráldico, el destacado de objetivo/recomendado, la prioridad de auras, el hover animado, la corrección de hermandades y la compatibilidad de geometría con EllesmereUI.
+- Conserva el diseño PvP heráldico, el destacado de objetivo/recomendado, la prioridad de auras, la corrección de hermandades y la compatibilidad de geometría con EllesmereUI.
 - Conserva el compacto de adornos para aliados del grupo/banda en combate, sus dos alas pequeñas y los 30 segundos de espera antes de volver al aspecto normal. No compacta enemigos, NPC ni miembros de hermandad ajenos al grupo.
 - Añade pestañas nativas para Hermandad, Grupo/Banda, Aliados y Enemigos, con colores independientes y vistas previas. Respeta las preferencias guardadas, incluidos los ajustes antiguos de colores de Horda.
 - Un único módulo controla el nombre y borde de cada placa. En PvP, el color personalizado del nombre tiene prioridad; al desactivarlo vuelve el color por facción. Fuera de PvP, desactivarlo devuelve el color nativo. Se conserva el alfa y las restauraciones protegidas esperan al final del combate.
-- En el modo nativo de solo nombres, las mini alas sustituyen a las decoraciones completas y al hover, respetando la prioridad grupo/hermandad. No activan placas ni cambian CVars.
+- En el modo nativo de solo nombres, las mini alas sustituyen a las decoraciones completas, respetando la prioridad grupo/hermandad. No activan placas ni cambian CVars.
 - Los controles se colocan a la derecha también en enemigos y modo PvP. Se conservan los filtros y temporizadores, y se restauran los anclajes al desactivar el addon o retirar la placa. Los marcos inaccesibles no se modifican y los protegidos esperan al final del combate.
 - Las auras que se solapan con un adorno siguen teniendo prioridad, incluso con colores personalizados. El compacto de grupo conserva sus dos alas pequeñas.
 - Honor conserva datos guardados y rangos disponibles, pero seleccionar jugadores ya no solicita comparaciones de logros en segundo plano.
@@ -16,7 +16,7 @@ Addon para WoW Forever (interfaz 16001). Integración de los cambios de jugadore
 
 ## Validación de esta integración
 
-Doce suites simuladas, incluida la carga de los nueve módulos en el orden del TOC, verifican cambios repetidos de modo, restauración de colores y alfa, regiones restringidas, combate, auras, mini alas, hover, compacto de grupo, preferencias y Honor. Ejecutadas con Lua 5.4 y el alias `loadstring = load`; sintaxis Lua comprobada. No sustituyen la validación visual en WoW Forever, que sigue pendiente.
+Once suites simuladas, incluida la carga de los ocho módulos en el orden del TOC, verifican cambios repetidos de modo, restauración de colores y alfa, regiones restringidas, combate, auras, mini alas, compacto de grupo, preferencias y Honor. Ejecutadas con Lua 5.4 y el alias `loadstring = load`; sintaxis Lua comprobada. No sustituyen la validación visual en WoW Forever, que sigue pendiente.
 
 Con Lua 5.1, desde la raíz:
 
@@ -28,13 +28,13 @@ Con Lua 5.4, usa `lua -e 'loadstring=load' "$test"` dentro del mismo bucle.
 
 ## Historial de la base 0.8.10.2
 
-La base incorporó el hover, el arreglo de escala de hermandad, el compacto de grupo y la estructura para CurseForge. Las secciones siguientes documentan esas funciones; las prioridades de convivencia actuales son las descritas arriba.
+La base incorporó el arreglo de escala de hermandad, el compacto de grupo y la estructura para CurseForge. Las secciones siguientes documentan esas funciones; las prioridades de convivencia actuales son las descritas arriba.
 
 ## Integración de Iván 0.8.10
 
-Incluye las ramas `fix/guild-name-scale` (598939b) y `feature/expand-nameplate-on-hover` (cinco commits, hasta 7bbb472), conservando su historial. La primera elimina la inversión de escala que dejaba los nombres de hermandad gigantes; la segunda amplía suavemente el contenedor de nombre/salud al pasar el cursor para mostrar nombres completos.
+Incluye la corrección `fix/guild-name-scale` (598939b), que elimina la inversión de escala que dejaba los nombres de hermandad gigantes.
 
-La resolución conserva el diseño PvP, los colores de nombre por facción y las auras prioritarias de 0.8.9. Cuando está cargado `EllesmereUINameplates`, no se amplía al pasar el ratón ni se fuerza la geometría que gestiona ese addon. Las regiones con restricciones parciales no se miden ni se reescriben y no se repiten capturas fallidas de anclajes. Los cambios de controles y limpieza anteriores ya formaban parte de esa base.
+La resolución conserva el diseño PvP, los colores de nombre por facción y las auras prioritarias de 0.8.9. Cuando está cargado `EllesmereUINameplates`, no se fuerza la geometría que gestiona ese addon. Las regiones con restricciones parciales no se miden ni se reescriben y no se repiten capturas fallidas de anclajes. Los cambios de controles y limpieza anteriores ya formaban parte de esa base.
 
 Se han ejecutado las seis suites Lua 5.1, incluidas las de Iván y regresiones de integración con EllesmereUI. Pendiente validación visual en el cliente.
 
@@ -122,23 +122,9 @@ No necesita ForeverCCPosition. Desactiva el addon original para evitar que dos a
 
 Los marcos protegidos no se recolocan durante el combate: se actualizan al terminar. Si el cliente restringe la lectura de visibilidad de un icono, el ala permanece visible.
 
-## Nombre completo al pasar el cursor
-
-La ampliación de Tistelti se omite si está cargado `EllesmereUINameplates`, para dejarle la gestión de sus nombres externos y tamaños.
-
-En las placas de todos los jugadores (grupo, hermandad, desconocidos y enemigos), pasar el cursor por la barra o el nombre amplía el ancho lo necesario para que quepa el nombre completo. Solo cambia el ancho, manteniendo la altura, el tamaño de las letras, el espacio de los textos de salud y los anclajes de las alas, el nivel y los controles. La ampliación y la recogida tienen una transición suave de 0,18 segundos. Al retirar el cursor recupera el ancho habitual. Los nombres que ya caben no amplían la placa. No afecta a PNJ ni depende de activar las alas de grupo/hermandad; también funciona en instancias. El interruptor general del addon desactiva la ampliación.
-
-La ampliación solo se activa fuera de combate y se restaura al entrar en combate. Las placas protegidas no se amplían, porque el cliente podría impedir restaurarlas al comenzar el combate. Si la geometría del nombre está restringida, mide por separado el nombre y los textos públicos de salud para descontar el espacio que ya existe. Solo añade los píxeles que faltan y un pequeño margen; los nombres que ya caben no se amplían. Si no se puede determinar el espacio disponible, conserva el ancho habitual en lugar de adivinar un tamaño mayor.
-
-La ampliación actúa sobre `HealthBarsContainer`, sin recolocar `UnitFrame` sobre el marco nativo `NamePlateN`. Los anclajes y el espacio del nivel se restauran al salir del área, al entrar en combate y cuando Blizzard reutiliza o reorganiza la placa.
-
-Prueba simulada específica: `lua tests/test_hover.lua`. Pendiente de verificar dentro del juego con nombres largos y distintos tamaños de interfaz.
-
-Referencias de compatibilidad: [InvurseUI](https://github.com/InvurseStudio/InvurseUI/blob/main/InvurseUI/Nameplates.lua) modifica los anclajes de `HealthBarsContainer` en Forever; [ForeverPlusPlus](https://github.com/xIGBClutchIx/ForeverPlusPlus/blob/main/ForeverPlusPlus/Lib/Text.lua) mide texto con `GetUnboundedStringWidth`. La [API de FontString de Forever](https://github.com/Gethe/wow-ui-source/blob/forever/Interface/AddOns/Blizzard_APIDocumentationGenerated/SimpleFontStringAPIDocumentation.lua) marca esa medida como restringida cuando depende de anclajes restringidos. [TextStatusBar](https://github.com/Gethe/wow-ui-source/blob/forever/Interface/AddOns/Blizzard_TextStatusBar/TextStatusBar.lua) vacía los textos de salud que no usa. La medición alternativa distingue un texto vacío de una lectura fallida o secreta y no necesita medir la fuente ni la escala de un texto vacío. La prueba cubre tanto `nil` como `""` en esa situación; no confirma por sí sola la causa del fallo observado en el cliente.
-
 ## Código y datos
 
-`Honor.lua`, `Prioridad.lua`, `NamesOnly.lua`, `PlayerStyle.lua`, `PvP.lua`, `CCPosition.lua`, `HoverWidth.lua`, `Options.lua` y `Core.lua` contienen el código; el manifiesto TOC define el orden de carga. Las texturas necesarias están en `Media/`.
+`Honor.lua`, `Prioridad.lua`, `NamesOnly.lua`, `PlayerStyle.lua`, `PvP.lua`, `CCPosition.lua`, `Options.lua` y `Core.lua` contienen el código; el manifiesto TOC define el orden de carga. Las texturas necesarias están en `Media/`.
 
 El addon se mantiene separado de TisteltiGuild y no lo requiere. La configuración se guarda en `TisteltiPlatesDB`. Este repositorio no incluye SavedVariables, datos de jugadores ni credenciales.
 
