@@ -24,7 +24,7 @@ local function Label()
  function label:IsShown() return self.shown end
  return label
 end
-local f=assert(io.open('TisteltiPlates/Core.lua','r'))
+local f=assert(io.open('Core.lua','r'))
 local source=f:read('*a');f:close()
 local core=assert((loadstring or load)(source..[[
 return {driver=driver,plain=PlainGuildName,labels=guildLabels,active=active,

@@ -39,7 +39,7 @@ GetComparisonStatistic=function() return '300' end
 GetPVPLifetimeStats=function() return 1500 end
 local cached={hk=300,bg=2,duels=4,at=1}
 TisteltiPlatesDB={enabled=true,combatStats={friend=cached}}
-dofile('TisteltiPlates/Honor.lua')
+dofile('Honor.lua')
 for i=1,20 do dispatch('PLAYER_TARGET_CHANGED') end
 assert(requests==0, 'Target selection must never initiate an achievement comparison')
 for _,guid in ipairs(queued) do dispatch('INSPECT_ACHIEVEMENT_READY',guid) end

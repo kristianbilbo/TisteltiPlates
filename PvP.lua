@@ -3,8 +3,11 @@ local PvP = {}
 TisteltiPlatesPvP = PvP
 local config, enabled
 local states = {}
+local pendingNames=setmetatable({}, {__mode="k"})
 local WHITE = "Interface\\Buttons\\WHITE8X8"
+local WINGS = "Interface\\AddOns\\TisteltiPlates\\Media\\Wings.tga"
 local RED, BLUE = {r=1,g=.08,b=.08}, {r=.16,g=.58,b=1}
+local nameColors={Alliance={.35,.7,1},Horde={1,.3,.3}}
 local palette = {bronce={r=1,g=.48,b=.16}, plata={r=.82,g=.9,b=1},
     oro={r=1,g=.86,b=.08}, violeta={r=.72,g=.38,b=1}, azul=BLUE,
     verde={r=.15,g=1,b=.42}}
@@ -45,6 +48,12 @@ end
 function PvP.Sync()
     -- Returning from the old enlarged style requires protected geometry restoration.
     if config and not InCombatLockdown() then enabled = config.enabled end
+    for frame,color in pairs(pendingNames) do
+        if TisteltiPlatesCC.CanPosition(frame) then
+            local ok=pcall(frame.SetTextColor,frame,unpack(color))
+            if ok then pendingNames[frame]=nil end
+        end
+    end
 end
 
 function PvP.IsActive()
@@ -92,76 +101,79 @@ local function Emphasize(uf,bar,unit,color,enemy)
         return bar
     end
     if not display then
-        display=CreateFrame("StatusBar",nil,uf)
+        display=CreateFrame("Frame",nil,uf)
         display:EnableMouse(false)
-        display:SetStatusBarTexture(WHITE)
-        display.background=display:CreateTexture(nil,"BACKGROUND")
-        display.background:SetAllPoints() display.background:SetColorTexture(.025,.025,.035,.95)
         display.outline=Glow(display)
-        display.outline:SetPoint("TOPLEFT",-2,2) display.outline:SetPoint("BOTTOMRIGHT",2,-2)
+        display.outline:SetAllPoints(display)
         display.marker=display:CreateTexture(nil,"OVERLAY")
         display.marker:SetTexture("Interface\\TargetingFrame\\UI-RaidTargetingIcon_8")
-        display.marker:SetSize(24,24) display.marker:SetPoint("RIGHT",display,"LEFT",-42,0)
+        display.marker:SetSize(14,14)
         display.reason=display:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
-        display.reason:SetPoint("RIGHT",display.marker,"LEFT",-4,0)
+        display.reason:SetFont(STANDARD_TEXT_FONT,9,"OUTLINE")
+        display.marker:SetPoint("RIGHT",display.reason,"LEFT",-3,0)
         uf.TisteltiPvPEmphasis=display
     end
-    -- Crece hacia la izquierda; el nivel y los controles conservan su lateral.
-    display:ClearAllPoints() display:SetPoint("RIGHT",bar,"RIGHT",0,0)
-    display:SetSize(bar:GetWidth()*1.35,math.max(14,bar:GetHeight()*1.5))
-    display:SetFrameLevel(bar:GetFrameLevel()+2)
-    display:SetStatusBarColor(color.r,color.g,color.b)
-    if display.sourceBar~=bar then
-        display.sourceBar=bar
-        if type(bar.SetValue)=="function" then
-            hooksecurefunc(bar,"SetValue",function(_,value)
-                if display.sourceBar==bar and display:IsShown() then pcall(display.SetValue,display,value) end
-            end)
-        end
-        if type(bar.SetMinMaxValues)=="function" then
-            hooksecurefunc(bar,"SetMinMaxValues",function(_,minimum,maximum)
-                if display.sourceBar==bar and display:IsShown() then pcall(display.SetMinMaxValues,display,minimum,maximum) end
-            end)
-        end
-    end
-    -- Los valores nativos se reenvían al widget sin compararlos ni operar
-    -- con ellos: los datos restringidos no se usan para decidir prioridades.
-    local ok=false
-    if type(bar.GetMinMaxValues)=="function" and type(bar.GetValue)=="function" then
-        ok=pcall(function()
-            display:SetMinMaxValues(bar:GetMinMaxValues())
-            display:SetValue(bar:GetValue())
-        end)
-    end
-    if not ok then display:Hide() return bar end
+    -- Outline only: never cover the real health bar, its name or its texture.
+    display:ClearAllPoints()
+    display:SetPoint("TOPLEFT",bar,"TOPLEFT",-6,6)
+    display:SetPoint("BOTTOMRIGHT",bar,"BOTTOMRIGHT",6,-6)
+    display:SetFrameLevel(bar:GetFrameLevel()+9)
+    display.reason:ClearAllPoints()
+    local captionAnchor=uf.castBar or uf.CastBar
+    if not captionAnchor or not Read(captionAnchor.IsShown,captionAnchor) then captionAnchor=bar end
+    display.reason:SetPoint("TOP",captionAnchor,"BOTTOM",0,-7)
+    display.reason:SetWidth(math.max(80,bar:GetWidth()))
+    display.reason:SetWordWrap(false)
+    display.reason:SetJustifyH("CENTER")
     PaintGlow(display.outline,selected and {r=1,g=1,b=1} or {r=1,g=.8,b=.05})
     display.marker:SetShown(reason~=nil and reason~=false)
-    display.reason:SetText(reason or "TU OBJETIVO")
+    display.reason:SetText(reason or "")
+    display.reason:SetShown(reason~=nil and reason~=false)
     display:Show()
-    return display
+    return bar
+end
+
+local function Metal(parent, edge)
+    local frame=CreateFrame("Frame",nil,parent,"BackdropTemplate")
+    frame:EnableMouse(false)
+    frame:SetBackdrop({edgeFile="Interface\\Tooltips\\UI-Tooltip-Border",edgeSize=edge or 10})
+    return frame
 end
 
 local function Art(parent)
     local art = Glow(parent)
-    art.faction = art:CreateTexture(nil, "OVERLAY")
+    art.body=Metal(art,12)
+    art.inner=Metal(art,8)
+    art.highlight=art:CreateTexture(nil,"OVERLAY")
+    art.highlight:SetPoint("TOPLEFT",art,"TOPLEFT",3,-1)
+    art.highlight:SetPoint("TOPRIGHT",art,"TOPRIGHT",-3,-1)
+    art.highlight:SetHeight(1)
+    art.shadow=art:CreateTexture(nil,"OVERLAY")
+    art.shadow:SetPoint("BOTTOMLEFT",art,"BOTTOMLEFT",2,1)
+    art.shadow:SetPoint("BOTTOMRIGHT",art,"BOTTOMRIGHT",-2,1)
+    art.shadow:SetHeight(1)
+    art.levelFrame=Metal(art,10)
     art.classFrame = Glow(art)
+    art.classFrame.metal=Metal(art.classFrame,10)
+    art.classFrame.metal:SetPoint("TOPLEFT",-4,4)
+    art.classFrame.metal:SetPoint("BOTTOMRIGHT",4,-4)
     art.classIcon = art.classFrame:CreateTexture(nil, "ARTWORK")
     art.classIcon:SetAllPoints(art.classFrame)
     art.classIcon:SetTexture("Interface\\Glues\\CharacterCreate\\UI-CharacterCreate-Classes")
+    art.factionFrame=Metal(art,8)
+    art.faction = art.factionFrame:CreateTexture(nil, "OVERLAY")
+    art.faction:SetAllPoints(art.factionFrame)
     art.wings = {}
-    -- Minimal three-feather outline: short luminous strokes, no bulky wing art.
+    -- Same feather artwork as the guild design, scaled for the native plate.
     for _, side in ipairs({-1, 1}) do
         local wing = CreateFrame("Frame", nil, art)
         wing:EnableMouse(false)
-        wing.side, wing.lines = side, {}
-        for i = 1, 3 do
-            for layer = 1, 2 do
-                local line = wing:CreateTexture(nil, "OVERLAY")
-                line:SetTexture(WHITE)
-                line:SetBlendMode("ADD")
-                wing.lines[#wing.lines+1] = {texture=line, feather=i, layer=layer}
-            end
-        end
+        wing.side = side
+        wing.texture=wing:CreateTexture(nil,"ARTWORK")
+        wing.texture:SetAllPoints(wing)
+        wing.texture:SetTexture(WINGS)
+        if side==-1 then wing.texture:SetTexCoord(0,.40,0,1)
+        else wing.texture:SetTexCoord(.60,1,0,1) end
         art.wings[#art.wings+1] = wing
     end
     art:Hide()
@@ -178,54 +190,80 @@ function PvP.Paint(art, bar, color, class, faction, guild, rank, iconAnchor, bor
     art:SetAllPoints(bar)
     art:SetFrameLevel(bar:GetFrameLevel()+10)
     PaintGlow(art, borderColor or color)
-    local height = math.max(6, math.min(14, bar:GetHeight()))
+    -- Metal catches the light; the reaction/class colour is a narrow inset.
+    for _, edge in ipairs(art.edges) do
+        edge.texture:SetAlpha(.22)
+    end
+    local metal=guild and {r=1,g=.78,b=.34} or {r=.75,g=.79,b=.85}
+    art.body:ClearAllPoints()
+    art.body:SetPoint("TOPLEFT",bar,"TOPLEFT",-5,5)
+    art.body:SetPoint("BOTTOMRIGHT",bar,"BOTTOMRIGHT",5,-5)
+    art.body:SetBackdropBorderColor(metal.r,metal.g,metal.b,1)
+    art.inner:ClearAllPoints()
+    art.inner:SetPoint("TOPLEFT",bar,"TOPLEFT",-1.5,1.5)
+    art.inner:SetPoint("BOTTOMRIGHT",bar,"BOTTOMRIGHT",1.5,-1.5)
+    local inset=borderColor or color
+    art.inner:SetBackdropBorderColor(inset.r,inset.g,inset.b,.85)
+    art.highlight:SetColorTexture(.5+.45*metal.r,.5+.45*metal.g,.5+.45*metal.b,.85)
+    art.shadow:SetColorTexture(.04,.05,.08,.85)
+    art.body:SetFrameLevel(art:GetFrameLevel()+1)
+    art.inner:SetFrameLevel(art:GetFrameLevel()+2)
+    art.levelFrame:ClearAllPoints()
+    if iconAnchor then
+        art.levelFrame:SetPoint("TOPLEFT",iconAnchor,"TOPLEFT",-2,2)
+        art.levelFrame:SetPoint("BOTTOMRIGHT",iconAnchor,"BOTTOMRIGHT",2,-2)
+        art.levelFrame:SetBackdropBorderColor(metal.r,metal.g,metal.b,1)
+    end
+    art.levelFrame:SetShown(iconAnchor~=nil)
+    local height = math.max(18, math.min(26, bar:GetHeight()+10))
     local emblem = config.emblem and (faction == "Alliance" or faction == "Horde")
-    art.faction:ClearAllPoints()
-    art.faction:SetSize(height, height)
-    art.faction:SetPoint("RIGHT", bar, "LEFT", -.5, 0)
+    local uv = (CLASS_ICON_TCOORDS or coords)[class or ""]
+    local classColor = RAID_CLASS_COLORS and RAID_CLASS_COLORS[class or ""]
+    local showClass=config.classIcon and uv~=nil and classColor~=nil
+    art.factionFrame:ClearAllPoints()
+    art.factionFrame:SetSize(12,12)
+    art.factionFrame:SetPoint("CENTER",showClass and art.classFrame or art.body,
+        showClass and "BOTTOMRIGHT" or "LEFT",showClass and 0 or -8,showClass and 1 or 0)
+    art.factionFrame:SetBackdropBorderColor(metal.r,metal.g,metal.b,1)
+    art.factionFrame:SetFrameLevel(art:GetFrameLevel()+5)
     if emblem then
         art.faction:SetTexture("Interface\\TargetingFrame\\UI-PVP-"..faction)
         -- Native PvP textures include unused padding on the right and bottom.
         art.faction:SetTexCoord(0, .625, 0, .625)
     end
     art.faction:SetShown(emblem and true or false)
-    local uv = (CLASS_ICON_TCOORDS or coords)[class or ""]
-    local classColor = RAID_CLASS_COLORS and RAID_CLASS_COLORS[class or ""]
+    art.factionFrame:SetShown(emblem and true or false)
     art.classFrame:ClearAllPoints()
     art.classFrame:SetSize(config.classIconSize, config.classIconSize)
-    art.classFrame:SetPoint("RIGHT", emblem and art.faction or bar, "LEFT", -6, 0)
+    art.classFrame:SetPoint("RIGHT",art.body,"LEFT",-4,0)
+    art.classFrame.metal:SetBackdropBorderColor(metal.r,metal.g,metal.b,1)
     if uv and classColor then
         art.classIcon:SetTexCoord(unpack(uv))
         PaintGlow(art.classFrame, classColor)
+        for _,edge in ipairs(art.classFrame.edges) do edge.texture:SetAlpha(.35) end
     end
-    art.classFrame:SetShown(config.classIcon and uv ~= nil and classColor ~= nil)
+    art.classFrame:SetShown(showClass)
     local wingColor = PvP.WingColor(rank)
     for _, wing in ipairs(art.wings) do
         local right = wing.side == 1
         wing:ClearAllPoints()
-        -- Left wing touches the emblem; right wing touches the health frame.
-        wing:SetPoint(right and "LEFT" or "RIGHT", right and (iconAnchor or bar) or (emblem and art.faction or bar),
-            right and "RIGHT" or "LEFT", 0, 0)
-        wing:SetSize(height * .75 * config.wingSize, height)
-        for _, entry in ipairs(wing.lines) do
-            local line, i, layer = entry.texture, entry.feather, entry.layer
-            line:ClearAllPoints()
-            line:SetSize(height * (.82 - i * .12) * config.wingSize, layer == 1 and 1 or 3)
-            line:SetPoint("CENTER", wing, "CENTER", 0, (2-i)*height*.22)
-            line:SetRotation(wing.side * (.20 + .12*i))
-            line:SetVertexColor(wingColor.r, wingColor.g, wingColor.b,
-                math.min(1, (layer == 1 and 1 or .18) * config.intensity))
-        end
+        -- The left wing joins the class tile; the right joins the level.
+        wing:SetPoint(right and "LEFT" or "RIGHT", right and (iconAnchor or bar) or art.body,
+            right and "RIGHT" or "LEFT",right and -1 or 1,0)
+        wing:SetSize(height*1.5*config.wingSize,height*1.5*config.wingSize)
+        wing.texture:SetVertexColor(.55+.45*wingColor.r,.55+.45*wingColor.g,.55+.45*wingColor.b,
+            math.min(1,.85*config.intensity))
         wing:SetShown(config.wings and guild and true or false)
     end
-    -- El icono de clase queda fuera del lateral izquierdo, separado del
-    -- emblema/ala. Los bufos superiores y los controles a la derecha son nativos.
+    -- Both ornaments form a single silhouette; native skills stay on the right.
     if guild and config.wings then
-        art.classFrame:ClearAllPoints()
-        art.classFrame:SetPoint("RIGHT", art.wings[1], "LEFT", -6, 0)
+        art.wings[1]:ClearAllPoints()
+        art.wings[1]:SetPoint("RIGHT",showClass and art.classFrame or art.body,"LEFT",2,0)
     end
-    art.pvpShowRightWing=config.wings and guild and true or false
+    art.pvpShowLeftWing=config.wings and guild and true or false
+    art.pvpShowRightWing=art.pvpShowLeftWing
     art.pvpShowClassIcon=config.classIcon and uv~=nil and classColor~=nil
+    art.pvpShowFaction=emblem and true or false
     if art.pvpUnitFrame and TisteltiPlatesCC then
         TisteltiPlatesCC.UpdatePvPArt(art,art.pvpUnitFrame)
     end
@@ -241,12 +279,61 @@ local function Tint(uf)
     state.tinting = false
 end
 
+local function RestoreName(state)
+    local entry=state and state.name
+    if not entry then return end
+    state.nameTinting=true
+    if TisteltiPlatesCC.CanPosition(entry.frame) then
+        local ok=pcall(entry.frame.SetTextColor,entry.frame,unpack(entry.color))
+        if not ok then pendingNames[entry.frame]=entry.color end
+    else
+        pendingNames[entry.frame]=entry.color
+    end
+    state.nameTinting=false
+    state.name=nil
+end
+
+local function TintName(uf)
+    local state=states[uf]
+    local entry=state and state.name
+    if not entry or not state.nameColor or state.nameTinting or not TisteltiPlatesCC.CanPosition(entry.frame) then return end
+    state.nameTinting=true
+    pcall(entry.frame.SetTextColor,entry.frame,state.nameColor[1],state.nameColor[2],state.nameColor[3],entry.color[4])
+    state.nameTinting=false
+end
+
+local function ColorName(uf,state,faction)
+    local frame=uf.name or uf.Name or (uf.NameContainer and uf.NameContainer.Name)
+    state.nameColor=TisteltiPlatesPlayers.NameColor(uf.unit) or nameColors[faction]
+    if state.name and (state.name.frame~=frame or not state.nameColor) then RestoreName(state) end
+    if not state.nameColor or not frame or not TisteltiPlatesCC.CanPosition(frame) then return end
+    if not state.name then
+        if type(frame.GetTextColor)~="function" or type(frame.SetTextColor)~="function" then return end
+        local ok,r,g,b,a=pcall(frame.GetTextColor,frame)
+        if not ok then return end
+        for _,value in ipairs({r,g,b,a}) do
+            if not Public(value) or type(value)~="number" then return end
+        end
+        if type(r)~="number" or type(g)~="number" or type(b)~="number" or type(a)~="number" then return end
+        state.name={frame=frame,color=pendingNames[frame] or {r,g,b,a}}
+        pendingNames[frame]=nil
+        uf.TisteltiPvPNameHooks=uf.TisteltiPvPNameHooks or setmetatable({}, {__mode="k"})
+        if not uf.TisteltiPvPNameHooks[frame] then
+            hooksecurefunc(frame,"SetTextColor",function() TintName(uf) end)
+            hooksecurefunc(frame,"SetVertexColor",function() TintName(uf) end)
+            uf.TisteltiPvPNameHooks[frame]=true
+        end
+    end
+    TintName(uf)
+end
+
 function PvP.Remove(uf)
     if uf.TisteltiPvPArt then uf.TisteltiPvPArt:Hide() end
     if uf.TisteltiPvPEmphasis then uf.TisteltiPvPEmphasis:Hide() end
     local state = states[uf]
     if not state then return end
     states[uf] = nil
+    RestoreName(state)
     if CompactUnitFrame_UpdateHealthColor and type(uf.unit) == "string" and Public(uf.unit) and Read(UnitExists, uf.unit) then
         local ok = pcall(CompactUnitFrame_UpdateHealthColor, uf)
         if ok then return end
@@ -283,6 +370,9 @@ function PvP.Update(unit, uf)
         end
     end
     state.color = color
+    -- Release the classic name hook before acquiring its native color snapshot.
+    TisteltiPlatesPlayers.Remove(uf)
+    ColorName(uf,state,faction)
     local art = uf.TisteltiPvPArt or Art(uf)
     uf.TisteltiPvPArt = art
     local identity = unit
@@ -303,14 +393,10 @@ function PvP.Update(unit, uf)
     local iconAnchor = uf.PlayerLevelDiffFrame
     if not iconAnchor or not Read(iconAnchor.IsShown, iconAnchor) then iconAnchor = nil end
     if TisteltiPlatesCC then TisteltiPlatesCC.AttachPvPArt(art,uf) end
-    local display=Emphasize(uf,bar,unit,color,enemy)
+    Emphasize(uf,bar,unit,color,enemy)
     local rgb = TisteltiPlatesPlayers.BorderColor(unit)
     local borderColor = rgb and {r=rgb[1],g=rgb[2],b=rgb[3]} or (enemy and RED or color)
-    PvP.Paint(art, display, color, class, faction, guild, Read(TisteltiMerito, identity) or 0, iconAnchor, borderColor)
-    if display~=bar then
-        display.marker:ClearAllPoints()
-        display.marker:SetPoint("RIGHT",art.classFrame,"LEFT",-6,0)
-    end
+    PvP.Paint(art, bar, color, class, faction, guild, Read(TisteltiMerito, identity) or 0, iconAnchor, borderColor)
     Tint(uf)
 end
 
@@ -322,8 +408,8 @@ function PvP.RegisterOptions(category, refresh)
         label:SetPoint("TOPLEFT", x, y); label:SetText(value)
         return label
     end
-    text("Modo PvP · Placas compactas", 20, -20, "GameFontNormalLarge")
-    text("Enemigos con borde rojo y barra por clase. Objetivo y recomendado destacados.", 20, -52)
+    text("Modo PvP · Marco heráldico", 20, -20, "GameFontNormalLarge")
+    text("Doble marco metálico, clase integrada y alas de hermandad. Conserva la barra y el nombre reales.", 20, -52)
     local controls, samples = {}, {}
     local labels = {class="Clase", red="Rojo", blue="Azul", bronce="Bronce", plata="Plata",
         oro="Oro", violeta="Violeta", azul="Azul", verde="Verde"}
@@ -366,7 +452,7 @@ function PvP.RegisterOptions(category, refresh)
     check("enemies","Jugadores enemigos",300,-113)
     check("wings","Alas solo tu hermandad (Alianza)",20,-146)
     check("classIcon","Icono de clase con neón de clase",300,-146)
-    check("emphasizeTargets","Ampliar objetivo y recomendado",20,-329)
+    check("emphasizeTargets","Destacar objetivo y recomendado",20,-329)
     cycle("friendColor","Aliados · barra y marco",{"class","blue"},20,-187)
     cycle("enemyColor","Enemigos · barra",{"class","red"},300,-187)
     cycle("intensity","Brillo (0.6 / 1 / 1.4)",{.6,1,1.4},20,-223)
@@ -377,14 +463,15 @@ function PvP.RegisterOptions(category, refresh)
     cycle("high","Alas · mérito 10–14",colors,20,-295)
     cycle("classIconSize","Tamaño de icono de clase",{18,22,26,30},300,-295)
     text("Sin datos de mérito: alas gris azulado. Se usa el mérito del addon, no un rango oficial supuesto.",20,-365)
-    text("Vista previa · icono con neón por clase incluso usando barra roja",20,-395,"GameFontNormal")
+    text("Vista previa · acabado metálico y acento de clase, también con barra roja",20,-395,"GameFontNormal")
     for i, data in ipairs({{"MAGE",false,4},{"WARLOCK",true,0}}) do
         local bar = CreateFrame("StatusBar",nil,panel)
-        bar:SetSize(110,10); bar:SetPoint("TOPLEFT",65+(i-1)*280,-440)
+        bar:SetSize(150,16); bar:SetPoint("TOPLEFT",65+(i-1)*280,-440)
         bar:SetStatusBarTexture(WHITE); bar:SetMinMaxValues(0,100); bar:SetValue(78)
         local name=bar:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
-        name:SetPoint("BOTTOMLEFT",bar,"TOPLEFT",0,5)
-        name:SetText(i==1 and "Tu hermandad · Mago" or "Horda · Brujo")
+        name:SetPoint("CENTER",bar,"CENTER",0,0)
+        name:SetText(i==1 and "Hermandad · Mago" or "Enemigo · Brujo")
+        name:SetTextColor(unpack(nameColors[i==1 and "Alliance" or "Horde"]))
         samples[#samples+1]={bar=bar,art=Art(bar),class=data[1],enemy=data[2],rank=data[3]}
     end
     text("Los cambios de modo durante combate se aplican al terminar. No activa placas ocultas del juego.",20,-480)

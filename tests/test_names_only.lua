@@ -21,7 +21,7 @@ local function Frame()
     return f
 end
 CreateFrame=Frame
-dofile('TisteltiPlates/NamesOnly.lua')
+dofile('NamesOnly.lua')
 local N=TisteltiPlatesNamesOnly
 local uf=Frame(); uf.name=Frame(); uf.namesOnly=true
 -- Any attempt to mutate native geometry or font in this test is a failure.

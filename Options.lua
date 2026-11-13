@@ -156,7 +156,7 @@ function TisteltiPlatesOptions.Register(db, api)
     check(20,-369,"Alitas pequeñas en el modo solo nombres de WoW",function() return db.namesOnlyWings end,
         function(v) db.namesOnlyWings=v end,"decorated")
     local function playerConfig() return db.playerColors[tab=="enemy" and "enemy" or "ally"] end
-    check(20,-185,"Colorear nombre",function() return playerConfig().name end,function(v) playerConfig().name=v end,"players")
+    check(20,-185,"Color personalizado del nombre",function() return playerConfig().name end,function(v) playerConfig().name=v end,"players")
     check(20,-245,"Colorear borde",function() return playerConfig().border end,function(v) playerConfig().border=v end,"players")
     for i,key in ipairs({"nameColor","borderColor"}) do
         local field=key
@@ -192,8 +192,9 @@ function TisteltiPlatesOptions.Register(db, api)
             name:SetText(tab=="enemy" and "Jugador enemigo" or "Jugador aliado")
             name:SetTextColor(unpack(config.name and config.nameColor or {1,1,1}))
             plainBorder:Show(); plainBorder:SetBackdropBorderColor(unpack(config.border and config.borderColor or SILVER))
-            note:SetText(tab=="enemy" and "Jugadores enemigos de tu personaje, tanto si juegas Alianza como Horda."
+            note:SetText((tab=="enemy" and "Jugadores enemigos de tu personaje, tanto si juegas Alianza como Horda."
                 or "Otros jugadores aliados. Grupo y hermandad conservan sus propios estilos.")
+                .. " En PvP, el color personalizado sustituye al color por facción; sin él se conserva el color por facción.")
         end
     end
     panel:SetScript("OnShow",redraw)

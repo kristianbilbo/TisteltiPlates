@@ -1,5 +1,5 @@
 dofile("tests/ui_stubs.lua")
-dofile("TisteltiPlates/Options.lua")
+dofile("Options.lua")
 -- Run from the repository root with Lua 5.1 or later.
 unpack = unpack or table.unpack
 local frames, panel = {}, nil
@@ -48,7 +48,7 @@ UnitIsFriend=function() return true end
 UnitInParty=function() return true end -- Raid subgroup members can also match.
 UnitInRaid=function() return raid end
 UnitIsInMyGuild=function() return false end
-local file=assert(io.open('TisteltiPlates/Core.lua','rb'))
+local file=assert(io.open('Core.lua','rb'))
 local source=file:read('*a'); file:close()
 local core=assert((loadstring or load)(source .. [[
 return {driver=driver, membership=Membership, rosterMembership=RosterMembership, wings=PaintWings}

@@ -32,7 +32,7 @@ UnitFactionGroup=function(unit) return units[unit] and units[unit][2] end
 local secret={}
 issecretvalue=function(v) return v==secret end
 units.restricted={true,secret}
-dofile('TisteltiPlates/PlayerStyle.lua')
+dofile('PlayerStyle.lua')
 local H=TisteltiPlatesPlayers
 local uf=Frame(); uf.name=Frame(); uf.HealthBarsContainer=Frame(); uf.unit='horde'
 local db={enabled=true,playerColors={enemy={name=true,border=true,nameColor={1,.12,.12},borderColor={1,.12,.12}},ally={name=false,border=false,nameColor={.2,.6,1},borderColor={.2,.6,1}}}}

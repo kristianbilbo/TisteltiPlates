@@ -1,5 +1,5 @@
 dofile("tests/ui_stubs.lua")
-dofile("TisteltiPlates/Options.lua")
+dofile("Options.lua")
 unpack = unpack or table.unpack
 local loadChunk = loadstring or load
 local combat, secret = false, {}
@@ -66,7 +66,7 @@ loss.AuraItemFrame:Hide()
 local crowdIcon=Frame(crowd)
 crowdIcon.Icon={}; crowdIcon.Cooldown={}; crowdIcon:Hide()
 C_NamePlate={GetNamePlateForUnit=function() return plate end, GetNamePlates=function() return {plate} end}
-assert(loadfile("TisteltiPlates/CCPosition.lua"))()
+assert(loadfile("CCPosition.lua"))()
 local CC=TisteltiPlatesCC
 local events=frames[#frames]
 local function tick(art) art.scripts.OnUpdate(art,.05) end
@@ -145,7 +145,8 @@ assert(art.rightWing.shown, "Reused decoration restores wing")
 print("PASS: icon visibility, glow, empty containers, parents, combat, reuse, previews and positioning")
 
 -- Exercise the actual Core layout so it cannot move CC back above the plate.
-local f=assert(io.open("TisteltiPlates/Core.lua","rb"))
+assert(loadfile("HoverWidth.lua"))()
+local f=assert(io.open("Core.lua","rb"))
 local source=f:read("*a"); f:close()
 local core=assert(loadChunk(source .. [[
 return {layout=Layout, remove=Remove, active=active, driver=driver, options=RegisterOptions,

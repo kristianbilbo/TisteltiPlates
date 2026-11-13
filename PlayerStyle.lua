@@ -2,11 +2,18 @@
 TisteltiPlatesPlayers = {}
 local Players = TisteltiPlatesPlayers
 local states, borders, hooked = {}, {}, {}
+local pendingNames = setmetatable({}, {__mode="k"})
 local function Public(v) return not (issecretvalue and issecretvalue(v)) end
 local function Read(fn, ...)
     if type(fn) ~= "function" then return end
     local ok, v = pcall(fn, ...)
     if ok and Public(v) then return v end
+end
+local function CanPaint(name)
+    for _, method in ipairs({"IsForbidden", "HasAccessConstraints", "HasAnyForbiddenAspects"}) do
+        if type(name[method]) == "function" and Read(name[method], name) ~= false then return false end
+    end
+    return not (InCombatLockdown and InCombatLockdown()) or Read(name.IsProtected, name) == false
 end
 function Players.Kind(unit)
     if not Public(unit) or type(unit) ~= "string" or Read(UnitIsPlayer, unit) ~= true
@@ -26,19 +33,33 @@ function Players.BorderColor(unit)
     local config = db and db.enabled and db.playerColors and db.playerColors[kind]
     return config and config.border and config.borderColor or nil
 end
+function Players.NameColor(unit)
+    local db = TisteltiPlatesDB
+    local kind = Players.Kind(unit)
+    local config = db and db.enabled and db.playerColors and db.playerColors[kind]
+    return config and config.name and config.nameColor or nil
+end
 local function PaintName(uf, state)
-    if state.painting or not state.name or not state.db.enabled
+    if state.painting or not state.name or not state.db.enabled or not CanPaint(state.name)
         or not state.config.name or Players.Kind(uf.unit) ~= state.kind then return end
     state.painting = true
-    state.name:SetTextColor(unpack(state.config.nameColor))
+    local rgb = state.config.nameColor
+    pcall(state.name.SetTextColor, state.name, rgb[1], rgb[2], rgb[3], state.original[4])
     state.painting = false
 end
 local function RestoreName(state)
     if not state.name then return end
     state.painting = true
-    state.name:SetTextColor(unpack(state.original))
+    if not CanPaint(state.name) or not pcall(state.name.SetTextColor, state.name, unpack(state.original)) then
+        pendingNames[state.name] = state.original
+    end
     state.painting = false
     state.name = nil
+end
+function Players.Sync()
+    for name, color in pairs(pendingNames) do
+        if CanPaint(name) and pcall(name.SetTextColor, name, unpack(color)) then pendingNames[name] = nil end
+    end
 end
 function Players.Remove(uf)
     local state = states[uf]
@@ -48,20 +69,24 @@ end
 function Players.Update(uf, unit, db, decorated, pvpOwnsBorder)
     if not uf or Read(uf.IsForbidden, uf) then return end
     local kind = Players.Kind(unit)
-    if not db.enabled or not kind or (kind == "ally" and decorated) then Players.Remove(uf); return end
+    -- PvP owns both the name and border while visible, using these same settings.
+    -- Two recolor hooks on the same name would fight and corrupt restoration.
+    if not db.enabled or not kind or (kind == "ally" and decorated) or pvpOwnsBorder then Players.Remove(uf); return end
     local config = db.playerColors[kind]
     local state = states[uf]
-    if state and (state.unit ~= unit or state.kind ~= kind or state.name and state.name ~= uf.name) then
+    local name = uf.name or uf.Name or (uf.NameContainer and uf.NameContainer.Name)
+    if state and (state.unit ~= unit or state.kind ~= kind or state.name and state.name ~= name) then
         Players.Remove(uf); state = nil
     end
     if not state then state = {unit=unit}; states[uf] = state end
     state.config, state.db, state.kind = config, db, kind
-    if config.name and uf.name and not Read(uf.name.IsForbidden, uf.name) then
-        local name = uf.name
+    if config.name and name and CanPaint(name) then
         if not state.name then
-            local r, g, b, a = name:GetTextColor()
-            if Public(r) and Public(g) and Public(b) and Public(a) then
-                state.name, state.original = name, {r, g, b, a or 1}
+            local ok, r, g, b, a = pcall(name.GetTextColor, name)
+            if ok and Public(r) and Public(g) and Public(b) and Public(a)
+                and type(r)=="number" and type(g)=="number" and type(b)=="number" then
+                state.name, state.original = name, pendingNames[name] or {r, g, b, a or 1}
+                pendingNames[name] = nil
             end
         end
         if not hooked[name] then
@@ -69,7 +94,8 @@ function Players.Update(uf, unit, db, decorated, pvpOwnsBorder)
             local function Changed(_, r, g, b, a)
                 local current = states[uf]
                 if not current or current.name ~= name or current.painting then return end
-                if Public(r) and Public(g) and Public(b) and Public(a) then
+                if Public(r) and Public(g) and Public(b) and Public(a)
+                    and type(r)=="number" and type(g)=="number" and type(b)=="number" then
                     current.original = {r, g, b, a or 1}
                 end
                 PaintName(uf, current)
