@@ -112,11 +112,11 @@ Settings={
 }
 local plates={}
 C_NamePlate={GetNamePlateForUnit=function(u) return plates[u] end}
-assert(loadfile('TisteltiPlates/Prioridad.lua'))()
-assert(loadfile('TisteltiPlates/PvP.lua'))()
-assert(loadfile('TisteltiPlates/CCPosition.lua'))()
-assert(loadfile('TisteltiPlates/HoverWidth.lua'))()
-local file=assert(io.open('TisteltiPlates/Core.lua','rb')); local source=file:read('*a'); file:close()
+assert(loadfile('Prioridad.lua'))()
+assert(loadfile('PvP.lua'))()
+assert(loadfile('CCPosition.lua'))()
+assert(loadfile('HoverWidth.lua'))()
+local file=assert(io.open('Core.lua','rb')); local source=file:read('*a'); file:close()
 local core=assert(loadstring(source..'\nreturn {driver=driver,refresh=Refresh,active=active,allowed=Allowed}'))('TisteltiPlates')
 local pvp=TisteltiPlatesPvP
 TisteltiPlatesDB={priority='group',scale=1.4,appearance={group={border='cobre'}}}

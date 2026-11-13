@@ -15,7 +15,7 @@ local marked
 GetRaidTargetIndex=function(u) return u==marked and 8 or nil end
 local function plate() return {UnitFrame={IsShown=function() return true end}} end
 local plates={a=plate(),b=plate(),friend=plate()}
-assert(loadfile('TisteltiPlates/Prioridad.lua'))()
+assert(loadfile('Prioridad.lua'))()
 local p=TisteltiPlatesPriority
 p.Update(plates,true) assert(p.Reason('a')=='FOCO DEL GRUPO' and not p.Reason('b'))
 targets.party2target='b' p.Update(plates,true)

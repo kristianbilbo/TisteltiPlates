@@ -1,11 +1,8 @@
-# El repositorio contiene el addon en una subcarpeta.
-package-as: TisteltiPlates_Package
+package-as: TisteltiPlates
 enable-nolib-creation: no
-move-folders:
-  TisteltiPlates_Package/TisteltiPlates: TisteltiPlates
 ignore:
   - tests
   - README.md
 manual-changelog:
-  filename: TisteltiPlates/LEEME.txt
+  filename: LEEME.txt
   markup-type: plain

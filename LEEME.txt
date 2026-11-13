@@ -1,3 +1,5 @@
+Corrección de empaquetado 0.8.10.2: TOC, Lua y Media en la raíz del repositorio para el empaquetador de CurseForge. Sin cambios funcionales.
+
 TISTELTI - ALAS DE GRUPO · v0.8.10.1 · Forever 1.60.1 / interfaz 16001
 
 BASE 0.8.10 + COMPACTO SOLO PARA EL GRUPO (0.8.10.1)

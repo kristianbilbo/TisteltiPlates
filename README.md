@@ -1,6 +1,8 @@
-# Base 0.8.10 con compacto de grupo · 0.8.10.1
+Corrección de empaquetado 0.8.10.2: TOC, Lua y Media en la raíz del repositorio para el empaquetador de CurseForge. Sin cambios funcionales.
 
-BASE 0.8.10 + COMPACTO SOLO PARA EL GRUPO (0.8.10.1)
+# Base 0.8.10 con compacto de grupo · 0.8.10.2
+
+BASE 0.8.10 + COMPACTO SOLO PARA EL GRUPO (0.8.10.2)
 - Recuperado el código a4da92e / 0.8.10. Todo el trabajo experimental posterior se conserva en work/antes-volver-base-0810-20261109-012943.
 - Única función añadida: compactar adornos de aliados jugadores del grupo/banda durante combate, manteniendo el marco y el nivel de 0.8.10.
 - Ambas alas son más pequeñas. Se ocultan rango, hermandad y emblemas secundarios mientras dura el compacto.
@@ -13,11 +15,11 @@ BASE 0.8.10 + COMPACTO SOLO PARA EL GRUPO (0.8.10.1)
 - Pasan las seis suites originales sin modificarlas y la nueva regresión del compacto de grupo (Lua 5.1).
 - Código instalado y repositorio coinciden. Ejecutar /reload fuera de combate; pendiente validar el aspecto en el cliente.
 - Fetch y revisión de main, ramas y PR de Iván: conserva limpieza sin unidad, CC, escala de hermandad y hover hasta 7bbb472; sin novedades conocidas pendientes.
-- Publicación 0.8.10.1: revisión de las cuatro ramas remotas y PR de Iván; todas ya incluidas en main. No hay commits adicionales pendientes en esas ramas.
+- Publicación 0.8.10.2: revisión de las cuatro ramas remotas y PR de Iván; todas ya incluidas en main. No hay commits adicionales pendientes en esas ramas.
 
 # TisteltiPlates
 
-Addon para WoW Forever (interfaz 16001). Versión actual: **0.8.10.1**.
+Addon para WoW Forever (interfaz 16001). Versión actual: **0.8.10.2**.
 
 ## Integración de Iván 0.8.10
 
@@ -89,7 +91,7 @@ En Opciones, **Prioridad** permite elegir **Grupo/Banda** (todos los compañeros
 
 ## Instalación
 
-Copia la carpeta `TisteltiPlates` de este repositorio dentro de `_forever_/Interface/AddOns/`. Debe quedar `AddOns/TisteltiPlates/TisteltiPlates.toc`. Activa el addon y las placas amistosas en el juego.
+Extrae la carpeta `TisteltiPlates` del ZIP publicado dentro de `_forever_/Interface/AddOns/`. Debe quedar `AddOns/TisteltiPlates/TisteltiPlates.toc`. Activa el addon y las placas amistosas en el juego.
 
 Usa `/tistelti` para acceder a los comandos del addon y `/tistelti vista` para la vista de ejemplo.
 
@@ -125,7 +127,7 @@ Referencias de compatibilidad: [InvurseUI](https://github.com/InvurseStudio/Invu
 
 ## Código y datos
 
-`TisteltiPlates/Honor.lua`, `TisteltiPlates/Prioridad.lua`, `TisteltiPlates/PvP.lua`, `TisteltiPlates/CCPosition.lua`, `TisteltiPlates/HoverWidth.lua` y `TisteltiPlates/Core.lua` contienen el código; el manifiesto TOC define el orden de carga. Las texturas necesarias están en `TisteltiPlates/Media/`.
+`Honor.lua`, `Prioridad.lua`, `PvP.lua`, `CCPosition.lua`, `HoverWidth.lua` y `Core.lua` contienen el código; el manifiesto TOC define el orden de carga. Las texturas necesarias están en `Media/`.
 
 El addon se mantiene separado de TisteltiGuild y no lo requiere. La configuración se guarda en `TisteltiPlatesDB`. Este repositorio no incluye SavedVariables, datos de jugadores ni credenciales.
 

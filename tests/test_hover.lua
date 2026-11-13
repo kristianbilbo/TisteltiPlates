@@ -31,7 +31,7 @@ hooksecurefunc = function(object, method, hook)
     local old=object[method]
     object[method]=function(self, ...) old(self, ...); hook(self, ...) end
 end
-assert(loadfile("TisteltiPlates/HoverWidth.lua"))()
+assert(loadfile("HoverWidth.lua"))()
 local Hover, driver = TisteltiPlatesHover, drivers[1]
 local function tick() driver:OnUpdate(.25) end
 local function near(a,b) assert(math.abs(a-b)<.01, tostring(a).." ~= "..tostring(b)) end
@@ -288,7 +288,7 @@ print("PASS: failed second anchor restores partial changes")
 
 -- Test enrollment through Core's real events and all refresh return paths.
 SlashCmdList={}
-local f=assert(io.open("TisteltiPlates/Core.lua","rb"))
+local f=assert(io.open("Core.lua","rb"))
 local source=f:read("*a"); f:close()
 local core=assert((loadstring or load)(source .. [[
 return {refresh=Refresh, driver=driver, setDB=function(value) db=value end}
