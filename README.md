@@ -1,6 +1,6 @@
 # TisteltiPlates
 
-Addon para WoW Forever (interfaz 16001). Esta rama integra la base remota **0.8.10.2**, los cambios de colores, controles y solo nombres, y la configuración funcional completa. El candidato **0.8.11-dev** es local y aún no está publicado.
+Addon para WoW Forever (interfaz 16001). Esta rama integra la base remota **0.8.10.2**, los cambios de colores, controles y solo nombres, y la configuración funcional completa. El candidato **0.8.11-dev.2** es local y aún no está publicado.
 
 Abre **`/tistelti` → General, Apariencia, Comportamiento, PvP o Avanzado**. Las cinco pestañas usan los controles nativos de WoW y desplazamiento vertical. `/tistelti vista` abre Apariencia y `/tistelti pvp` abre PvP.
 
@@ -8,11 +8,13 @@ Abre **`/tistelti` → General, Apariencia, Comportamiento, PvP o Avanzado**. La
 
 | Sección | Qué controla |
 | --- | --- |
-| General | Activación general; mundo abierto, mazmorras, bandas, campos de batalla y arenas; diagnóstico de placas/controles de WoW. |
+| General | Activación general; mundo abierto, mazmorras, bandas, campos de batalla y arenas; diagnóstico de placas/controles de WoW; alitas de solo nombres por estilo. |
 | Apariencia | Estilos independientes de grupo, banda y hermandad; borde, alas, nivel, nombre y distintivo de hermandad, mérito; prioridad grupo/hermandad. Acentos de aliados/enemigos: nombre y marco nativos, por clase, facción, personalizados o heredados. |
-| Comportamiento | Compactación de grupo/banda, qué oculta; reposición de controles por relación; separación de auras; ocultación del ala derecha; prioridad de auras PvP; alitas de solo nombres por estilo. |
+| Comportamiento | Compactación de grupo/banda, qué oculta; reposición de controles por relación; separación de auras; ocultación del ala derecha; prioridad de auras PvP. |
 | PvP | Activación; aliados/enemigos; emblema, alas, icono de clase; alas de hermandad de ambas facciones; objetivo seleccionado y recomendado por separado; colores de barra y uso de mérito en las alas. |
 | Avanzado | Escala y anchura fija, tamaño de adornos, espera/tamaño del compacto, anclajes y desplazamientos de controles, separación de auras, margen de solapamiento, tamaño/separación de alitas, texto de hermandad, reglas de recomendación y tamaños/brillo/paletas PvP. |
+
+En **General** están juntos los ámbitos y el bloque **Alitas en el modo solo nombres de WoW**. Dentro de una mazmorra o banda excluida, la cabecera lo indica y ofrece un botón para activar allí las placas y alitas. El botón cambia solo ese ámbito; los interruptores de estilos y alitas conservan su valor. El acceso **Configurar estilos y ver alitas de ejemplo** abre Apariencia en la escena Solo nombres.
 
 Cada sección permite restaurar sus ajustes con un segundo clic de confirmación. Los campos numéricos se aplican con **Intro**; **Escape** o salir del campo descarta la edición. Se limitan los valores al intervalo indicado. Los controles dependientes se atenúan cuando su interruptor está apagado.
 

@@ -49,12 +49,14 @@ function C.Initialize(db)
     end
     db.configVersion=1
 end
+function C.Scope()
+    if not IsInInstance then return "world" end
+    local ok,inside,kind=pcall(IsInInstance)
+    if not ok or (issecretvalue and (issecretvalue(inside) or issecretvalue(kind))) then return end
+    return inside and kind or "world"
+end
 function C.Allowed(db)
-    if not db or db.enabled==false then return false end
-    local inside,kind=false,"none"
-    if IsInInstance then inside,kind=IsInInstance() end
-    if issecretvalue and (issecretvalue(inside) or issecretvalue(kind)) then return false end
-    return C.Get(db,"scopes")[inside and kind or "world"]==true
+    return db and db.enabled~=false and C.Get(db,"scopes")[C.Scope()]==true or false
 end
 function C.Part(db,style,key)
     local appearance=db and db.appearance and db.appearance[style]
@@ -96,10 +98,10 @@ function C.Reset(db,section)
         db.priority="guild"
     elseif section=="behavior" then
         for section,keys in pairs({compact={"enabled","group","raid","hideGuild","hideMerit"},
-            controls={"enabled","allies","enemies","buffs"},auras={"enabled"},mini={"group","raid","guild"}}) do
+            controls={"enabled","allies","enemies","buffs"},auras={"enabled"}}) do
             for _,key in ipairs(keys) do db[section][key]=defaults[section][key] end
         end
-        db.hideRightWingOnCC=true; db.namesOnlyWings=true
+        db.hideRightWingOnCC=true
     elseif section=="advanced" then
         for _,key in ipairs({"text","recommendation","geometry"}) do C.Reset(db,key) end
         db.scale=1
@@ -109,6 +111,8 @@ function C.Reset(db,section)
         for key,value in pairs({intensity=1,wingSize=.8,classIconSize=22,low="bronce",middle="plata",high="oro"}) do db.pvp[key]=value end
     elseif section=="general" then
         db.enabled=true; C.Reset(db,"scopes")
+        db.namesOnlyWings=true
+        for _,key in ipairs({"group","raid","guild"}) do db.mini[key]=defaults.mini[key] end
     elseif section=="pvp" then
         -- Keep both table identity and the renderer's active mode until Sync is safe.
         for key,value in pairs({enabled=false,friends=true,enemies=true,emblem=true,wings=true,classIcon=true,

@@ -30,11 +30,19 @@ function O.Register(db,api)
     end
     text(panel,"TisteltiPlates",20,-14,"GameFontNormalLarge")
     local status=text(panel,"",20,-82)
+    O.status=status
+    local scopeEnable=CreateFrame("Button",nil,panel,"UIPanelButtonTemplate")
+    scopeEnable:SetPoint("TOPRIGHT",-45,-12); scopeEnable:SetSize(245,26)
+    O.controls["scope.enableCurrent"]=scopeEnable
     local popup=CreateFrame("Frame",nil,panel,"BackdropTemplate")
     popup:SetClampedToScreen(true); popup:SetFrameStrata("TOOLTIP"); popup:SetBackdrop({bgFile=api.WHITE}); popup:SetBackdropColor(.03,.04,.06,1)
     popup:EnableMouse(true); popup:Hide()
     local rows={}
     local function changed() api.Refresh(); redraw() end
+    scopeEnable:SetScript("OnClick",function()
+        local scope=C.Scope()
+        if db.enabled and (scope=="party" or scope=="raid") then db.scopes[scope]=true; changed() end
+    end)
     local function remember(id,widget) widget.settingID=id; O.controls[id]=widget end
     local function sync(widget,fn)
         updates[#updates+1]=fn; widget:SetScript("OnShow",fn)
@@ -156,6 +164,7 @@ function O.Register(db,api)
         local y=-8
         local function row() local v=y; y=y-34; return v end
         local function note(value) text(content,value,12,y); y=y-48 end
+        local function heading(value) text(content,value,12,y,"GameFontNormal"); y=y-26 end
         local function toggle(id,caption,get,set,dependency) check(content,id,caption,get,set,row(),dependency) end
         local function field(section,key,caption,dependency)
             toggle(section.."."..key,caption,function() return db[section][key] end,function(v) db[section][key]=v end,dependency)
@@ -167,9 +176,21 @@ function O.Register(db,api)
             choice(content,section.."."..key,caption,values,function() return db[section][key] end,function(v) db[section][key]=v end,12,row())
         end
         if section=="general" then
-            note("El interruptor general y los ámbitos se aplican a todos los módulos. No se activan placas ocultas en los ajustes de WoW.")
             toggle("enabled","Activar TisteltiPlates",function() return db.enabled end,function(v) db.enabled=v end)
-            for _,key in ipairs({"world","party","raid","pvp","arena"}) do field("scopes",key,key=="pvp" and "Campos de batalla" or labels[key]) end
+            heading("Dónde mostrar placas y alitas")
+            for _,key in ipairs({"world","party","raid","pvp","arena"}) do
+                field("scopes",key,key=="pvp" and "Campos de batalla" or key=="raid" and "Bandas" or labels[key])
+            end
+            note("Desactivar un lugar también oculta las alitas de solo nombres. Mazmorras y bandas tienen interruptores independientes.")
+            heading("Alitas en el modo solo nombres de WoW")
+            toggle("namesOnlyWings","Mostrar alitas junto al nombre",function() return db.namesOnlyWings end,function(v) db.namesOnlyWings=v end)
+            for _,key in ipairs({"group","raid","guild"}) do field("mini",key,"Alitas · "..labels[key],function() return db.namesOnlyWings end) end
+            note("Las alitas necesitan el estilo correspondiente de Apariencia. Si coinciden grupo y hermandad, se usa la prioridad guardada. No es necesario mostrar barras de vida.")
+            local styles=CreateFrame("Button",nil,content,"UIPanelButtonTemplate")
+            styles:SetPoint("TOPLEFT",12,row()); styles:SetSize(525,26)
+            styles:SetText("Configurar estilos y ver alitas de ejemplo")
+            styles:SetScript("OnClick",function() subject="group"; scenario="names"; O.select("appearance") end)
+            remember("names.styles",styles)
             local diagnostic=CreateFrame("Button",nil,content,"UIPanelButtonTemplate")
             diagnostic:SetPoint("TOPLEFT",12,row()); diagnostic:SetSize(525,26)
             diagnostic:SetText("Comprobar placas y controles de WoW")
@@ -182,7 +203,7 @@ function O.Register(db,api)
             local function decorated() return subject=="group" or subject=="raid" or subject=="guild" end
             local function style() return decorated() and subject or "group" end
             local function player() return db.playerColors[subject=="enemy" and "enemy" or "ally"] end
-                        toggle("style.enabled","Mostrar este estilo",function() return db[style()] end,function(v) db[style()]=v end,decorated)
+            toggle("style.enabled","Mostrar este estilo",function() return db[style()] end,function(v) db[style()]=v end,decorated)
             for _,pair in ipairs({{"showBorder","Borde"},{"showWings","Alas"},{"showLevel","Nivel"},{"showGuild","Nombre de hermandad"},{"showRole","Distintivo de hermandad"},{"showMerit","Emblema de mérito"}}) do
                 local key,caption=pair[1],pair[2]
                 toggle("style."..key,caption,function() return db.appearance[style()][key] end,function(v) db.appearance[style()][key]=v end,function() return decorated() and db[style()] end)
@@ -230,9 +251,7 @@ function O.Register(db,api)
             field("controls","buffs","Separar filas de auras de las alas clásicas")
             toggle("hideRightWingOnCC","Ocultar ala derecha cuando hay un control",function() return db.hideRightWingOnCC end,function(v) db.hideRightWingOnCC=v end)
             field("auras","enabled","Dar prioridad a las auras que solapan adornos PvP")
-            toggle("namesOnlyWings","Alitas en el modo solo nombres de WoW",function() return db.namesOnlyWings end,function(v) db.namesOnlyWings=v end)
-            for _,key in ipairs({"group","raid","guild"}) do field("mini",key,"Alitas · "..labels[key],function() return db.namesOnlyWings end) end
-            note("Solo nombres sustituye la decoración completa. Las alitas también requieren que el estilo esté activado en Apariencia. En compacto se mantienen ambas alas; la ocultación por control actúa en la presentación completa.")
+            note("Las alitas de solo nombres y su activación en mazmorras están en General. En compacto se mantienen ambas alas; la ocultación por control actúa en la presentación completa.")
         elseif section=="pvp" then
             note("El modo PvP sustituye la decoración clásica de jugadores. Desmarcar aliados/enemigos excluye el marco PvP; los acentos generales de Apariencia siguen disponibles. La vista previa usa los colores guardados allí.")
             field("pvp","enabled","Activar modo PvP")
@@ -272,7 +291,11 @@ function O.Register(db,api)
     local function drawStatus()
         local pending=InCombatLockdown and InCombatLockdown()
         local active=TisteltiPlatesPvP and TisteltiPlatesPvP.IsActive()
-        status:SetText((not db.enabled and "Desactivado" or C.Allowed(db) and "Activo en este ámbito" or "Ámbito actual excluido")
+        local scope=C.Scope()
+        local place=({world="Mundo abierto",party="Mazmorra",raid="Banda",pvp="Campo de batalla",arena="Arena"})[scope] or "Ámbito actual"
+        scopeEnable:SetShown(db.enabled and (scope=="party" or scope=="raid") and not db.scopes[scope] or false)
+        scopeEnable:SetText(scope=="raid" and "Activar placas y alitas en bandas" or "Activar placas y alitas en mazmorras")
+        status:SetText((not db.enabled and "TisteltiPlates desactivado" or C.Allowed(db) and (place..": activado") or (place..": placas y alitas desactivadas"))
             ..(pending and " · Combate: restauraciones protegidas al terminar" or "")
             ..(active~=db.pvp.enabled and " · Cambio de modo PvP pendiente" or "")
             ..(C.ExternalGeometry() and " · Tamaño gestionado por EllesmereUI" or ""))

@@ -17,6 +17,46 @@ end
 local function number(id,value)
     local b=assert(O.controls[id],id); b:SetText(tostring(value)); b.scripts.OnEnterPressed()
 end
+-- The dungeon case is configurable from the first visible settings page.
+local oldParty=UnitInParty
+UnitInParty=function(unit) return unit=='guild' end
+inside,kind=true,'party'; db.scopes.party=false
+local groupName=add('guild'); groupName.showOnlyName=true; core.refresh()
+O.Open('general')
+assert(O.controls.namesOnlyWings.parent==O.controls['scopes.party'].parent)
+assert(O.controls['mini.group'].parent==O.controls['scopes.party'].parent)
+assert(O.controls['scopes.party'].parent.shown)
+assert(not groupName.TisteltiNameWings or not groupName.TisteltiNameWings.shown)
+local scopeButton=O.controls['scope.enableCurrent']
+assert(scopeButton.shown and O.status.text:find('Mazmorra: placas y alitas desactivadas',1,true))
+local savedRaid,savedWings=db.scopes.raid,db.namesOnlyWings
+scopeButton.scripts.OnClick()
+assert(db.scopes.party and db.scopes.raid==savedRaid and db.namesOnlyWings==savedWings)
+assert(O.controls['scopes.party'].checked and not scopeButton.shown)
+assert(groupName.TisteltiNameWings.shown,'Dungeon button updates the live names-only plate')
+toggle('mini.group',false); assert(not groupName.TisteltiNameWings.shown)
+toggle('mini.group',true); assert(groupName.TisteltiNameWings.shown)
+toggle('namesOnlyWings',false); assert(not groupName.TisteltiNameWings.shown)
+toggle('namesOnlyWings',true); assert(groupName.TisteltiNameWings.shown)
+toggle('scopes.party',false); assert(not groupName.TisteltiNameWings.shown and scopeButton.shown)
+O.controls['names.styles'].scripts.OnClick()
+assert(O.panel.selectedTab==2 and O.previews.sample.TisteltiNameWings.shown)
+choose('preview.scenario','Normal')
+O.Open('general'); db.enabled=false; O.redraw()
+assert(not scopeButton.shown); scopeButton.scripts.OnClick(); assert(not db.scopes.party)
+db.enabled=true
+kind='raid'; O.redraw(); assert(scopeButton.shown)
+scopeButton.scripts.OnClick(); assert(db.scopes.raid and not db.scopes.party)
+db.scopes.raid=savedRaid
+-- Reset follows the page that owns the setting and preserves advanced sizing.
+db.namesOnlyWings=false; db.mini.group=false; db.mini.size=24
+C.Reset(db,'behavior'); assert(not db.namesOnlyWings and not db.mini.group)
+C.Reset(db,'general'); assert(db.namesOnlyWings and db.mini.group and db.mini.size==24)
+C.Reset(db,'advanced')
+C.Initialize(db); assert(db.namesOnlyWings and db.mini.group and not db.scopes.party)
+core.driver.scripts.OnEvent(core.driver,'NAME_PLATE_UNIT_REMOVED','guild')
+plates.guild=nil; UnitInParty=oldParty; inside=false; core.refresh()
+
 local enemy=add('enemy')
 local control=enemy.AurasFrame.LossOfControlFrame
 assert(control.points[1][1]=='LEFT')

@@ -1,11 +1,11 @@
-TISTELTIPLATES 0.8.11-dev — CANDIDATO LOCAL SOBRE 0.8.10.2
+TISTELTIPLATES 0.8.11-dev.2 — CANDIDATO LOCAL SOBRE 0.8.10.2
 
 Abre /tistelti. Hay cinco pestañas con desplazamiento:
 General, Apariencia, Comportamiento, PvP y Avanzado.
 
-General: activación, ámbitos y diagnóstico de placas/controles de WoW.
+General: activación, ámbitos, alitas de solo nombres y diagnóstico.
 Apariencia: grupo, banda, hermandad, componentes y colores de jugadores.
-Comportamiento: compacto, controles, auras y alitas de solo nombres.
+Comportamiento: compacto, controles y auras.
 PvP: modo, tipos de jugadores, adornos y destacados independientes.
 Avanzado: tamaños fijos, posiciones, espera, texto y reglas de recomendación.
 
@@ -17,6 +17,10 @@ Restaurar una sección requiere un segundo clic y conserva las demás.
 Todos los módulos respetan los ámbitos de General. Por defecto funcionan
 en mundo abierto, campos de batalla y arenas; mazmorras y bandas están
 excluidas hasta activarlas. PvP está desactivado inicialmente.
+
+En General puedes activar Mazmorras y las alitas de Grupo, Banda o Hermandad.
+Si estás en una mazmorra/banda excluida, la cabecera incluye un botón para
+activar allí las placas y alitas. Conserva los demás ajustes guardados.
 
 Los cambios protegidos esperan al final del combate; el panel lo indica.
 La prioridad entre modos y los valores iniciales se documentan en README.md.
