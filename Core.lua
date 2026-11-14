@@ -2,6 +2,9 @@
 local ADDON = ...
 local driver = CreateFrame("Frame")
 local tracked, active = {}, {}
+local trackedFrames = {}
+local pendingPlateCleanup = setmetatable({}, {__mode="k"})
+local leavingWorld = false
 local guildLabels = {}
 local combatArt = {}
 local db
@@ -685,6 +688,57 @@ local function UpdateCombat(unit, plate)
     art.guildRole:SetText("")
 end
 
+local function ReleasePlateFrame(uf)
+    if uf then
+        if Safe(uf.IsForbidden,uf) then pendingPlateCleanup[uf]=true; return end
+        if TisteltiPlatesCC.Release then TisteltiPlatesCC.Release(uf) end
+        Remove(uf)
+        if TisteltiPlatesPlayers then TisteltiPlatesPlayers.Remove(uf) end
+        pendingPlateCleanup[uf]=nil
+    end
+end
+
+local function ForgetPlate(unit)
+    local plate=tracked[unit]
+    ReleasePlateFrame(trackedFrames[unit] or (plate and plate.UnitFrame))
+    tracked[unit],trackedFrames[unit]=nil,nil
+end
+
+local function TrackPlate(unit,plate)
+    local uf=plate and plate.UnitFrame
+    if tracked[unit]~=plate or trackedFrames[unit]~=uf then
+        ForgetPlate(unit)
+        tracked[unit],trackedFrames[unit]=plate,uf
+        if plate and TisteltiPlatesCC.Attach then TisteltiPlatesCC.Attach(plate) end
+    end
+end
+
+local function RecoverPlates()
+    local plates=Safe(C_NamePlate and C_NamePlate.GetNamePlates)
+    if type(plates)~="table" then return end
+    local present={}
+    for _,plate in pairs(plates) do
+        if not Safe(plate.IsForbidden,plate) then
+            local uf=plate.UnitFrame
+            if uf and not Safe(uf.IsForbidden,uf) then
+                local unit=Safe(plate.GetUnit,plate)
+                if not unit and Public(plate.namePlateUnitToken) then unit=plate.namePlateUnitToken end
+                if not unit then unit=uf.unit end
+                if Public(unit) and type(unit)=="string" and Safe(C_NamePlate.GetNamePlateForUnit,unit)==plate then
+                    present[unit]=plate
+                end
+            end
+        end
+    end
+    -- Keep the original UnitFrame reference: Blizzard can replace it on the
+    -- same base plate while loading or recycling a nameplate unit token.
+    for unit in pairs(tracked) do
+        if not present[unit] or tracked[unit]~=present[unit]
+            or trackedFrames[unit]~=present[unit].UnitFrame then ForgetPlate(unit) end
+    end
+    for unit,plate in pairs(present) do TrackPlate(unit,plate) end
+end
+
 local function RefreshOverlays()
     for unit, plate in pairs(tracked) do
         local uf = plate and plate.UnitFrame
@@ -702,6 +756,9 @@ Refresh = function()
     if not db then return end
     if TisteltiPlatesCC.Sync then TisteltiPlatesCC.Sync() end
     if TisteltiPlatesPlayers then TisteltiPlatesPlayers.Sync() end
+    for uf in pairs(pendingPlateCleanup) do ReleasePlateFrame(uf) end
+    if leavingWorld then return end
+    RecoverPlates()
     if InCombatLockdown() then
         groupWasInCombat=true
     else
@@ -884,22 +941,21 @@ driver:SetScript("OnEvent", function(_, event, unit)
         if TisteltiPlatesPvP then TisteltiPlatesPvP.Initialize(db) end
         RegisterOptions()
         if CompactUnitFrame_UpdateHealthColor then hooksecurefunc("CompactUnitFrame_UpdateHealthColor", Tint) end
+    elseif event == "PLAYER_LEAVING_WORLD" then
+        leavingWorld=true
+        for token in pairs(tracked) do ForgetPlate(token) end
+        return
+    elseif event == "PLAYER_ENTERING_WORLD" then
+        leavingWorld=false
     elseif event == "NAME_PLATE_UNIT_ADDED" then
-        tracked[unit] = C_NamePlate.GetNamePlateForUnit(unit)
-        if TisteltiPlatesCC.Attach then TisteltiPlatesCC.Attach(tracked[unit]) end
+        TrackPlate(unit,Safe(C_NamePlate.GetNamePlateForUnit,unit))
     elseif event == "NAME_PLATE_UNIT_REMOVED" then
-        local plate = tracked[unit]
-        if plate and plate.UnitFrame then
-            if TisteltiPlatesCC.Release then TisteltiPlatesCC.Release(plate.UnitFrame) end
-            Remove(plate.UnitFrame)
-            if TisteltiPlatesPlayers then TisteltiPlatesPlayers.Remove(plate.UnitFrame) end
-        end
-        tracked[unit] = nil
+        ForgetPlate(unit)
     end
     Refresh()
 end)
 for _, event in ipairs({"ADDON_LOADED", "NAME_PLATE_UNIT_ADDED", "NAME_PLATE_UNIT_REMOVED",
-    "GROUP_ROSTER_UPDATE", "PLAYER_GUILD_UPDATE", "PLAYER_ENTERING_WORLD",
+    "GROUP_ROSTER_UPDATE", "PLAYER_GUILD_UPDATE", "PLAYER_ENTERING_WORLD", "PLAYER_LEAVING_WORLD",
     "PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "UNIT_FACTION", "PLAYER_TARGET_CHANGED", "RAID_TARGET_UPDATE", "CVAR_UPDATE"}) do driver:RegisterEvent(event) end
 local elapsed = 0
 driver:SetScript("OnUpdate", function(_, dt)

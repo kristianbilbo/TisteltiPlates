@@ -1,6 +1,6 @@
 # TisteltiPlates
 
-Addon para WoW Forever (interfaz 16001). Esta rama integra la base remota **0.8.10.2**, los cambios de colores, controles y solo nombres, y la configuración funcional completa. **0.9.0-beta.1** es una versión candidata, pendiente de publicación estable.
+Addon para WoW Forever (interfaz 16001). Esta rama integra la base remota **0.8.10.2**, los cambios de colores, controles y solo nombres, y la configuración funcional completa. **0.9.0-beta.2** es una versión candidata, pendiente de publicación estable.
 
 Abre **Opciones → AddOns → TisteltiPlates**. Allí están las pestañas General, Apariencia, Comportamiento, PvP y Avanzado, con desplazamiento vertical. La entrada **TisteltiPlates → Alitas y mazmorras** ofrece acceso directo a los ámbitos, los estilos y sus alitas. No requiere escribir comandos.
 
@@ -14,11 +14,11 @@ Esta versión cambia comportamientos de 0.8.x: retira la ampliación al pasar el
 
 Antes de actualizar, guarda una copia de la carpeta del addon y de `WTF/Account/<cuenta>/SavedVariables/TisteltiPlates.lua`. Sustituye la carpeta completa por el nuevo paquete, conserva las SavedVariables y reinicia WoW. Revisa **General → ámbitos**, **Alitas y mazmorras → solo mi hermandad** y **Apariencia → estilos y colores**. Para volver a 0.8.x, restaura ambas copias.
 
-La serie 0.x continúa en desarrollo; este cambio de comportamiento pasa a **0.9.0-beta.1**, con **0.9.0** como objetivo estable. No debe publicarse como otro parche 0.8.x.
+La serie 0.x continúa en desarrollo; este cambio de comportamiento pasa a **0.9.0-beta.2**, con **0.9.0** como objetivo estable. No debe publicarse como otro parche 0.8.x.
 
 | Publicación prevista | Versión del TOC y notas | Tag nuevo | Tipo de archivo |
 | --- | --- | --- | --- |
-| Prueba de esta integración | `0.9.0-beta.1` | `v0.9.0-beta.1` | Beta |
+| Prueba de esta integración | `0.9.0-beta.2` | `v0.9.0-beta.2` | Beta |
 | Estable, tras validar la beta | `0.9.0` | `v0.9.0` | Release |
 
 El repositorio usa `.pkgmeta`, con `LEEME.txt` como changelog, y no contiene un workflow de GitHub Actions que genere versiones automáticamente. Según el [empaquetado oficial de CurseForge](https://support.curseforge.com/support/solutions/articles/9000197281-automatic-packaging), los tags con `beta` se clasifican como Beta; no usar `dev` o `rc` como sustitutos suponiendo que tendrán esa clasificación. El título del PR o un commit `BREAKING CHANGE` no controla ese tipo de archivo.
@@ -103,7 +103,7 @@ El arte y los originales están en `Media/`. Las variantes de alas de grupo/band
 
 ## Validación
 
-Trece suites de marcos simulados comprueban carga y orden de los nueve módulos, migración, configuración y callbacks reales de UI, ámbitos, restauración de colores/alfa/anclajes, exclusión de instancias, combate, datos restringidos, reciclaje, componentes, compacto, recomendación, auras, solo nombres y Honor. Incluyen el filtro de alitas de hermandad en mazmorras, los cambios de pertenencia y la recuperación de alitas al salir.
+Catorce suites de marcos simulados comprueban carga y orden de los nueve módulos, migración, configuración y callbacks reales de UI, ámbitos, restauración de colores/alfa/anclajes, exclusión de instancias, combate, datos restringidos, reciclaje, componentes, compacto, recomendación, auras, solo nombres y Honor. Incluyen el filtro de alitas de hermandad en mazmorras, los cambios de pertenencia y la recuperación de alitas al salir. La suite de transiciones cubre pantallas de carga, placas tardías/reutilizadas/reemplazadas, eventos ausentes o repetidos, 16 ciclos con barras o solo nombres dentro y fuera de combate, todos los ámbitos activados/desactivados, datos de hermandad y nombres tardíos, marcos restringidos, ajustes desde la UI y convivencia con PvP.
 
 Desde la raíz, con Python y la biblioteca compartida de Lua 5.4 instalada:
 
