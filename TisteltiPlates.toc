@@ -2,7 +2,7 @@
 ## Title: Tistelti - Alas de grupo
 ## Notes: Placas de grupo y PvP con ámbitos, componentes y ajustes avanzados configurables.
 ## Author: Kristian
-## Version: 0.8.11-dev.4
+## Version: 0.9.0-beta.1
 ## SavedVariables: TisteltiPlatesDB
 Config.lua
 Honor.lua

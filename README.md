@@ -1,12 +1,29 @@
 # TisteltiPlates
 
-Addon para WoW Forever (interfaz 16001). Esta rama integra la base remota **0.8.10.2**, los cambios de colores, controles y solo nombres, y la configuración funcional completa. **0.8.11-dev.4** es una versión candidata, pendiente de publicación estable.
+Addon para WoW Forever (interfaz 16001). Esta rama integra la base remota **0.8.10.2**, los cambios de colores, controles y solo nombres, y la configuración funcional completa. **0.9.0-beta.1** es una versión candidata, pendiente de publicación estable.
 
 Abre **Opciones → AddOns → TisteltiPlates**. Allí están las pestañas General, Apariencia, Comportamiento, PvP y Avanzado, con desplazamiento vertical. La entrada **TisteltiPlates → Alitas y mazmorras** ofrece acceso directo a los ámbitos, los estilos y sus alitas. No requiere escribir comandos.
 
 En **Alitas y mazmorras**, «En mazmorras, alitas solo para mi hermandad» está activado por defecto. Filtra las alitas por pertenencia real a tu hermandad, tanto con barras como en solo nombres, sin cambiar el estilo elegido ni los demás lugares. Puedes desactivarlo desde esa misma pantalla.
 
 Los comandos de acceso siguen disponibles como atajos opcionales.
+
+## BREAKING CHANGE y publicación 0.9
+
+Esta versión cambia comportamientos de 0.8.x: retira la ampliación al pasar el cursor, sustituye los paneles anteriores por opciones unificadas, comparte ámbitos entre módulos, limita por defecto las alitas de mazmorra a la hermandad y deja de solicitar comparaciones de logros al seleccionar jugadores. Se conservan y migran las preferencias existentes; no es un borrado de configuración.
+
+Antes de actualizar, guarda una copia de la carpeta del addon y de `WTF/Account/<cuenta>/SavedVariables/TisteltiPlates.lua`. Sustituye la carpeta completa por el nuevo paquete, conserva las SavedVariables y reinicia WoW. Revisa **General → ámbitos**, **Alitas y mazmorras → solo mi hermandad** y **Apariencia → estilos y colores**. Para volver a 0.8.x, restaura ambas copias.
+
+La serie 0.x continúa en desarrollo; este cambio de comportamiento pasa a **0.9.0-beta.1**, con **0.9.0** como objetivo estable. No debe publicarse como otro parche 0.8.x.
+
+| Publicación prevista | Versión del TOC y notas | Tag nuevo | Tipo de archivo |
+| --- | --- | --- | --- |
+| Prueba de esta integración | `0.9.0-beta.1` | `v0.9.0-beta.1` | Beta |
+| Estable, tras validar la beta | `0.9.0` | `v0.9.0` | Release |
+
+El repositorio usa `.pkgmeta`, con `LEEME.txt` como changelog, y no contiene un workflow de GitHub Actions que genere versiones automáticamente. Según el [empaquetado oficial de CurseForge](https://support.curseforge.com/support/solutions/articles/9000197281-automatic-packaging), los tags con `beta` se clasifican como Beta; no usar `dev` o `rc` como sustitutos suponiendo que tendrán esa clasificación. El título del PR o un commit `BREAKING CHANGE` no controla ese tipo de archivo.
+
+Al publicar, deben coincidir el commit elegido, la versión del TOC, las notas y el tag. Crear un tag nuevo sobre el commit aprobado; no mover ni reutilizar `v0.8.10.1` o `v0.8.10.2`. Si se crea una release de GitHub para la beta, marcarla como pre-release. La conexión y los disparadores configurados en CurseForge deben comprobarse allí: no están definidos completamente en este repositorio. Este PR prepara los metadatos; no publica tags ni releases.
 
 ## Configuración
 

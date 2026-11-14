@@ -1,4 +1,29 @@
-TISTELTIPLATES 0.8.11-dev.4 — CANDIDATO SOBRE 0.8.10.2
+TISTELTIPLATES 0.9.0-beta.1 — BETA CON CAMBIOS INCOMPATIBLES
+
+BREAKING CHANGE respecto a 0.8.x
+- Se elimina por completo la ampliación de placas al pasar el cursor.
+- La configuración pasa al panel unificado de Opciones > AddOns.
+- Los ámbitos se comparten entre estilos, colores, alitas y controles.
+  Mundo abierto, campos de batalla y arenas se activan inicialmente;
+  mazmorras y bandas requieren activación desde General.
+- En mazmorras, las alitas se limitan por defecto a tu hermandad.
+  Desmarca esa opción en Alitas y mazmorras para mostrarlas a todo el grupo.
+- Seleccionar jugadores ya no solicita comparaciones de logros;
+  el mérito usa los datos disponibles y la caché existente.
+
+MIGRACIÓN DESDE 0.8.x
+Haz una copia de TisteltiPlates y de sus SavedVariables antes de actualizar.
+Instala la carpeta completa: se añaden módulos y se elimina HoverWidth.lua.
+Conserva TisteltiPlatesDB; no es necesario borrar tus preferencias.
+Las opciones existentes se migran y las nuevas reciben valores iniciales.
+Revisa General, Alitas y mazmorras y Apariencia después de reiniciar WoW.
+Para volver a 0.8.x, restaura tanto el addon como la copia de SavedVariables.
+
+PUBLICACIÓN
+Candidato: 0.9.0-beta.1; tag previsto: v0.9.0-beta.1 (Beta en CurseForge).
+Tras validar la beta, actualizar TOC y notas a 0.9.0 antes del tag v0.9.0.
+No reutilizar ni mover los tags publicados de la serie 0.8.x.
+El marcado BREAKING CHANGE no crea tags ni publica archivos por sí solo.
 
 Abre Opciones > AddOns > TisteltiPlates. No necesitas comandos.
 La entrada Alitas y mazmorras contiene directamente los ámbitos y alitas.
@@ -44,4 +69,4 @@ ForeverCCPosition ya está integrado: desactiva su copia independiente.
 VALIDACIÓN
 Trece suites simuladas y sintaxis comprobadas con Lua 5.4.
 Pendiente validación visual dentro de WoW Forever y con EllesmereUI.
-Esta integración todavía no se ha publicado ni subido al remoto.
+Candidato en revisión mediante PR; todavía sin tag ni release de esta versión.
