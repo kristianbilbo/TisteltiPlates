@@ -182,6 +182,8 @@ function O.Register(db,api)
                 field("scopes",key,key=="pvp" and "Campos de batalla" or key=="raid" and "Bandas" or labels[key])
             end
             note("Desactivar un lugar también oculta las alitas de solo nombres. Mazmorras y bandas tienen interruptores independientes.")
+            field("wings","dungeonGuildOnly","En mazmorras, alitas solo para mi hermandad")
+            note("Se aplica a las alitas con barras y en solo nombres. Fuera de mazmorras se mantienen tus ajustes habituales.")
             heading("Alitas en el modo solo nombres de WoW")
             toggle("namesOnlyWings","Mostrar alitas junto al nombre",function() return db.namesOnlyWings end,function(v) db.namesOnlyWings=v end)
             for _,key in ipairs({"group","raid","guild"}) do field("mini",key,"Alitas · "..labels[key],function() return db.namesOnlyWings end) end
@@ -371,6 +373,7 @@ function O.Register(db,api)
                 function() return db.scopes[scope] end,function(v) db.scopes[scope]=v end)
         end
         text(content,"Alitas en el modo solo nombres de WoW",12,y,"GameFontNormal"); y=y-26
+        row("wings.dungeonGuildOnly","En mazmorras, alitas solo para mi hermandad",function() return db.wings.dungeonGuildOnly end,function(v) db.wings.dungeonGuildOnly=v end)
         row("namesOnlyWings","Mostrar alitas junto al nombre",function() return db.namesOnlyWings end,function(v) db.namesOnlyWings=v end)
         for _,key in ipairs({"group","raid","guild"}) do
             local style=key

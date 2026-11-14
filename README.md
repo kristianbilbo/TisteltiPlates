@@ -1,8 +1,10 @@
 # TisteltiPlates
 
-Addon para WoW Forever (interfaz 16001). Esta rama integra la base remota **0.8.10.2**, los cambios de colores, controles y solo nombres, y la configuración funcional completa. El candidato **0.8.11-dev.3** es local y aún no está publicado.
+Addon para WoW Forever (interfaz 16001). Esta rama integra la base remota **0.8.10.2**, los cambios de colores, controles y solo nombres, y la configuración funcional completa. El candidato **0.8.11-dev.4** es local y aún no está publicado.
 
 Abre **Opciones → AddOns → TisteltiPlates**. Allí están las pestañas General, Apariencia, Comportamiento, PvP y Avanzado, con desplazamiento vertical. La entrada **TisteltiPlates → Alitas y mazmorras** ofrece acceso directo a los ámbitos, los estilos y sus alitas. No requiere escribir comandos.
+
+En **Alitas y mazmorras**, «En mazmorras, alitas solo para mi hermandad» está activado por defecto. Filtra las alitas por pertenencia real a tu hermandad, tanto con barras como en solo nombres, sin cambiar el estilo elegido ni los demás lugares. Puedes desactivarlo desde esa misma pantalla.
 
 Los comandos de acceso siguen disponibles como atajos opcionales.
 

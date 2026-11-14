@@ -3,6 +3,7 @@ TisteltiPlatesConfig = {}
 local C = TisteltiPlatesConfig
 local defaults = {
     scopes={world=true,party=false,raid=false,pvp=true,arena=true},
+    wings={dungeonGuildOnly=true},
     compact={enabled=true,group=true,raid=true,delay=30,size=1,hideGuild=true,hideMerit=true},
     controls={enabled=true,allies=true,enemies=true,anchor="level",x=8,y=0,buffs=true,buffGap=6},
     auras={enabled=true,margin=4},
@@ -58,6 +59,25 @@ end
 function C.Allowed(db)
     return db and db.enabled~=false and C.Get(db,"scopes")[C.Scope()]==true or false
 end
+function C.WingsAllowed(db,unit)
+    if C.Scope()~="party" or C.Get(db,"wings").dungeonGuildOnly==false then return true end
+    local function read(fn,...)
+        if type(fn)~="function" then return end
+        local ok,value=pcall(fn,...)
+        if ok and not (issecretvalue and issecretvalue(value)) then return value end
+    end
+    if not unit then return false end
+    if read(UnitIsInMyGuild,unit)==true then return true end
+    -- The party token may expose guild membership when the plate token cannot.
+    local count=read(GetNumSubgroupMembers)
+    if type(count)=="number" then
+        for i=1,math.min(count,4) do
+            local member="party"..i
+            if read(UnitIsUnit,unit,member)==true and read(UnitIsInMyGuild,member)==true then return true end
+        end
+    end
+    return false
+end
 function C.Part(db,style,key)
     local appearance=db and db.appearance and db.appearance[style]
     return not appearance or appearance[key]~=false
@@ -110,7 +130,7 @@ function C.Reset(db,section)
         db.auras.margin=4; db.mini.size=16; db.mini.gap=4
         for key,value in pairs({intensity=1,wingSize=.8,classIconSize=22,low="bronce",middle="plata",high="oro"}) do db.pvp[key]=value end
     elseif section=="general" then
-        db.enabled=true; C.Reset(db,"scopes")
+        db.enabled=true; C.Reset(db,"scopes"); C.Reset(db,"wings")
         db.namesOnlyWings=true
         for _,key in ipairs({"group","raid","guild"}) do db.mini[key]=defaults.mini[key] end
     elseif section=="pvp" then

@@ -295,7 +295,8 @@ local function Paint(o, anchor, style, color, level, rank, scale, guildName, con
     local cfg=TisteltiPlatesConfig
     local compact=cfg.Get(db,"compact")
     local text=cfg.Get(db,"text")
-    o.classicWings=cfg.Part(db,style,"showWings")
+    local owner = Safe(o.GetParent,o)
+    o.classicWings=cfg.Part(db,style,"showWings") and (context~=nil or cfg.WingsAllowed(db,owner and owner.unit))
     o.groupCompact = false
     o.guildRole:Show()
     PaintWings(o, style)
@@ -419,7 +420,6 @@ local function Paint(o, anchor, style, color, level, rank, scale, guildName, con
     -- Buffs start above the left wing, including its full scaled height.
     o.ccAnchor:ClearAllPoints()
     o.ccAnchor:SetPoint("BOTTOMLEFT", o.wings, "TOPLEFT", 0, 6 * scale)
-    local owner = Safe(o.GetParent,o)
     local compactPreview=context and context.compact and compact.enabled and compact[style]
     if compactPreview or (not context and GroupCompact(owner and owner.unit)) then
         o.groupCompact = true
@@ -544,6 +544,7 @@ local function NamesOnly(unit, uf)
     -- Names-only takes precedence over both decorated and compact PvP plates.
     Remove(uf)
     local style = ResolveStyle(unit)
+    if not TisteltiPlatesConfig.WingsAllowed(db,unit) then style=nil end
     names.Update(uf, style, db)
     return true
 end

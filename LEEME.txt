@@ -1,7 +1,10 @@
-TISTELTIPLATES 0.8.11-dev.3 — CANDIDATO LOCAL SOBRE 0.8.10.2
+TISTELTIPLATES 0.8.11-dev.4 — CANDIDATO LOCAL SOBRE 0.8.10.2
 
 Abre Opciones > AddOns > TisteltiPlates. No necesitas comandos.
 La entrada Alitas y mazmorras contiene directamente los ámbitos y alitas.
+En mazmorras, las alitas se limitan por defecto a tu hermandad.
+Puedes cambiarlo con la casilla «En mazmorras, alitas solo para mi hermandad».
+Se aplica con barras y en solo nombres; los demás lugares conservan sus ajustes.
 El panel principal tiene cinco pestañas con desplazamiento:
 General, Apariencia, Comportamiento, PvP y Avanzado.
 
