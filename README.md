@@ -1,6 +1,6 @@
 # TisteltiPlates
 
-Addon para WoW Forever (interfaz 16001). Esta rama integra la base remota **0.8.10.2**, los cambios de colores, controles y solo nombres, y la configuración funcional completa. El candidato **0.8.11-dev.4** es local y aún no está publicado.
+Addon para WoW Forever (interfaz 16001). Esta rama integra la base remota **0.8.10.2**, los cambios de colores, controles y solo nombres, y la configuración funcional completa. **0.8.11-dev.4** es una versión candidata, pendiente de publicación estable.
 
 Abre **Opciones → AddOns → TisteltiPlates**. Allí están las pestañas General, Apariencia, Comportamiento, PvP y Avanzado, con desplazamiento vertical. La entrada **TisteltiPlates → Alitas y mazmorras** ofrece acceso directo a los ámbitos, los estilos y sus alitas. No requiere escribir comandos.
 
@@ -86,7 +86,7 @@ El arte y los originales están en `Media/`. Las variantes de alas de grupo/band
 
 ## Validación
 
-Doce suites de marcos simulados comprueban carga y orden de los nueve módulos, migración, configuración y callbacks reales de UI, ámbitos, restauración de colores/alfa/anclajes, exclusión de instancias, combate, datos restringidos, reciclaje, componentes, compacto, recomendación, auras, solo nombres y Honor.
+Trece suites de marcos simulados comprueban carga y orden de los nueve módulos, migración, configuración y callbacks reales de UI, ámbitos, restauración de colores/alfa/anclajes, exclusión de instancias, combate, datos restringidos, reciclaje, componentes, compacto, recomendación, auras, solo nombres y Honor. Incluyen el filtro de alitas de hermandad en mazmorras, los cambios de pertenencia y la recuperación de alitas al salir.
 
 Desde la raíz, con Python y la biblioteca compartida de Lua 5.4 instalada:
 

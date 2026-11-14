@@ -1,4 +1,4 @@
-TISTELTIPLATES 0.8.11-dev.4 — CANDIDATO LOCAL SOBRE 0.8.10.2
+TISTELTIPLATES 0.8.11-dev.4 — CANDIDATO SOBRE 0.8.10.2
 
 Abre Opciones > AddOns > TisteltiPlates. No necesitas comandos.
 La entrada Alitas y mazmorras contiene directamente los ámbitos y alitas.
@@ -42,6 +42,6 @@ Activa las placas deseadas en WoW; el addon no cambia esa opción.
 ForeverCCPosition ya está integrado: desactiva su copia independiente.
 
 VALIDACIÓN
-Doce suites simuladas y sintaxis comprobadas con Lua 5.4.
+Trece suites simuladas y sintaxis comprobadas con Lua 5.4.
 Pendiente validación visual dentro de WoW Forever y con EllesmereUI.
 Esta integración todavía no se ha publicado ni subido al remoto.
