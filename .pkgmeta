@@ -2,7 +2,6 @@ package-as: TisteltiPlates
 enable-nolib-creation: no
 ignore:
   - tests
-  - README.md
 manual-changelog:
   filename: LEEME.txt
   markup-type: plain

@@ -1,3 +1,6 @@
+dofile("Config.lua")
+dofile("tests/ui_stubs.lua")
+dofile("Options.lua")
 unpack = unpack or table.unpack
 local loadChunk = loadstring or load
 local combat, secret = false, {}
@@ -59,8 +62,6 @@ auras.LossOfControlFrame=Frame(auras)
 auras.CrowdControlListFrame=Frame(auras)
 local loss=auras.LossOfControlFrame
 local crowd=auras.CrowdControlListFrame
-loss:SetPoint('BOTTOM',uf.HealthBarsContainer,'TOP',0,4)
-crowd:SetPoint('BOTTOM',uf.HealthBarsContainer,'TOP',0,5)
 loss.AuraItemFrame=Frame(loss)
 loss.AuraItemFrame:Hide()
 local crowdIcon=Frame(crowd)
@@ -73,7 +74,6 @@ local function tick(art) art.scripts.OnUpdate(art,.05) end
 local function artFor(key)
     local art=Frame(uf)
     art.badge=Frame(art)
-    art.ccAnchor=Frame(art)
     art.badge.level=20
     art.rightWing=Frame(art); art.rightWingLight=Frame(art); art.wings=Frame(art)
     art:Hide()
@@ -130,14 +130,14 @@ combat=false
 events.scripts.OnEvent(events,"PLAYER_REGEN_ENABLED")
 assert(loss.points[1][2]==combatArt.badge)
 combatArt:Hide()
-assert(loss.points[1][2]==uf.HealthBarsContainer and loss.points[1][5]==4 and loss.level==2)
+assert(loss.points[1][2]==uf.PlayerLevelDiffFrame and loss.level==2)
 uf.PlayerLevelDiffFrame.alpha=0
 CC.Position(uf)
 assert(loss.points[1][2]==uf.HealthBarsContainer)
 uf.PlayerLevelDiffFrame.alpha=1
 events.scripts.OnEvent(events,"NAME_PLATE_UNIT_ADDED","nameplate1")
 uf:UpdateAnchors()
-assert(loss.points[1][2]==uf.HealthBarsContainer and loss.points[1][5]==4, "Undecorated plates keep native positioning")
+assert(loss.points[1][2]==uf.PlayerLevelDiffFrame, "Undecorated/enemy plates keep standalone positioning")
 local preview=Frame(); preview.rightWing=Frame(preview); preview.rightWingLight=Frame(preview)
 CC.AttachArt(preview, Frame())
 assert(not preview.scripts.OnUpdate)
@@ -146,7 +146,6 @@ assert(art.rightWing.shown, "Reused decoration restores wing")
 print("PASS: icon visibility, glow, empty containers, parents, combat, reuse, previews and positioning")
 
 -- Exercise the actual Core layout so it cannot move CC back above the plate.
-assert(loadfile("HoverWidth.lua"))()
 local f=assert(io.open("Core.lua","rb"))
 local source=f:read("*a"); f:close()
 local core=assert(loadChunk(source .. [[
@@ -157,7 +156,7 @@ core.setDB({enabled=true,scale=1})
 IsInInstance=function() return false end
 local buff=Frame(auras)
 auras.BuffListFrame=buff
-buff:SetPoint('BOTTOM',uf.HealthBarsContainer,'TOP',0,3)
+buff:SetPoint("BOTTOM",uf.HealthBarsContainer,"TOP",0,3)
 local state={art=art,levels={},cc={
     {frame=buff,row=0}, {frame=loss,row=2},
 }}
@@ -190,25 +189,35 @@ print("PASS: wing preference defaults on, toggles live and persists when disable
 
 -- Build the real options panel and exercise the checkbox's actual callbacks.
 local checkbox
+local checkboxes = {}
 local function UIFrame(parent)
     local frame=Frame(parent)
     frame.CreateTexture=function(self) return UIFrame(self) end
     frame.CreateFontString=function(self) return UIFrame(self) end
     frame.SetText=function(self,text) self.text=text end
+    frame.GetHeight=function(self) return 19 end
+    frame.GetFrameLevel=function(self) return self.frameLevel or 2 end
+    frame.SetFrameLevel=function(self,v) self.frameLevel=v end
     frame.SetChecked=function(self,value) self.checked=value end
     frame.GetChecked=function(self) return self.checked end
     return setmetatable(frame,{__index=function(_,key)
         if key:match("^Set") or key:match("^Enable") then return function() end end
     end})
 end
-CreateFrame=function(kind,_,parent)
+CreateFrame=function(kind,_,parent,template)
     local frame=UIFrame(parent)
-    if kind=="CheckButton" then checkbox=frame end
+    frame.template=template
+    if kind=="CheckButton" then
+        checkboxes[#checkboxes+1]=frame
+        checkbox=checkbox or frame
+    end
     return frame
 end
 RAID_CLASS_COLORS={MAGE={r=0.2,g=0.6,b=1}}
 Settings={RegisterCanvasLayoutCategory=function(panel) return panel end, RegisterAddOnCategory=function() end}
+dofile("PvP.lua"); TisteltiPlatesPvP.Initialize(TisteltiPlatesDB)
 core.options()
+checkbox=TisteltiPlatesOptions.controls.hideRightWingOnCC
 assert(checkbox and checkbox.checked==false, "Options must reflect the saved opt-out")
 checkbox:SetChecked(true); checkbox.scripts.OnClick(checkbox)
 assert(TisteltiPlatesDB.hideRightWingOnCC==true)
@@ -219,6 +228,11 @@ assert(TisteltiPlatesDB.hideRightWingOnCC==false and art.rightWing.shown and art
 checkbox:SetChecked(true); checkbox.scripts.OnShow(checkbox)
 assert(checkbox.checked==false, "Reopening must resync the saved preference")
 print("PASS: config checkbox changes live wings and reflects the saved preference")
+local names=TisteltiPlatesOptions.controls.namesOnlyWings
+names:SetChecked(false); names.scripts.OnClick(names)
+assert(TisteltiPlatesDB.namesOnlyWings==false)
+core.driver.scripts.OnEvent(core.driver,"ADDON_LOADED","TisteltiPlates")
+assert(TisteltiPlatesDB.namesOnlyWings==false, 'Names-only opt-out survives initialization')
 
 local message
 local oldPrint=print
@@ -235,8 +249,7 @@ assert(message:find("control/stuns en amigos: desactivado",1,true))
 print=oldPrint
 print("PASS: /tistelti cc reports settings without changing them")
 
--- Switching to compact PvP must restore the real native points, not the
--- positioner's temporary right-of-badge anchor. Protected lists defer safely.
+-- CC remains to the right in both modes. Protected lists defer safely.
 local compact=false
 TisteltiPlatesPvP={IsActive=function() return compact end}
 local fresh=Frame()
@@ -246,9 +259,6 @@ local native=Frame(fresh.AurasFrame)
 fresh.AurasFrame.LossOfControlFrame=native
 native:SetPoint('BOTTOM',fresh.HealthBarsContainer,'TOP',0,4)
 local nativeLevel=native:GetFrameLevel()
-local freshArt=Frame(fresh)
-freshArt.badge=Frame(freshArt); freshArt.ccAnchor=Frame(freshArt)
-fresh.TisteltiArt=freshArt
 CC.Position(fresh)
 assert(native.points[1][1]=='LEFT')
 local saved=CC.OriginalPlacement(native)
@@ -256,40 +266,51 @@ assert(saved[1][1]=='BOTTOM' and saved[1][5]==4)
 compact=true; combat=true; native.protected=true
 CC.Position(fresh); assert(native.points[1][1]=='LEFT')
 combat=false; CC.Position(fresh)
-assert(native.points[1][1]=='BOTTOM' and native.points[1][5]==4 and native:GetFrameLevel()==nativeLevel)
-print('PASS: compact PvP restores native CC anchors and defers protected changes in combat')
+assert(native.points[1][1]=='LEFT' and native.points[1][4]==8 and native:GetFrameLevel()==nativeLevel)
+print('PASS: compact PvP retains right-side controls and defers protected changes in combat')
 
--- Real-client regression: IsForbidden=false is not enough. Native controls
--- can forbid FrameMeasurement and throw from GetPoint thousands of times.
+-- Measurement restrictions must prevent reads, not otherwise permitted moves.
 compact=false
 local restrictedUF=Frame()
 restrictedUF.HealthBarsContainer=Frame(restrictedUF)
 restrictedUF.AurasFrame=Frame(restrictedUF)
 local restricted=Frame(restrictedUF.AurasFrame)
 restrictedUF.AurasFrame.LossOfControlFrame=restricted
-restrictedUF.TisteltiArt=Frame(restrictedUF)
-restrictedUF.TisteltiArt.badge=Frame(restrictedUF.TisteltiArt)
 restricted:SetPoint('BOTTOM',restrictedUF.HealthBarsContainer,'TOP',0,4)
-local original=restricted.points[1]
-local measurements,mutations=0,0
+local measurements=0
 restricted.HasAnyForbiddenAspects=function() return true end
 restricted.GetPoint=function() measurements=measurements+1 error("Can't measure restricted regions") end
-restricted.ClearAllPoints=function() mutations=mutations+1 error('Restricted anchor mutation') end
 for i=1,1000 do CC.Position(restrictedUF) end
-assert(measurements==0 and mutations==0 and restricted.points[1]==original,'Forbidden aspects must be checked before reading native points')
-restricted.HasAnyForbiddenAspects=function() return false end
+assert(measurements==0 and restricted.points[1][1]=='LEFT' and restricted.points[1][4]==8)
 restricted.HasAccessConstraints=function() return true end
-CC.Position(restrictedUF) assert(measurements==0)
-restricted.HasAccessConstraints=function() return secret end
-CC.Position(restrictedUF) assert(measurements==0,'Unknown access fails closed')
-restricted.HasAccessConstraints=nil restricted.HasAnyForbiddenAspects=nil
+restricted:SetPoint('BOTTOM',restrictedUF.HealthBarsContainer,'TOP',0,4)
+CC.Position(restrictedUF)
+assert(restricted.points[1][1]=='BOTTOM', 'Unknown access remains blocked')
+restricted.CanBeAccessedInContext=function() return true end
+CC.Position(restrictedUF)
+assert(restricted.points[1][1]=='LEFT', 'Conditional restrictions do not block an accessible frame')
+restricted.CanBeAccessedInContext=function() return false end
+restricted:SetPoint('BOTTOM',restrictedUF.HealthBarsContainer,'TOP',0,4)
+CC.Position(restrictedUF); assert(restricted.points[1][1]=='BOTTOM')
+restricted.CanBeAccessedInContext=function() return secret end
+CC.Position(restrictedUF); assert(restricted.points[1][1]=='BOTTOM')
+restricted.CanBeAccessedInContext=nil
+restricted.HasAccessConstraints=nil; restricted.HasAnyForbiddenAspects=nil
 for i=1,1000 do CC.Position(restrictedUF) end
-assert(measurements==1 and mutations==0,'A client without preflight only attempts a failed snapshot once')
+assert(measurements<=1 and restricted.points[1][1]=='LEFT', 'Recorded anchors avoid repeated measurements while positioning still works')
+restricted.protected=true; combat=true
+local before=restricted.points[1]
+CC.Position(restrictedUF); assert(restricted.points[1]==before)
+restricted.protected=false; CC.Position(restrictedUF)
+assert(restricted.points[1][1]=='LEFT')
+combat=false
+restricted.forbidden=true
+before=restricted.points[1]; CC.Position(restrictedUF); assert(restricted.points[1]==before)
 local hiddenAccess=Frame()
 hiddenAccess.GetPoint=function() return secret end
 hiddenAccess.GetNumPoints=function() return 1 end
 assert(not CC.CapturePlacement(hiddenAccess),'Secret anchor values are never saved or used')
-print('PASS: restricted FrameMeasurement, access constraints and repeated GetPoint failures leave native controls untouched')
+print('PASS: measurement-restricted controls move right without reads; inaccessible/protected frames remain untouched')
 
 -- Late aura lists, asynchronous native/EllesmereUI layout, combat and cleanup.
 local late=Frame()
@@ -324,3 +345,38 @@ lateBuff:SetPoint('TOP',late,'BOTTOM',7,8)
 CC.Position(late)
 assert(lateBuff.points[1][1]=='TOP','Inactive Tistelti must leave other addons alone')
 print('PASS: late buffs, refreshed anchors, stacked rows, protected combat and full native restoration')
+
+-- Full lifecycle: disable, deferred combat cleanup, native updates and reuse.
+TisteltiPlatesDB.enabled=true
+local life=Frame(); life.HealthBarsContainer=Frame(life); life.AurasFrame=Frame(life)
+local cc=Frame(life.AurasFrame); life.AurasFrame.LossOfControlFrame=cc
+cc:SetPoint('BOTTOM',life.HealthBarsContainer,'TOP',2,7)
+CC.Attach({UnitFrame=life}); assert(cc.points[1][1]=='LEFT')
+TisteltiPlatesDB.enabled=false; CC.Sync()
+assert(cc.points[1][1]=='BOTTOM' and cc.points[1][4]==2 and cc.points[1][5]==7)
+local restored=cc.points[1]; life:UpdateAnchors(); CC.Position(life)
+assert(cc.points[1]==restored, 'Disabled hooks must remain inert')
+cc:SetPoint('TOP',life.HealthBarsContainer,'BOTTOM',3,9)
+TisteltiPlatesDB.enabled=true; CC.Position(life)
+assert(cc.points[1][1]=='LEFT')
+cc.protected=true; combat=true; TisteltiPlatesDB.enabled=false; CC.Sync()
+assert(cc.points[1][1]=='LEFT', 'Protected cleanup waits until combat ends')
+combat=false; CC.Sync()
+assert(cc.points[1][1]=='TOP' and cc.points[1][5]==9, 'Restore the latest native layout, not a stale snapshot')
+cc.protected=false; TisteltiPlatesDB.enabled=true; CC.Position(life)
+CC.Release(life); restored=cc.points[1]; life:UpdateAnchors()
+assert(cc.points[1]==restored, 'Removed plates cannot be repositioned by late hooks')
+CC.Attach({UnitFrame=life}); assert(cc.points[1][1]=='LEFT')
+-- Measurement restricted regions still have reversible positioning.
+local blind=Frame(); blind.HealthBarsContainer=Frame(blind); blind.AurasFrame=Frame(blind)
+local blindCC=Frame(blind.AurasFrame); blind.AurasFrame.LossOfControlFrame=blindCC
+blindCC.HasAnyForbiddenAspects=function() return true end
+blindCC.GetPoint=function() error('Must not measure') end
+CC.Attach({UnitFrame=blind})
+TisteltiPlatesDB.enabled=false; CC.Sync()
+assert(blindCC.points[1][2]==blind.HealthBarsContainer and blindCC.points[1][4]==5)
+TisteltiPlatesDB.enabled=true; CC.Position(blind)
+blindCC:ClearAllPoints(); blindCC:SetPoint('BOTTOM',blind.HealthBarsContainer,'TOP',0,13)
+CC.Position(blind); TisteltiPlatesDB.enabled=false; CC.Sync()
+assert(blindCC.points[1][1]=='BOTTOM' and blindCC.points[1][5]==13)
+print('PASS: full disable, combat-deferred restoration, native layout changes, removal/reuse and unmeasurable control cleanup')

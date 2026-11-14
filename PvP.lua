@@ -7,7 +7,6 @@ local pendingNames=setmetatable({}, {__mode="k"})
 local WHITE = "Interface\\Buttons\\WHITE8X8"
 local WINGS = "Interface\\AddOns\\TisteltiPlates\\Media\\Wings.tga"
 local RED, BLUE = {r=1,g=.08,b=.08}, {r=.16,g=.58,b=1}
-local nameColors={Alliance={.35,.7,1},Horde={1,.3,.3}}
 local palette = {bronce={r=1,g=.48,b=.16}, plata={r=.82,g=.9,b=1},
     oro={r=1,g=.86,b=.08}, violeta={r=.72,g=.38,b=1}, azul=BLUE,
     verde={r=.15,g=1,b=.42}}
@@ -34,11 +33,16 @@ function PvP.Initialize(db)
     for _, key in ipairs({"friends", "enemies", "emblem", "wings", "classIcon", "emphasizeTargets"}) do
         if type(config[key]) ~= "boolean" then config[key] = true end
     end
+    for _,key in ipairs({"selected","recommended"}) do
+        if type(config[key])~="boolean" then config[key]=config.emphasizeTargets end
+    end
+    if type(config.guildBothFactions)~="boolean" then config.guildBothFactions=false end
+    if type(config.meritColors)~="boolean" then config.meritColors=true end
     if config.enemyColor ~= "red" and config.enemyColor ~= "class" then config.enemyColor = "class" end
     if config.friendColor ~= "blue" and config.friendColor ~= "class" then config.friendColor = "class" end
-    if type(config.intensity) ~= "number" or config.intensity < .6 or config.intensity > 1.4 then config.intensity = 1 end
-    if type(config.wingSize) ~= "number" or config.wingSize < .6 or config.wingSize > 1.2 then config.wingSize = .8 end
-    if type(config.classIconSize) ~= "number" or config.classIconSize < 16 or config.classIconSize > 32 then config.classIconSize = 22 end
+    if type(config.intensity) ~= "number" or config.intensity~=config.intensity or config.intensity < .6 or config.intensity > 1.4 then config.intensity = 1 end
+    if type(config.wingSize) ~= "number" or config.wingSize~=config.wingSize or config.wingSize < .6 or config.wingSize > 1.2 then config.wingSize = .8 end
+    if type(config.classIconSize) ~= "number" or config.classIconSize~=config.classIconSize or config.classIconSize < 16 or config.classIconSize > 32 then config.classIconSize = 22 end
     for key, fallback in pairs({low="bronce", middle="plata", high="oro"}) do
         if not palette[config[key] or ""] then config[key] = fallback end
     end
@@ -92,11 +96,17 @@ local function PaintGlow(frame, color)
     end
 end
 
-local function Emphasize(uf,bar,unit,color,enemy)
-    local selected=enemy and Read(UnitIsUnit,unit,"target")
-    local reason=enemy and TisteltiPlatesPriority and TisteltiPlatesPriority.Reason(unit)
+local function Emphasize(uf,bar,unit,color,enemy,context)
+    local selected=config.selected and enemy and Read(UnitIsUnit,unit,"target")
+    local reason=config.recommended and enemy and TisteltiPlatesPriority and TisteltiPlatesPriority.Reason(unit)
+    if context then
+        selected=config.selected and enemy and context=="selected"
+        local rules=TisteltiPlatesConfig.Get(TisteltiPlatesDB,"recommendation")
+        reason=config.recommended and enemy and context=="recommended" and
+            (rules.consensus and "FOCO DEL GRUPO" or rules.marked and "MARCA DEL GRUPO") or nil
+    end
     local display=uf.TisteltiPvPEmphasis
-    if not config.emphasizeTargets or not (selected or reason) then
+    if not (selected or reason) then
         if display then display:Hide() end
         return bar
     end
@@ -181,11 +191,16 @@ local function Art(parent)
 end
 
 function PvP.WingColor(rank)
+    if not config.meritColors then rank=0 end
     if type(rank) ~= "number" or rank < 1 then return {r=.5,g=.58,b=.68} end
     return palette[rank <= 4 and config.low or rank <= 9 and config.middle or config.high]
 end
 
 function PvP.Paint(art, bar, color, class, faction, guild, rank, iconAnchor, borderColor)
+    local showBorder=borderColor~=false
+    if borderColor==false then borderColor=nil end
+    for _,edge in ipairs(art.edges) do edge.texture:SetShown(showBorder) end
+    for _,frame in ipairs({art.body,art.inner,art.highlight,art.shadow}) do frame:SetShown(showBorder) end
     art:ClearAllPoints()
     art:SetAllPoints(bar)
     art:SetFrameLevel(bar:GetFrameLevel()+10)
@@ -214,7 +229,7 @@ function PvP.Paint(art, bar, color, class, faction, guild, rank, iconAnchor, bor
         art.levelFrame:SetPoint("BOTTOMRIGHT",iconAnchor,"BOTTOMRIGHT",2,-2)
         art.levelFrame:SetBackdropBorderColor(metal.r,metal.g,metal.b,1)
     end
-    art.levelFrame:SetShown(iconAnchor~=nil)
+    art.levelFrame:SetShown(showBorder and iconAnchor~=nil)
     local height = math.max(18, math.min(26, bar:GetHeight()+10))
     local emblem = config.emblem and (faction == "Alliance" or faction == "Horde")
     local uv = (CLASS_ICON_TCOORDS or coords)[class or ""]
@@ -304,7 +319,7 @@ end
 
 local function ColorName(uf,state,faction)
     local frame=uf.name or uf.Name or (uf.NameContainer and uf.NameContainer.Name)
-    state.nameColor=nameColors[faction]
+    state.nameColor=TisteltiPlatesPlayers.NameColor(uf.unit,true)
     if state.name and (state.name.frame~=frame or not state.nameColor) then RestoreName(state) end
     if not state.nameColor or not frame or not TisteltiPlatesCC.CanPosition(frame) then return end
     if not state.name then
@@ -320,6 +335,7 @@ local function ColorName(uf,state,faction)
         uf.TisteltiPvPNameHooks=uf.TisteltiPvPNameHooks or setmetatable({}, {__mode="k"})
         if not uf.TisteltiPvPNameHooks[frame] then
             hooksecurefunc(frame,"SetTextColor",function() TintName(uf) end)
+            hooksecurefunc(frame,"SetVertexColor",function() TintName(uf) end)
             uf.TisteltiPvPNameHooks[frame]=true
         end
     end
@@ -341,12 +357,10 @@ function PvP.Remove(uf)
 end
 
 function PvP.Update(unit, uf)
-    if not Read(UnitIsPlayer, unit) or Read(UnitIsUnit, unit, "player") then PvP.Remove(uf); return end
-    local friend = Read(UnitIsFriend, "player", unit)
+    local relation = TisteltiPlatesPlayers.Kind(unit)
+    if not TisteltiPlatesConfig.Allowed(TisteltiPlatesDB) or not relation then PvP.Remove(uf); return end
+    local friend, enemy = relation == "ally", relation == "enemy"
     local faction = Read(UnitFactionGroup, unit)
-    local playerFaction = Read(UnitFactionGroup, "player")
-    local enemy = Read(UnitCanAttack, "player", unit) or
-        (faction and playerFaction and faction ~= playerFaction and not friend)
     if not ((friend and config.friends) or (enemy and config.enemies)) then PvP.Remove(uf); return end
     local bar = uf.healthBar or (uf.HealthBarsContainer and uf.HealthBarsContainer.healthBar)
     if not bar or Read(bar.IsForbidden, bar) or not Read(bar.IsShown, bar) then PvP.Remove(uf); return end
@@ -371,12 +385,14 @@ function PvP.Update(unit, uf)
         end
     end
     state.color = color
+    -- Release the classic name hook before acquiring its native color snapshot.
+    TisteltiPlatesPlayers.Remove(uf)
     ColorName(uf,state,faction)
     local art = uf.TisteltiPvPArt or Art(uf)
     uf.TisteltiPvPArt = art
     local identity = unit
-    local guild = friend and faction == "Alliance" and Read(UnitIsInMyGuild, unit)
-    if friend and faction == "Alliance" and not guild then
+    local guild = friend and (faction == "Alliance" or config.guildBothFactions) and Read(UnitIsInMyGuild, unit)
+    if friend and (faction == "Alliance" or config.guildBothFactions) and not guild then
         -- Forever can expose guild membership/merit through the roster token only.
         local raid = Read(IsInRaid)
         local count = Read(raid and GetNumGroupMembers or GetNumSubgroupMembers) or 0
@@ -393,89 +409,37 @@ function PvP.Update(unit, uf)
     if not iconAnchor or not Read(iconAnchor.IsShown, iconAnchor) then iconAnchor = nil end
     if TisteltiPlatesCC then TisteltiPlatesCC.AttachPvPArt(art,uf) end
     Emphasize(uf,bar,unit,color,enemy)
-    PvP.Paint(art, bar, color, class, faction, guild, Read(TisteltiMerito, identity) or 0, iconAnchor, enemy and RED or color)
+    local fallback=enemy and RED or color
+    local rgb = TisteltiPlatesPlayers.BorderColor(unit,true,{fallback.r,fallback.g,fallback.b})
+    local borderColor = rgb and {r=rgb[1],g=rgb[2],b=rgb[3]} or false
+    PvP.Paint(art, bar, color, class, faction, guild, Read(TisteltiMerito, identity) or 0, iconAnchor, borderColor)
     Tint(uf)
 end
 
-function PvP.RegisterOptions(category, refresh)
-    if not Settings.RegisterCanvasLayoutSubcategory then return end
-    local panel = CreateFrame("Frame")
-    local function text(value, x, y, template)
-        local label = panel:CreateFontString(nil, "OVERLAY", template or "GameFontHighlightSmall")
-        label:SetPoint("TOPLEFT", x, y); label:SetText(value)
-        return label
+-- Same painter and color resolution as live plates, without acquiring native frames.
+function PvP.DrawPreview(uf,kind,faction,rank,scenario)
+    local enemy=kind=="enemy"
+    local class="MAGE"
+    local color=enemy and config.enemyColor=="red" and RED or
+        not enemy and config.friendColor=="blue" and BLUE or RAID_CLASS_COLORS[class]
+    local bar=uf.healthBar
+    bar:SetStatusBarColor(color.r,color.g,color.b)
+    local fallback=enemy and RED or color
+    local rgb=TisteltiPlatesConfig.ResolveColor(TisteltiPlatesDB,kind,"border",class,faction,true,{fallback.r,fallback.g,fallback.b})
+    local name=TisteltiPlatesConfig.ResolveColor(TisteltiPlatesDB,kind,"name",class,faction,true)
+    uf.name:SetTextColor(unpack(name or {1,1,1}))
+    local art=uf.TisteltiPvPArt or Art(uf)
+    uf.TisteltiPvPArt=art
+    PvP.Paint(art,bar,color,class,faction,not enemy and (faction=="Alliance" or config.guildBothFactions),rank,nil,
+        rgb and {r=rgb[1],g=rgb[2],b=rgb[3]} or false)
+    local shown=TisteltiPlatesDB.enabled and (enemy and config.enemies or not enemy and config.friends)
+    art:SetShown(shown)
+    if not shown then
+        local name=TisteltiPlatesConfig.ResolveColor(TisteltiPlatesDB,kind,"name",class,faction,false)
+        uf.name:SetTextColor(unpack(name or {1,1,1}))
+        bar:SetStatusBarColor(.41,.8,.94)
+    else
+        Emphasize(uf,bar,nil,color,enemy,scenario)
+        if scenario=="control" and TisteltiPlatesDB.hideRightWingOnCC then art.wings[2]:Hide() end
     end
-    text("Modo PvP · Marco heráldico", 20, -20, "GameFontNormalLarge")
-    text("Doble marco metálico, clase integrada y alas de hermandad. Conserva la barra y el nombre reales.", 20, -52)
-    local controls, samples = {}, {}
-    local labels = {class="Clase", red="Rojo", blue="Azul", bronce="Bronce", plata="Plata",
-        oro="Oro", violeta="Violeta", azul="Azul", verde="Verde"}
-    local function redraw()
-        for _, control in ipairs(controls) do control.draw() end
-        for _, sample in ipairs(samples) do
-            local color = sample.enemy and config.enemyColor == "red" and RED or
-                not sample.enemy and config.friendColor == "blue" and BLUE or RAID_CLASS_COLORS[sample.class]
-            sample.bar:SetStatusBarColor(color.r,color.g,color.b)
-            PvP.Paint(sample.art, sample.bar, color, sample.class, sample.enemy and "Horde" or "Alliance",
-                not sample.enemy, sample.rank,nil,sample.enemy and RED or color)
-        end
-    end
-    local function changed()
-        refresh(); redraw()
-    end
-    local function check(key, caption, x, y)
-        local button = CreateFrame("CheckButton", nil, panel, "UICheckButtonTemplate")
-        button:SetSize(26,26); button:SetPoint("TOPLEFT",x,y)
-        local label = button:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
-        label:SetPoint("LEFT",button,"RIGHT",3,0); label:SetText(caption)
-        controls[#controls+1] = {draw=function() button:SetChecked(config[key]) end}
-        button:SetScript("OnClick",function(self) config[key]=self:GetChecked() and true or false; changed() end)
-    end
-    local function cycle(key, caption, values, x, y)
-        local button = CreateFrame("Button",nil,panel,"UIPanelButtonTemplate")
-        button:SetSize(255,26); button:SetPoint("TOPLEFT",x,y)
-        controls[#controls+1] = {draw=function()
-            button:SetText(caption..": "..(labels[config[key]] or tostring(config[key])))
-        end}
-        button:SetScript("OnClick",function()
-            local nextValue = values[1]
-            for i,v in ipairs(values) do if v==config[key] then nextValue=values[i % #values + 1]; break end end
-            config[key]=nextValue; changed()
-        end)
-    end
-    check("enabled","Activar modo PvP",20,-80)
-    check("emblem","Emblema de facción",300,-80)
-    check("friends","Jugadores aliados",20,-113)
-    check("enemies","Jugadores enemigos",300,-113)
-    check("wings","Alas solo tu hermandad (Alianza)",20,-146)
-    check("classIcon","Icono de clase con neón de clase",300,-146)
-    check("emphasizeTargets","Destacar objetivo y recomendado",20,-329)
-    cycle("friendColor","Aliados · barra y marco",{"class","blue"},20,-187)
-    cycle("enemyColor","Enemigos · barra",{"class","red"},300,-187)
-    cycle("intensity","Brillo (0.6 / 1 / 1.4)",{.6,1,1.4},20,-223)
-    cycle("wingSize","Tamaño de alas",{.6,.8,1,1.2},300,-223)
-    local colors = {"bronce","plata","oro","violeta","azul","verde"}
-    cycle("low","Alas · mérito 1–4",colors,20,-259)
-    cycle("middle","Alas · mérito 5–9",colors,300,-259)
-    cycle("high","Alas · mérito 10–14",colors,20,-295)
-    cycle("classIconSize","Tamaño de icono de clase",{18,22,26,30},300,-295)
-    text("Sin datos de mérito: alas gris azulado. Se usa el mérito del addon, no un rango oficial supuesto.",20,-365)
-    text("Vista previa · acabado metálico y acento de clase, también con barra roja",20,-395,"GameFontNormal")
-    for i, data in ipairs({{"MAGE",false,4},{"WARLOCK",true,0}}) do
-        local bar = CreateFrame("StatusBar",nil,panel)
-        bar:SetSize(150,16); bar:SetPoint("TOPLEFT",65+(i-1)*280,-440)
-        bar:SetStatusBarTexture(WHITE); bar:SetMinMaxValues(0,100); bar:SetValue(78)
-        local name=bar:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
-        name:SetPoint("CENTER",bar,"CENTER",0,0)
-        name:SetText(i==1 and "Hermandad · Mago" or "Enemigo · Brujo")
-        name:SetTextColor(unpack(nameColors[i==1 and "Alliance" or "Horde"]))
-        samples[#samples+1]={bar=bar,art=Art(bar),class=data[1],enemy=data[2],rank=data[3]}
-    end
-    text("Los cambios de modo durante combate se aplican al terminar. No activa placas ocultas del juego.",20,-480)
-    text("Mundo abierto y campos de batalla/arenas. Las mazmorras y bandas mantienen la exclusión.",20,-504)
-    panel:SetScript("OnShow",redraw)
-    local subcategory = Settings.RegisterCanvasLayoutSubcategory(category,panel,"Modo PvP")
-    Settings.RegisterAddOnCategory(subcategory)
-    PvP.category = subcategory
-    redraw()
 end
