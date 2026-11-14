@@ -5,6 +5,8 @@ local tracked, active = {}, {}
 local trackedFrames = {}
 local pendingPlateCleanup = setmetatable({}, {__mode="k"})
 local leavingWorld = false
+local lastRefreshError, lastWorldEvent, lastRefreshTime
+local refreshCount=0
 local guildLabels = {}
 local combatArt = {}
 local db
@@ -752,7 +754,7 @@ local function RefreshOverlays()
     end
 end
 
-Refresh = function()
+local function RefreshPlates()
     if not db then return end
     if TisteltiPlatesCC.Sync then TisteltiPlatesCC.Sync() end
     if TisteltiPlatesPlayers then TisteltiPlatesPlayers.Sync() end
@@ -773,6 +775,7 @@ Refresh = function()
     if InCombatLockdown() then
         for unit, plate in pairs(tracked) do
             local ok, err = pcall(UpdateCombat, unit, plate)
+            if not ok then lastRefreshError=tostring(err) end
             if not ok and not driver.combatReported then
                 driver.combatReported = true
                 Message("Error al dibujar en combate: " .. tostring(err))
@@ -799,6 +802,7 @@ Refresh = function()
     end
     for unit, plate in pairs(tracked) do
         local ok, err = pcall(Update, unit, plate)
+        if not ok then lastRefreshError=tostring(err) end
         if not ok and not driver.reported then
             driver.reported = true
             Message("Error al dibujar la placa: " .. tostring(err))
@@ -807,13 +811,78 @@ Refresh = function()
     RefreshOverlays()
 end
 
+Refresh = function()
+    refreshCount=refreshCount+1; lastRefreshTime=Safe(GetTime)
+    local ok,err=pcall(RefreshPlates)
+    if not ok then
+        lastRefreshError=tostring(err)
+        if not driver.refreshReported then
+            driver.refreshReported=true
+            Message("Error al actualizar las placas: "..lastRefreshError)
+        end
+    end
+end
+
+local function WingDiagnostic()
+    local function value(v)
+        if not Public(v) or v==nil then return "no disponible" end
+        if type(v)=="boolean" then return v and "sí" or "no" end
+        if type(v)=="number" then return string.format("%.2f",v) end
+        return tostring(v)
+    end
+    local version=Safe(C_AddOns and C_AddOns.GetAddOnMetadata or GetAddOnMetadata,ADDON,"Version")
+    local list=Safe(C_NamePlate and C_NamePlate.GetNamePlates)
+    local candidates,seen={},{}
+    local function include(plate)
+        if plate and not seen[plate] then seen[plate]=true; candidates[#candidates+1]=plate end
+    end
+    if type(list)=="table" then for _,plate in pairs(list) do include(plate) end end
+    local count=0; for _,plate in pairs(tracked) do count=count+1; include(plate) end
+    local cvar=C_CVar and C_CVar.GetCVarBool or GetCVarBool
+    local lines={"TisteltiPlates "..value(version),
+        "Lugar: "..value(TisteltiPlatesConfig.Scope()).." | Permitido: "..value(Allowed()),
+        "Último evento: "..value(lastWorldEvent).." | Esperando carga: "..value(leavingWorld),
+        "Placas entregadas: "..(type(list)=="table" and #list or "no disponible").." | Seguidas: "..count,
+        "Placas amistosas en WoW: "..value(Safe(cvar,"nameplateShowFriendlyPlayers")),
+        "Alitas activadas: "..value(db.namesOnlyWings).." | Prioridad: "..value(db.priority),
+        "Actualizaciones: "..refreshCount.." | Última/ahora: "..value(lastRefreshTime).."/"..value(Safe(GetTime)),
+        "Último error: "..string.sub(lastRefreshError or "ninguno",1,500)}
+    for i=1,math.min(#candidates,6) do
+        local plate=candidates[i]
+        local uf=not Safe(plate.IsForbidden,plate) and plate.UnitFrame
+        if not uf or Safe(uf.IsForbidden,uf) then
+            lines[#lines+1]="Placa "..i..": marco no disponible/restringido"
+        else
+            local unit=Safe(plate.GetUnit,plate)
+            if not unit and Public(plate.namePlateUnitToken) then unit=plate.namePlateUnitToken end
+            if not unit and Public(uf.unit) then unit=uf.unit end
+            local ok,style,roster=pcall(ResolveStyle,unit)
+            local name=uf.name
+            local mini=uf.TisteltiNameWings
+            lines[#lines+1]="Placa "..i..": estilo="..(ok and value(style) or "error")
+                .." | hermandad="..value(Safe(UnitIsInMyGuild,roster or unit))
+                .." | filtro permite="..value(TisteltiPlatesConfig.WingsAllowed(db,unit))
+            lines[#lines+1]="Solo nombres="..value(TisteltiPlatesNamesOnly.IsActive(uf))
+                .." | nombre mostrado="..value(name and Safe(name.IsShown,name))
+                .." | ancho="..value(name and Safe(name.GetWidth,name)).."/"..value(name and Safe(name.GetStringWidth,name))
+            lines[#lines+1]="Marco visible="..value(Safe(uf.IsVisible,uf))
+                .." | alitas mostradas/visibles="..value(mini and Safe(mini.IsShown,mini)).."/"..value(mini and Safe(mini.IsVisible,mini))
+                .." | alfa="..value(mini and Safe(mini.GetEffectiveAlpha,mini))
+        end
+    end
+    if #candidates==0 then lines[#lines+1]="No hay placas disponibles para adornar. Los nombres del mundo pueden existir sin placa." end
+    lines[#lines+1]="Sin nombres ni identificadores de jugadores. Muestra hasta seis placas."
+    return table.concat(lines,"\n")
+end
+
 local function Preview()
     TisteltiPlatesOptions.Open("appearance")
 end
 
 local function RegisterOptions()
     TisteltiPlatesOptions.Register(db, {Refresh=Refresh, FrameBorder=FrameBorder, Ornament=Ornament,
-        Paint=Paint, Safe=Safe, WHITE=WHITE, SILVER=SILVER})
+        Paint=Paint, Safe=Safe, WHITE=WHITE, SILVER=SILVER,
+        WingDiagnostic=function() db.lastWingDiagnostic=WingDiagnostic(); return db.lastWingDiagnostic end})
 end
 
 SLASH_TISTELTIPLATES1 = "/tistelti"
@@ -942,10 +1011,12 @@ driver:SetScript("OnEvent", function(_, event, unit)
         RegisterOptions()
         if CompactUnitFrame_UpdateHealthColor then hooksecurefunc("CompactUnitFrame_UpdateHealthColor", Tint) end
     elseif event == "PLAYER_LEAVING_WORLD" then
+        lastWorldEvent=event
         leavingWorld=true
         for token in pairs(tracked) do ForgetPlate(token) end
         return
     elseif event == "PLAYER_ENTERING_WORLD" then
+        lastWorldEvent=event
         leavingWorld=false
     elseif event == "NAME_PLATE_UNIT_ADDED" then
         TrackPlate(unit,Safe(C_NamePlate.GetNamePlateForUnit,unit))

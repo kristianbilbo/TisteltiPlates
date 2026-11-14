@@ -161,6 +161,29 @@ for i=1,3 do
     assert(wings(member,true))
 end
 assert(#errors==0,table.concat(errors,'\n'))
+-- Capture the actual failing state from native AddOns settings without refresh
+-- or changing preferences; otherwise opening diagnostics could erase evidence.
+local diagnostic=TisteltiPlatesOptions.controls['addons.wings.diagnostic']
+local report=TisteltiPlatesOptions.controls['addons.wings.diagnostic.report']
+local mutations=nativeMutations
+member.name.textWidth=0
+diagnostic.scripts.OnClick()
+assert(report.text:find('ancho=110.00/0.00',1,true))
+assert(report.text:find('estilo=group',1,true))
+assert(report.highlighted and db.lastWingDiagnostic==report.text)
+assert(not report.text:find('Nombre original largo',1,true))
+assert(nativeMutations==mutations and db.namesOnlyWings and db.wings.dungeonGuildOnly)
+-- Exceptions outside individual painting callbacks must remain diagnosable.
+local oldKind=TisteltiPlatesPlayers.Kind
+TisteltiPlatesPlayers.Kind=function() error('diagnostic-test failure') end
+core.refresh()
+TisteltiPlatesPlayers.Kind=oldKind
+diagnostic.scripts.OnClick()
+assert(report.text:find('diagnostic-test failure',1,true))
+member.name.textWidth=80
+visible={}; plates.guild=nil; core.refresh()
+diagnostic.scripts.OnClick()
+assert(report.text:find('No hay placas disponibles',1,true))
 print('PASS: repeated loading screens, delayed/reused/replaced plates, combat, late membership/name data, native UI opt-outs and PvP coexistence')
 ]=]
 assert((loadstring or load)(fixture..cases))()

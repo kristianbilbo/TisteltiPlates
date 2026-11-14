@@ -62,6 +62,7 @@ local function Frame(parent)
     function f:SetText(v) self.text=v end
     function f:GetText() return self.text end
     function f:ClearFocus() end
+    function f:HighlightText() self.highlighted=true end
     function f:SetTextColor(...) self.textColor={...} end
     function f:GetTextColor() return unpack(self.textColor or {1,1,1,1}) end
     function f:SetChecked(v) self.checked=v end

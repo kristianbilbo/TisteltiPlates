@@ -44,6 +44,22 @@ function O.Register(db,api)
         if db.enabled and (scope=="party" or scope=="raid") then db.scopes[scope]=true; changed() end
     end)
     local function remember(id,widget) widget.settingID=id; O.controls[id]=widget end
+    local function wingDiagnostic(parent,id,y)
+        local button=CreateFrame("Button",nil,parent,"UIPanelButtonTemplate")
+        button:SetPoint("TOPLEFT",12,y); button:SetSize(525,26)
+        button:SetText("Capturar diagnóstico de alitas")
+        local report=CreateFrame("EditBox",nil,parent)
+        report:SetPoint("TOPLEFT",16,y-36); report:SetSize(515,800)
+        report:SetMultiLine(true); report:SetAutoFocus(false)
+        report:SetFontObject("GameFontHighlightSmall")
+        report:SetText(db.lastWingDiagnostic or "Cuando falten las alitas, pulsa Capturar diagnóstico antes de recargar. Puedes copiar el informe de aquí. Se conserva al recargar o cerrar sesión.")
+        report:SetScript("OnEscapePressed",function() report:ClearFocus() end)
+        button:SetScript("OnClick",function()
+            report:SetText(api.WingDiagnostic()); report:HighlightText(); report:SetFocus()
+        end)
+        remember(id,button); remember(id..".report",report)
+        return y-850
+    end
     local function sync(widget,fn)
         updates[#updates+1]=fn; widget:SetScript("OnShow",fn)
     end
@@ -199,6 +215,7 @@ function O.Register(db,api)
             diagnostic:SetScript("OnClick",function() TisteltiPlatesCC.Report() end)
             remember("diagnostics",diagnostic)
             note("En combate, los cambios que requieren restaurar marcos protegidos esperan a que termine. El estado superior indica si hay cambios pendientes.")
+            y=wingDiagnostic(content,"wings.diagnostic",y)
         elseif section=="appearance" then
             note("Elige la vista arriba. Grupo, banda y hermandad tienen componentes independientes. Aliados y enemigos configuran los acentos generales y los colores en PvP.")
             local startY=y
@@ -382,7 +399,8 @@ function O.Register(db,api)
                 function() return db.namesOnlyWings and db[style] end)
         end
         text(content,"Activa el lugar, el estilo y sus alitas. Si coinciden grupo y hermandad, se respeta la prioridad elegida en Apariencia. El modo solo nombres se activa en las opciones de placas de WoW.",12,y)
-        content:SetHeight(-y+70)
+        y=wingDiagnostic(content,"addons.wings.diagnostic",y-65)
+        content:SetHeight(-y+30)
         local example=CreateFrame("Button",nil,shortcuts,"UIPanelButtonTemplate")
         example:SetPoint("BOTTOMLEFT",20,12); example:SetSize(330,26)
         example:SetText("Ver ejemplo y configurar apariencia")

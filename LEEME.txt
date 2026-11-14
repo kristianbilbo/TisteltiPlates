@@ -1,11 +1,14 @@
-TISTELTIPLATES 0.9.0-beta.2 — BETA CON CAMBIOS INCOMPATIBLES
+TISTELTIPLATES 0.9.0-beta.3 — BETA CON CAMBIOS INCOMPATIBLES
 
-CORRECCIÓN EN BETA.2
-Las placas se recuperan después de pantallas de carga, aunque aparezcan tarde
-o WoW reutilice sus marcos. Los adornos antiguos se retiran y las alitas
-vuelven al salir de una mazmorra según tus ajustes. Se conserva el filtro
-de hermandad dentro de mazmorras. Incluye pruebas de transiciones repetidas,
-combate, datos tardíos, marcos restringidos e interruptores de configuración.
+DIAGNÓSTICO EN BETA.3 — FALLO DE SALIDA PENDIENTE
+Sigue reportada la desaparición de alitas al salir de una mazmorra:
+los nombres siguen visibles y recargar la interfaz devuelve las alitas.
+La recuperación añadida en beta.2 no resuelve ese caso en el cliente.
+En Opciones > AddOns > TisteltiPlates > Alitas y mazmorras, pulsa
+«Capturar diagnóstico de alitas» cuando falle, antes de recargar.
+El informe se puede copiar y queda guardado al recargar o cerrar sesión.
+Incluye estado de placas, nombres, alitas, filtros y último error.
+Las pruebas simuladas no confirman la resolución de este fallo real.
 
 BREAKING CHANGE respecto a 0.8.x
 - Se elimina por completo la ampliación de placas al pasar el cursor.
@@ -27,7 +30,7 @@ Revisa General, Alitas y mazmorras y Apariencia después de reiniciar WoW.
 Para volver a 0.8.x, restaura tanto el addon como la copia de SavedVariables.
 
 PUBLICACIÓN
-Candidato: 0.9.0-beta.2; tag previsto: v0.9.0-beta.2 (Beta en CurseForge).
+Candidato: 0.9.0-beta.3; tag previsto: v0.9.0-beta.3 (Beta en CurseForge).
 Tras validar la beta, actualizar TOC y notas a 0.9.0 antes del tag v0.9.0.
 No reutilizar ni mover los tags publicados de la serie 0.8.x.
 El marcado BREAKING CHANGE no crea tags ni publica archivos por sí solo.
