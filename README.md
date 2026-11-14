@@ -1,8 +1,10 @@
 # TisteltiPlates
 
-Addon para WoW Forever (interfaz 16001). Esta rama integra la base remota **0.8.10.2**, los cambios de colores, controles y solo nombres, y la configuración funcional completa. El candidato **0.8.11-dev.2** es local y aún no está publicado.
+Addon para WoW Forever (interfaz 16001). Esta rama integra la base remota **0.8.10.2**, los cambios de colores, controles y solo nombres, y la configuración funcional completa. El candidato **0.8.11-dev.3** es local y aún no está publicado.
 
-Abre **`/tistelti` → General, Apariencia, Comportamiento, PvP o Avanzado**. Las cinco pestañas usan los controles nativos de WoW y desplazamiento vertical. `/tistelti vista` abre Apariencia y `/tistelti pvp` abre PvP.
+Abre **Opciones → AddOns → TisteltiPlates**. Allí están las pestañas General, Apariencia, Comportamiento, PvP y Avanzado, con desplazamiento vertical. La entrada **TisteltiPlates → Alitas y mazmorras** ofrece acceso directo a los ámbitos, los estilos y sus alitas. No requiere escribir comandos.
+
+Los comandos de acceso siguen disponibles como atajos opcionales.
 
 ## Configuración
 

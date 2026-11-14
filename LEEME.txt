@@ -1,6 +1,8 @@
-TISTELTIPLATES 0.8.11-dev.2 — CANDIDATO LOCAL SOBRE 0.8.10.2
+TISTELTIPLATES 0.8.11-dev.3 — CANDIDATO LOCAL SOBRE 0.8.10.2
 
-Abre /tistelti. Hay cinco pestañas con desplazamiento:
+Abre Opciones > AddOns > TisteltiPlates. No necesitas comandos.
+La entrada Alitas y mazmorras contiene directamente los ámbitos y alitas.
+El panel principal tiene cinco pestañas con desplazamiento:
 General, Apariencia, Comportamiento, PvP y Avanzado.
 
 General: activación, ámbitos, alitas de solo nombres y diagnóstico.

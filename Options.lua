@@ -349,7 +349,46 @@ function O.Register(db,api)
     panel:SetScript("OnShow",redraw); panel:SetScript("OnHide",function() popup:Hide(); armed=nil; reset:SetText("Restaurar esta sección") end)
     local elapsed=0
     panel:SetScript("OnUpdate",function(_,dt) elapsed=elapsed+dt; if elapsed>.25 then elapsed=0; drawStatus() end end)
-    O.category=Settings.RegisterCanvasLayoutCategory(panel,"TisteltiPlates"); Settings.RegisterAddOnCategory(O.category)
+    O.category=Settings.RegisterCanvasLayoutCategory(panel,"TisteltiPlates")
+    -- Native AddOns navigation exposes this task directly, without a slash command.
+    if Settings.RegisterCanvasLayoutSubcategory then
+        local shortcuts=CreateFrame("Frame")
+        text(shortcuts,"Alitas y mazmorras",20,-20,"GameFontNormalLarge")
+        text(shortcuts,"Configura dónde aparecen las alitas y qué estilos las muestran. Estos ajustes son los mismos que en General y Apariencia.",20,-52)
+        local nativeScroll=CreateFrame("ScrollFrame",nil,shortcuts,"UIPanelScrollFrameTemplate")
+        nativeScroll:SetPoint("TOPLEFT",20,-100); nativeScroll:SetPoint("BOTTOMRIGHT",-45,50)
+        local content=CreateFrame("Frame",nil,nativeScroll); content:SetSize(550,720)
+        nativeScroll:SetScrollChild(content)
+        local y=-8
+        local function row(id,caption,get,set,dependency)
+            check(content,"addons."..id,caption,get,set,y,dependency); y=y-34
+        end
+        row("enabled","Activar TisteltiPlates",function() return db.enabled end,function(v) db.enabled=v end)
+        text(content,"Dónde mostrar placas y alitas",12,y,"GameFontNormal"); y=y-26
+        for _,key in ipairs({"world","party","raid","pvp","arena"}) do
+            local scope=key
+            row("scopes."..scope,scope=="pvp" and "Campos de batalla" or scope=="raid" and "Bandas" or labels[scope],
+                function() return db.scopes[scope] end,function(v) db.scopes[scope]=v end)
+        end
+        text(content,"Alitas en el modo solo nombres de WoW",12,y,"GameFontNormal"); y=y-26
+        row("namesOnlyWings","Mostrar alitas junto al nombre",function() return db.namesOnlyWings end,function(v) db.namesOnlyWings=v end)
+        for _,key in ipairs({"group","raid","guild"}) do
+            local style=key
+            row("style."..style,"Activar estilo · "..labels[style],function() return db[style] end,function(v) db[style]=v end)
+            row("mini."..style,"Mostrar alitas · "..labels[style],function() return db.mini[style] end,function(v) db.mini[style]=v end,
+                function() return db.namesOnlyWings and db[style] end)
+        end
+        text(content,"Activa el lugar, el estilo y sus alitas. Si coinciden grupo y hermandad, se respeta la prioridad elegida en Apariencia. El modo solo nombres se activa en las opciones de placas de WoW.",12,y)
+        content:SetHeight(-y+70)
+        local example=CreateFrame("Button",nil,shortcuts,"UIPanelButtonTemplate")
+        example:SetPoint("BOTTOMLEFT",20,12); example:SetSize(330,26)
+        example:SetText("Ver ejemplo y configurar apariencia")
+        example:SetScript("OnClick",function() subject="group"; scenario="names"; O.Open("appearance") end)
+        remember("addons.preview",example)
+        shortcuts:SetScript("OnShow",redraw)
+        O.namesCategory=Settings.RegisterCanvasLayoutSubcategory(O.category,shortcuts,"Alitas y mazmorras")
+    end
+    Settings.RegisterAddOnCategory(O.category)
     if TisteltiPlatesPvP then TisteltiPlatesPvP.category=O.category end
     O.select("general")
 end
