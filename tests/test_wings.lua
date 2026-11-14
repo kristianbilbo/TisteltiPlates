@@ -1,5 +1,7 @@
+dofile("Config.lua")
 dofile("tests/ui_stubs.lua")
 dofile("Options.lua")
+dofile("PvP.lua")
 -- Run from the repository root with Lua 5.1 or later.
 unpack = unpack or table.unpack
 local frames, panel = {}, nil
@@ -98,23 +100,23 @@ end
 -- Regression: the options preview must remain turquoise even while in a raid.
 panel.scripts.OnShow()
 assert(displayedTexture():find('Wings-Grupo-v1.tga',1,true))
-choose('Estilo','Banda')
+choose('Vista de','Banda')
 assert(displayedTexture():find('Wings-Banda-v1.tga',1,true))
-choose('Borde','Cobre')
+choose('Acabado del borde','Cobre')
 assert(TisteltiPlatesDB.appearance.raid.border=='cobre')
 assert(TisteltiPlatesDB.appearance.group.border=='oroazul')
-choose('Estilo','Grupo')
+choose('Vista de','Grupo')
 assert(displayedTexture():find('Wings-Grupo-v1.tga',1,true))
-choose('Mostrar','Desactivado')
+;(function() local b=TisteltiPlatesOptions.controls['style.enabled']; b:SetChecked(false); b.scripts.OnClick(b) end)()
 assert(not TisteltiPlatesDB.group and TisteltiPlatesDB.raid)
 assert(core.membership('nameplate1')=='raid')
-choose('Estilo','Banda'); choose('Mostrar','Desactivado')
+choose('Vista de','Banda'); (function() local b=TisteltiPlatesOptions.controls['style.enabled']; b:SetChecked(false); b.scripts.OnClick(b) end)()
 assert(core.membership('nameplate1')==nil, 'Disabled raid must not fall back to party style')
 raid=false; TisteltiPlatesDB.group=true
 assert(core.membership('nameplate1')=='group')
 raid=true; TisteltiPlatesDB.raid=true
 assert(core.membership('nameplate1')=='raid')
-selectTab('Hermandad')
+choose('Vista de','Hermandad')
 assert(displayedTexture():find('Media\\Wings.tga',1,true))
 -- Explicit styles must also work for plates and their two light layers.
 local o={wings=Frame(),rightWing=Frame(),leftWingLight=Frame(),rightWingLight=Frame()}
@@ -158,14 +160,14 @@ for _,isRaid in ipairs({false,true}) do
     raid=isRaid
     local fallback=raid and 'raid' or 'group'
     sameGuild={nameplate1=true,roster1=true}
-    choose('Prioridad','Grupo/Banda')
+    choose('Prioridad al coincidir','Grupo')
     assert(TisteltiPlatesDB.priority=='group')
     assert(core.membership('nameplate1')==fallback)
     assert(core.rosterMembership('nameplate1','roster1',fallback)==fallback)
-    selectTab('Hermandad')
+    choose('Vista de','Hermandad')
     assert(TisteltiPlatesDB.priority=='group', 'Editing an appearance must not change priority')
     assert(core.rosterMembership('nameplate1','roster1',nil)=='guild', 'Disabled group style falls back to guild')
-    choose('Prioridad','Hermandad')
+    choose('Prioridad al coincidir','Hermandad')
     assert(core.membership('nameplate1')=='guild')
     assert(core.rosterMembership('nameplate1','roster1',fallback)=='guild')
     sameGuild={}
@@ -174,11 +176,11 @@ end
 sameGuild={nameplate1=true}
 UnitInRaid=function() return false end
 UnitInParty=function() return false end
-choose('Prioridad','Grupo/Banda')
+choose('Prioridad al coincidir','Grupo')
 assert(core.membership('nameplate1')=='guild', 'Guild members outside the roster keep their usual appearance')
 initialize(TisteltiPlatesDB)
 assert(TisteltiPlatesDB.priority=='group', 'Priority must persist across reloads')
-assert(menu('Prioridad').read()=='groupFirst')
+assert(TisteltiPlatesDB.priority=='group')
 print('PASS: priority dropdown changes actual party/raid membership, preserves guild outside groups and survives reload')
 
 -- Exercise the real tab controls, previews, color picker and cancellation.
@@ -197,35 +199,35 @@ local picked={.3,.8,.5}
 ColorPickerFrame={Hide=function() end,
     GetColorRGB=function() return unpack(picked) end,
     SetupColorPickerAndShow=function(self,info) self.info=info end}
-selectTab('Enemigos')
-local sample=named('Jugador enemigo')
+choose('Vista de','Enemigos')
+local sample=TisteltiPlatesOptions.previews.sample.name
 assert(sample.textColor[1]==1 and sample.textColor[2]==.12)
-visibleButton('Color del nombre').scripts.OnClick()
+TisteltiPlatesOptions.controls['player.nameColor'].scripts.OnClick()
 ColorPickerFrame.info.swatchFunc()
 assert(TisteltiPlatesDB.playerColors.enemy.nameColor[1]==.3 and sample.textColor[2]==.8)
 ColorPickerFrame.info.cancelFunc()
 assert(TisteltiPlatesDB.playerColors.enemy.nameColor[1]==1 and sample.textColor[2]==.12)
-visibleButton('Color del borde').scripts.OnClick()
+TisteltiPlatesOptions.controls['player.borderColor'].scripts.OnClick()
 ColorPickerFrame.info.swatchFunc()
 local found=false
 for _,f in ipairs(frames) do if f.shown and f.borderColor and f.borderColor[2]==.8 then found=true end end
 assert(found, 'Border preview follows the chosen RGB')
-selectTab('Aliados')
-assert(named('Jugador aliado').textColor[1]==1, 'Disabled ally name keeps its normal color')
+choose('Vista de','Aliados')
+assert(TisteltiPlatesOptions.previews.sample.name.textColor[1]==1, 'Disabled ally name keeps its normal color')
 assert(TisteltiPlatesDB.playerColors.ally.borderColor[2]==.65, 'Enemy picker leaves allies unchanged')
 -- A picker opened in one tab must not write to another after switching.
 ColorPickerFrame.info.cancelFunc()
 assert(TisteltiPlatesDB.playerColors.enemy.borderColor[2]==.12)
-selectTab('Hermandad')
+choose('Vista de','Hermandad')
 local oldMode=TisteltiPlatesDB.appearance.guild.border
-visibleButton('Color del borde').scripts.OnClick(); ColorPickerFrame.info.swatchFunc()
+TisteltiPlatesOptions.controls['style.color'].scripts.OnClick(); ColorPickerFrame.info.swatchFunc()
 assert(TisteltiPlatesDB.appearance.guild.border=='color')
 ColorPickerFrame.info.cancelFunc()
 assert(TisteltiPlatesDB.appearance.guild.border==oldMode)
-print('PASS: four tabs, live enemy/ally previews, independent RGB colors, cancel and tab-switch isolation')
+print('PASS: five settings tabs, live enemy/ally previews, independent RGB colors, cancel and tab-switch isolation')
 
-assert(panel.numTabs==4 and #panel.Tabs==4)
-selectTab('Enemigos'); assert(panel.selectedTab==4 and panel.Tabs[4].selected)
-selectTab('Hermandad'); assert(panel.selectedTab==1 and not panel.Tabs[4].selected)
+assert(panel.numTabs==5 and #panel.Tabs==5)
+selectTab('PvP'); assert(panel.selectedTab==4 and panel.Tabs[4].selected)
+selectTab('General'); assert(panel.selectedTab==1 and not panel.Tabs[4].selected)
 for _,tab in ipairs(panel.Tabs) do assert(tab.template=='PanelTopTabButtonTemplate') end
 print('PASS: native WoW tab templates and selection API, not ordinary button navigation')

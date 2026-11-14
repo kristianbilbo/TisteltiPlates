@@ -27,23 +27,23 @@ function Players.Kind(unit)
     end
 end
 -- Shared by classic accents and compact PvP: one configured color source.
-function Players.BorderColor(unit)
-    local db = TisteltiPlatesDB
-    local kind = Players.Kind(unit)
-    local config = db and db.enabled and db.playerColors and db.playerColors[kind]
-    return config and config.border and config.borderColor or nil
+function Players.Color(unit,field,pvp,native,db)
+    db=db or TisteltiPlatesDB
+    if not TisteltiPlatesConfig.Allowed(db) then return end
+    local class
+    if UnitClass then
+        local ok,_,token=pcall(UnitClass,unit)
+        if ok and Public(token) then class=token end
+    end
+    return TisteltiPlatesConfig.ResolveColor(db,Players.Kind(unit),field,class,Read(UnitFactionGroup,unit),pvp,native)
 end
-function Players.NameColor(unit)
-    local db = TisteltiPlatesDB
-    local kind = Players.Kind(unit)
-    local config = db and db.enabled and db.playerColors and db.playerColors[kind]
-    return config and config.name and config.nameColor or nil
-end
+function Players.BorderColor(unit,pvp,native) return Players.Color(unit,"border",pvp,native) end
+function Players.NameColor(unit,pvp) return Players.Color(unit,"name",pvp) end
 local function PaintName(uf, state)
-    if state.painting or not state.name or not state.db.enabled or not CanPaint(state.name)
-        or not state.config.name or Players.Kind(uf.unit) ~= state.kind then return end
+    if state.painting or not state.name or not TisteltiPlatesConfig.Allowed(state.db) or not CanPaint(state.name)
+        or not state.nameColor or Players.Kind(uf.unit) ~= state.kind then return end
     state.painting = true
-    local rgb = state.config.nameColor
+    local rgb = state.nameColor
     pcall(state.name.SetTextColor, state.name, rgb[1], rgb[2], rgb[3], state.original[4])
     state.painting = false
 end
@@ -71,16 +71,16 @@ function Players.Update(uf, unit, db, decorated, pvpOwnsBorder)
     local kind = Players.Kind(unit)
     -- PvP owns both the name and border while visible, using these same settings.
     -- Two recolor hooks on the same name would fight and corrupt restoration.
-    if not db.enabled or not kind or (kind == "ally" and decorated) or pvpOwnsBorder then Players.Remove(uf); return end
-    local config = db.playerColors[kind]
+    if not TisteltiPlatesConfig.Allowed(db) or not kind or (kind == "ally" and decorated) or pvpOwnsBorder then Players.Remove(uf); return end
     local state = states[uf]
     local name = uf.name or uf.Name or (uf.NameContainer and uf.NameContainer.Name)
     if state and (state.unit ~= unit or state.kind ~= kind or state.name and state.name ~= name) then
         Players.Remove(uf); state = nil
     end
     if not state then state = {unit=unit}; states[uf] = state end
-    state.config, state.db, state.kind = config, db, kind
-    if config.name and name and CanPaint(name) then
+    state.db, state.kind = db, kind
+    state.nameColor=Players.Color(unit,"name",false,nil,db)
+    if state.nameColor and name and CanPaint(name) then
         if not state.name then
             local ok, r, g, b, a = pcall(name.GetTextColor, name)
             if ok and Public(r) and Public(g) and Public(b) and Public(a)
@@ -110,7 +110,8 @@ function Players.Update(uf, unit, db, decorated, pvpOwnsBorder)
     end
     local anchor = uf.HealthBarsContainer or uf.healthBar
     local namesOnly = TisteltiPlatesNamesOnly and TisteltiPlatesNamesOnly.IsActive(uf)
-    if config.border and not namesOnly and not pvpOwnsBorder and anchor and not Read(anchor.IsForbidden, anchor)
+    local borderColor=Players.Color(unit,"border",false,nil,db)
+    if borderColor and not namesOnly and not pvpOwnsBorder and anchor and not Read(anchor.IsForbidden, anchor)
         and Read(anchor.IsShown, anchor) then
         local border = borders[uf]
         if not border then
@@ -120,7 +121,7 @@ function Players.Update(uf, unit, db, decorated, pvpOwnsBorder)
             borders[uf] = border
             uf.TisteltiPlayerBorder = border
         end
-        border:SetBackdropBorderColor(unpack(config.borderColor))
+        border:SetBackdropBorderColor(unpack(borderColor))
         border:ClearAllPoints()
         border:SetPoint("TOPLEFT", anchor, "TOPLEFT", -5, 5)
         border:SetPoint("BOTTOMRIGHT", anchor, "BOTTOMRIGHT", 5, -5)

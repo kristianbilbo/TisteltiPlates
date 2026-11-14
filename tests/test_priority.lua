@@ -1,3 +1,4 @@
+dofile("Config.lua")
 local time=10
 local secret={}
 issecretvalue=function(v) return v==secret end
@@ -36,3 +37,18 @@ UnitIsDeadOrGhost=function() return false end
 p.Update(plates,true) assert(p.Reason('a'))
 p.Update(plates,false) assert(not p.Reason('a'),'disabled PvP clears recommendation')
 print('PASS: group consensus, skull, stability, stale targets, restricted data, friendly/dead exclusion and disable')
+
+-- Both recommendation sources and their thresholds are user controlled.
+UnitIsUnit=function(a,b) return a==(targets[b] or b) end
+local options={marked=false,consensus=false,votes=3,hold=5}
+marked='a'; p.Update(plates,true,options); assert(not p.Reason('a') and not p.Reason('b'))
+options.marked=true; p.Update(plates,true,options); assert(p.Reason('a')=='MARCA DEL GRUPO')
+options.marked=false; options.consensus=true; p.Update(plates,true,options)
+assert(p.Reason('b') and not p.Reason('a'),'Three votes required; disabled skull does not override them')
+options.votes=4; p.Update(plates,true,options); assert(not p.Reason('b'))
+options.votes=2; p.Update(plates,false,options)
+time=30; targets={party1target='a',party2target='a'}; p.Update(plates,true,options)
+targets.party3target='b'; targets.party4target='b'; targets.party5target='b'
+time=34; p.Update(plates,true,options); assert(p.Reason('a'))
+time=36; p.Update(plates,true,options); assert(p.Reason('b'))
+print('PASS: independent recommendation sources, vote threshold and configurable stability')

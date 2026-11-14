@@ -1,147 +1,93 @@
 # TisteltiPlates
 
-Addon para WoW Forever (interfaz 16001). Integración de los cambios de jugadores sobre la base **0.8.10.2**; todavía sin publicar como una nueva versión.
+Addon para WoW Forever (interfaz 16001). Esta rama integra la base remota **0.8.10.2**, los cambios de colores, controles y solo nombres, y la configuración funcional completa. El candidato **0.8.11-dev** es local y aún no está publicado.
 
-## Funciones integradas
+Abre **`/tistelti` → General, Apariencia, Comportamiento, PvP o Avanzado**. Las cinco pestañas usan los controles nativos de WoW y desplazamiento vertical. `/tistelti vista` abre Apariencia y `/tistelti pvp` abre PvP.
 
-- Conserva el diseño PvP heráldico, el destacado de objetivo/recomendado, la prioridad de auras, la corrección de hermandades y la compatibilidad de geometría con EllesmereUI.
-- Conserva el compacto de adornos para aliados del grupo/banda en combate, sus dos alas pequeñas y los 30 segundos de espera antes de volver al aspecto normal. No compacta enemigos, NPC ni miembros de hermandad ajenos al grupo.
-- Añade pestañas nativas para Hermandad, Grupo/Banda, Aliados y Enemigos, con colores independientes y vistas previas. Respeta las preferencias guardadas, incluidos los ajustes antiguos de colores de Horda.
-- Un único módulo controla el nombre y borde de cada placa. En PvP, el color personalizado del nombre tiene prioridad; al desactivarlo vuelve el color por facción. Fuera de PvP, desactivarlo devuelve el color nativo. Se conserva el alfa y las restauraciones protegidas esperan al final del combate.
-- En el modo nativo de solo nombres, las mini alas sustituyen a las decoraciones completas, respetando la prioridad grupo/hermandad. No activan placas ni cambian CVars.
-- Los controles se colocan a la derecha también en enemigos y modo PvP. Se conservan los filtros y temporizadores, y se restauran los anclajes al desactivar el addon o retirar la placa. Los marcos inaccesibles no se modifican y los protegidos esperan al final del combate.
-- Las auras que se solapan con un adorno siguen teniendo prioridad, incluso con colores personalizados. El compacto de grupo conserva sus dos alas pequeñas.
-- Honor conserva datos guardados y rangos disponibles, pero seleccionar jugadores ya no solicita comparaciones de logros en segundo plano.
-- Conserva el empaquetado de 0.8.10.2: TOC, Lua y Media están en la raíz; el ZIP publicado usa la carpeta `TisteltiPlates`.
+## Configuración
 
-## Validación de esta integración
+| Sección | Qué controla |
+| --- | --- |
+| General | Activación general; mundo abierto, mazmorras, bandas, campos de batalla y arenas; diagnóstico de placas/controles de WoW. |
+| Apariencia | Estilos independientes de grupo, banda y hermandad; borde, alas, nivel, nombre y distintivo de hermandad, mérito; prioridad grupo/hermandad. Acentos de aliados/enemigos: nombre y marco nativos, por clase, facción, personalizados o heredados. |
+| Comportamiento | Compactación de grupo/banda, qué oculta; reposición de controles por relación; separación de auras; ocultación del ala derecha; prioridad de auras PvP; alitas de solo nombres por estilo. |
+| PvP | Activación; aliados/enemigos; emblema, alas, icono de clase; alas de hermandad de ambas facciones; objetivo seleccionado y recomendado por separado; colores de barra y uso de mérito en las alas. |
+| Avanzado | Escala y anchura fija, tamaño de adornos, espera/tamaño del compacto, anclajes y desplazamientos de controles, separación de auras, margen de solapamiento, tamaño/separación de alitas, texto de hermandad, reglas de recomendación y tamaños/brillo/paletas PvP. |
 
-Once suites simuladas, incluida la carga de los ocho módulos en el orden del TOC, verifican cambios repetidos de modo, restauración de colores y alfa, regiones restringidas, combate, auras, mini alas, compacto de grupo, preferencias y Honor. Ejecutadas con Lua 5.4 y el alias `loadstring = load`; sintaxis Lua comprobada. No sustituyen la validación visual en WoW Forever, que sigue pendiente.
+Cada sección permite restaurar sus ajustes con un segundo clic de confirmación. Los campos numéricos se aplican con **Intro**; **Escape** o salir del campo descarta la edición. Se limitan los valores al intervalo indicado. Los controles dependientes se atenúan cuando su interruptor está apagado.
 
-Con Lua 5.1, desde la raíz:
+Las preferencias se guardan en `TisteltiPlatesDB`. La actualización conserva los valores existentes y los opt-outs explícitos. Las nuevas opciones reciben valores definidos; no se borran los datos de mérito ni ajustes ajenos a una sección al restaurarla.
+
+## Prioridad y desactivación
+
+1. El interruptor general y los ámbitos condicionan todos los módulos visuales, incluidos colores y controles.
+2. El modo nativo **solo nombres** sustituye a la decoración completa. Sus alitas requieren activar tanto el estilo correspondiente como las alitas globales y las de ese estilo.
+3. Con PvP activo, su presentación sustituye los estilos clásicos. Desmarcar aliados/enemigos en PvP deja disponibles los acentos generales de Apariencia; para retirarlos, desactiva también esos acentos o elige Nativo.
+4. Fuera de PvP, grupo/banda y hermandad se resuelven mediante la prioridad guardada. Los acentos generales de aliados no sustituyen esas decoraciones.
+5. Los marcos que no se pueden modificar se respetan. Las restauraciones protegidas, la geometría y los cambios de modo pendientes se aplican al terminar el combate; el panel informa de ello.
+
+**Nativo** conserva o restaura el color que tenía WoW. **Personalizado** aplica el RGB guardado. **Heredado** mantiene el comportamiento anterior: usa el color personalizado si estaba activado; en PvP, sin él, usa el nombre por facción y el marco de reacción/clase. Elegir explícitamente Nativo evita ese color de respaldo. Un solo módulo controla cada nombre/borde y conserva su alfa.
+
+La ampliación al pasar el cursor está retirada: no hay módulo, opción, controlador ni prueba de esa función en el paquete. La escala fija clásica es otra opción, independiente y configurable.
+
+## Valores iniciales y reglas
+
+| Función | Valores iniciales y comportamiento |
+| --- | --- |
+| Ámbitos | Mundo abierto, campos de batalla y arenas activados; mazmorras y bandas desactivadas. Se aplican igual a clásico, PvP, colores, alitas y controles. |
+| Estilos clásicos | Grupo, banda y hermandad activados, con todos sus componentes. Prioridad hermandad. Al migrar, banda hereda el antiguo grupo si aún no tenía ajustes. |
+| Acentos | Enemigos: nombre y borde personalizados rojos; aliados: color nativo fuera de PvP. Ambos conservan el modo Heredado al migrar. |
+| Compacto | Activado para grupo y banda. Solo aliados que pertenecen al grupo/banda, incluso si usan el estilo de hermandad. Durante combate y 30 segundos desde su final; la espera es ajustable. Oculta nombre/distintivo de hermandad y mérito, conserva las dos alas pequeñas. |
+| Controles | Reposición activada para aliados y enemigos. Ancla junto al nivel, con desplazamiento X=8, Y=0; puede anclarse a la salud. Las unidades sin relación de jugador reconocida usan el interruptor general de controles. |
+| Auras clásicas | Separación activada sobre las alas; 6 puntos entre filas. Se desactiva de forma independiente de los controles. |
+| Auras PvP | Ocultan solo adornos solapados, con margen 4. Una aura visible que no se puede medir reserva espacio. Interruptor independiente de la ocultación del ala por control. |
+| Ala derecha | Se oculta con un control visible; el compacto de grupo conserva ambas alas. Nunca reactiva un ala deshabilitada en Apariencia. |
+| Solo nombres | Activado para los tres estilos; alitas de 16 puntos y separación 4, junto al texto visible. No fuerza placas ni CVars. |
+| Geometría | Escala fija ×1,25 y anchura ×1,22 en clásico; adornos ×1. Se restaura al desactivarla. Con EllesmereUINameplates, la geometría la gestiona ese addon. |
+| Texto de hermandad | Tamaño 10, desplazamiento vertical −3. El texto sin decoración también se retira al desactivar Hermandad o su nombre. |
+| PvP | Desactivado inicialmente. Aliados/enemigos, emblema, icono de clase, alas y ambos destacados activados dentro del modo. Alas solo de tu hermandad Alianza por defecto; Horda es opcional. |
+| Recomendación | Calavera real del grupo o al menos 2 compañeros con el mismo objetivo; estabilidad 2 segundos. Fuentes, votos y tiempo se configuran por separado. Solo enemigos vivos y visibles con datos públicos. |
+| Mérito PvP | Bronce 1–4, plata 5–9, oro 10–14; sin dato o con colores de mérito apagados, acabado neutro. Brillo 1, alas ×0,8 e icono de clase 22. |
+
+El destacado de objetivo es blanco; la recomendación es dorada e incluye el motivo. Es solo información visual: no selecciona, marca ni ataca. No cambia vida, lanzamientos, filtros de auras ni temporizadores.
+
+El mérito usa las fuentes disponibles y la caché del addon. Seleccionar jugadores no solicita comparaciones de logros en segundo plano. No se presenta un dato ausente como rango oficial. `/tistelti merito` permite consultar el dato conocido del objetivo o del propio personaje.
+
+## Vistas previas
+
+La muestra usa los mismos pintores y resolución de colores que las placas. Permite elegir grupo, banda, hermandad, aliado o enemigo; facción; mérito ficticio; presentación normal, compacto de grupo, control activo, solo nombres, objetivo o recomendación. Los colores personalizados y la opción Nativo se reflejan también en PvP.
+
+La escena de compacto selecciona grupo/banda y las de objetivo seleccionan enemigo. La hermandad de muestra se supone fuera del grupo salvo que se elija grupo/banda. Las muestras enseñan el aspecto guardado, aunque el ámbito actual esté excluido o el modo esté pendiente de cambiar en combate. No simulan colisiones de auras reales, restricciones del cliente ni la geometría aportada por otra interfaz.
+
+## Instalación y convivencia
+
+Extrae la carpeta `TisteltiPlates` del ZIP dentro de `_forever_/Interface/AddOns/`. Debe quedar `AddOns/TisteltiPlates/TisteltiPlates.toc`, sin carpeta duplicada. Recarga la interfaz tras actualizar. Activa las placas correspondientes en WoW: el addon no las activa por ti.
+
+ForeverCCPosition está integrado y conserva su licencia en `LICENSE-ForeverCCPosition.txt`. Desactiva su copia independiente para evitar que dos addons reposicionen los mismos controles. No necesita TisteltiGuild. EllesmereUI conserva el control de su tamaño de placas y nombres externos.
+
+El arte y los originales están en `Media/`. Las variantes de alas de grupo/banda conservan sus fuentes, TGA y descripción; no se ha reemplazado el arte en esta revisión.
+
+## Comandos
+
+- `/tistelti`, `/tistelti opciones`: General. `/tistelti vista`: Apariencia. `/tistelti pvp`: PvP.
+- `/tistelti on` / `off`; `/tistelti pvp on` / `off`.
+- `/tistelti grupo`, `banda` o `guild` con `on` / `off`.
+- `/tistelti borde grupo/banda/guild plata` (también otros metales, `oroazul`, `oro`, `clase`, `rango`).
+- `/tistelti color grupo/banda/guild R G B`, con canales de 0 a 1.
+- `/tistelti icono grupo/banda/guild on` / `off`: mérito. El antiguo `animales` equivale a activarlo.
+- `/tistelti tamano 0.8–1.8`: escala del adorno; `/tistelti enemigos rojo` / `clase`: barra PvP.
+- `/tistelti cc`: diagnóstico de configuración nativa. `/tistelti merito`: consulta; no asigna rango manual.
+
+## Validación
+
+Doce suites de marcos simulados comprueban carga y orden de los nueve módulos, migración, configuración y callbacks reales de UI, ámbitos, restauración de colores/alfa/anclajes, exclusión de instancias, combate, datos restringidos, reciclaje, componentes, compacto, recomendación, auras, solo nombres y Honor.
+
+Desde la raíz, con Python y la biblioteca compartida de Lua 5.4 instalada:
 
 ```sh
-for test in tests/test_*.lua; do lua "$test" || exit 1; done
+python tests/run_tests.py
 ```
 
-Con Lua 5.4, usa `lua -e 'loadstring=load' "$test"` dentro del mismo bucle.
+También pueden ejecutarse directamente los archivos `tests/test_*.lua` con Lua 5.1; con Lua 5.4 hay que definir `loadstring=load` y `unpack=table.unpack`. El ejecutor no instala ni descarga dependencias.
 
-## Historial de la base 0.8.10.2
-
-La base incorporó el arreglo de escala de hermandad, el compacto de grupo y la estructura para CurseForge. Las secciones siguientes documentan esas funciones; las prioridades de convivencia actuales son las descritas arriba.
-
-## Integración de Iván 0.8.10
-
-Incluye la corrección `fix/guild-name-scale` (598939b), que elimina la inversión de escala que dejaba los nombres de hermandad gigantes.
-
-La resolución conserva el diseño PvP, los colores de nombre por facción y las auras prioritarias de 0.8.9. Cuando está cargado `EllesmereUINameplates`, no se fuerza la geometría que gestiona ese addon. Las regiones con restricciones parciales no se miden ni se reescriben y no se repiten capturas fallidas de anclajes. Los cambios de controles y limpieza anteriores ya formaban parte de esa base.
-
-Se han ejecutado las seis suites Lua 5.1, incluidas las de Iván y regresiones de integración con EllesmereUI. Pendiente validación visual en el cliente.
-
-## Auras prioritarias y nombres por facción 0.8.9
-
-En modo PvP los nombres son azules para la Alianza y rojos para la Horda, independientemente del color de clase o barra. Se mantienen fuente, tamaño, posición y alfa del texto y se restaura su color previo al retirar el estilo. Una restauración protegida se aplaza hasta que sea posible.
-
-Las auras tienen prioridad sobre la decoración: si un icono visible coincide con un ala o el icono de clase, se oculta temporalmente el adorno afectado. La insignia integrada acompaña al icono de clase. Cuando el aura cambia de sitio o desaparece, los adornos recuperan su estado configurado. Las listas vacías no los ocultan. Se comparan rectángulos en espacio de pantalla, incluyendo sus escalas efectivas y un pequeño margen. Si un aura visible no se puede medir, se reservan los laterales ocultando los adornos. Los bufos y perjuicios PvP mantienen sus anclajes; los controles usan la colocación a la derecha descrita arriba, sin cambiar filtros ni temporizadores.
-
-Verificado en Lua 5.1: colores de ambas facciones, alfa, cambios del nombre, restauración diferida, colisiones, escalas distintas, combate, contenedores vacíos y regiones restringidas. Falta validación visual en el cliente con EllesmereUI.
-
-## Rediseño PvP heráldico 0.8.8
-
-El modo PvP usa el acabado del diseño de hermandad: doble marco metálico, acento de clase o reacción, icono de clase unido al cuerpo y pequeña insignia de facción integrada. Las alas de hermandad reutilizan la textura de plumas del diseño clásico. Se elimina la segunda barra ampliada que podía tapar el nombre; se conserva la barra real y su textura.
-
-El objetivo se distingue por su contorno, y el recomendado por el oro y un motivo compacto debajo de la barra de lanzamiento si está visible. Se han comprobado nombres, salud, controles, temporizadores, combate y reutilización con Lua 5.1. Falta validar el aspecto final en WoW Forever. Ejecuta `/reload` después de actualizar.
-
-Esta variante local conserva las pestañas y colores de jugadores, el arreglo del nombre de hermandad gigante y los controles a la derecha también en placas enemigas y modo compacto. La restauración de anclajes de 0.8.7 se aplica a bufos y perjuicios normales.
-
-## Nombre externo y escala con EllesmereUI 0.8.7
-
-Cuando está cargado `EllesmereUINameplates`, Tistelti conserva la escala y anchura que gestiona ese módulo. El estilo clásico deja de aplicar su ampliación de escala del 25 % y anchura del 22 % sobre una placa cuyo nombre puede estar alojado fuera de ella. Se conservan los ajustes de fuente, tamaño y posición de ese nombre. Al desactivar Tistelti tampoco se restauran medidas antiguas sobre las elegidas por la otra interfaz.
-
-Sin ese módulo se mantiene la ampliación habitual. Se incluyen los bufos de 0.8.6. Verificado en Lua 5.1 con un nombre en un contenedor externo, cambios de geometría, detección moderna y antigua, combate y desactivación; falta validación visual con la versión y configuración reales del amigo. Referencia consultada: [colocación del nombre en EllesmereUI](https://github.com/EllesmereGaming/EllesmereUI/blob/main/EllesmereUINameplates/EUI_Nameplates_Name.lua).
-
-## Bufos y convivencia con otras interfaces 0.8.6
-
-En el diseño clásico, los beneficios y perjuicios parten de un anclaje situado seis puntos por encima del ala izquierda, siguiendo su tamaño. Se recogen también las listas que aparecen después de crear la decoración y se repone su posición tras actualizaciones de auras. Los controles permanecen junto al nivel.
-
-La recolocación de bufos/perjuicios solo modifica placas decoradas por Tistelti. Al retirar las alas o activar PvP compacto restaura sus anclajes y capas originales; los marcos protegidos esperan al final del combate. Esto reduce interferencias con otros gestores de placas. La compatibilidad visual concreta con EllesmereUI está pendiente de probar en el cliente. Las pruebas Lua 5.1 cubren listas tardías, dos filas, actualización de anclajes, combate, restauración y regiones restringidas.
-
-## Corrección de errores 0.8.5
-
-El registro real del cliente mostraba una repetición de `Frame:GetPoint(): Can't measure restricted regions` al intentar guardar anclajes de controles. La base 0.8.5 introdujo la comprobación de restricciones parciales de acceso y aspectos prohibidos antes de medirlos. Si no se puede obtener una copia completa y pública, ese marco conserva su colocación nativa. Core aplica las mismas comprobaciones al guardar, recolocar y restaurar auras. Los controles restringidos no se vuelven a medir repetidamente.
-
-La regresión actual incluye 1.000 actualizaciones de un control que rechaza las mediciones: no se llama a GetPoint. Si el control admite escritura, se coloca a la derecha utilizando los anclajes nativos observados o el anclaje inicial del cliente; si no admite acceso, se conserva intacto. También se cubren respuestas secretas y clientes sin las comprobaciones preventivas. Ejecuta `/reload` después de actualizar para retirar los manejadores de la versión anterior.
-
-Personalización de placas para grupo y jugadores amistosos, con alas, escudos y colores de clase.
-
-## Modo PvP compacto
-
-Se abre con `/tistelti pvp` o en **Opciones → AddOns → TisteltiPlates → Modo PvP**. Desde 0.8.2 está **desactivado por defecto**; se puede activar con `/tistelti pvp on`. Se respetan las activaciones y desactivaciones ya guardadas. Para apagarlo, usar `/tistelti pvp off`. Conserva el tamaño original con un doble marco metálico y acentos de color. Desactivar el modo recupera el diseño clásico con sus ajustes anteriores. No fuerza CVars ni muestra placas que el juego tenga ocultas.
-
-Los aliados admiten color de clase o azul. Los enemigos llevan acento rojo dentro del marco plateado con barra por clase o roja, según la opción elegida. El icono de clase opcional conserva su acento de clase y se une al lateral izquierdo, con tamaño inicial 22 y selector de 18/22/26/30. El emblema de facción se integra junto a su esquina inferior. El nivel nativo recibe un borde metálico sin duplicar su texto.
-
-### Objetivo actual y recomendado
-
-La opción **Destacar objetivo y recomendado**, activada inicialmente dentro del modo PvP, dibuja un contorno sin relleno alrededor de la barra real. No reemplaza la salud ni tapa el nombre. Conserva el valor guardado de la antigua opción de ampliar.
-
-Tu objetivo enemigo lleva contorno blanco. El recomendado lleva contorno dorado, una marca de 14 y el motivo compacto debajo, dejando sitio a la barra de lanzamiento cuando está visible. Se elimina el rótulo suelto TU OBJETIVO. La recomendación prioriza una calavera real ya existente o un enemigo visible al que estén apuntando al menos dos compañeros. Se estabiliza durante dos segundos mientras siga siendo válido. No infiere sanadores por clase ni emplea criterios de poca vida o curación. Los datos restringidos se omiten; sin información suficiente no se inventa una prioridad.
-
-La marca de recomendación es visual y local: el addon no coloca marcas reales, cambia objetivos ni ataca. Los clics, anclajes de bufos/controles y barras de lanzamiento nativos conservan su comportamiento. La zona clicable mantiene su tamaño original. El destacado desaparece al cambiar objetivo, desaparecer la prioridad, reciclar una placa o desactivar la opción/modo PvP. Falta validar visualmente el resultado dentro de WoW.
-
-Las alas usan las plumas del diseño de hermandad, unidas al icono de clase y al nivel, solo para miembros de tu hermandad de la Alianza. Los matices iniciales son bronce (mérito 1–4), plata (5–9) y oro (10–14); cada tramo permite elegir otro color. Sin datos se usa gris azulado neutro. Son categorías de `TisteltiMerito`, no una afirmación de rango oficial. Brillo y tamaño se ajustan en la misma sección, con vista previa.
-
-Funciona en mundo abierto y permite dibujar en campos de batalla/arenas; las mazmorras y bandas siguen excluidas. Cambiar de modo en combate espera al final para restaurar la geometría anterior. El modo PvP conserva los anclajes nativos de bufos/perjuicios y coloca los controles a la derecha. Si la clase no se puede leer, oculta su icono y usa un color de reacción como respaldo.
-
-El ala derecha cede espacio a los controles o pérdidas de control nativos visibles y reaparece al terminar. Las demás alas y el icono de clase ceden solo cuando coinciden con un icono de aura, o no puede medirse un aura visible. Los anclajes de auras, las barras de lanzamiento y los temporizadores se conservan. Los contenedores vacíos u ocultos no ocultan los adornos. Funciona también en combate sin recolocar marcos protegidos.
-
-Comandos: `/tistelti pvp on/off` y `/tistelti enemigos rojo/clase`. `/tistelti vista` mantiene la vista del diseño clásico; la de PvP está en su sección de opciones.
-
-Comprobado con pruebas Lua 5.1 de migración, menús, colores, iconos, combate, instancias, reutilización de placas y restauración. **Pendiente comprobar el aspecto y las restricciones reales dentro de WoW Forever.**
-
-En Opciones, **Prioridad** permite elegir **Grupo/Banda** (todos los compañeros usan el estilo de grupo o banda, incluidos los de tu hermandad) o **Hermandad** (tu propia hermandad conserva su estilo; los demás compañeros usan grupo o banda). Fuera del grupo, los de tu hermandad mantienen su aspecto habitual. Se respetan los interruptores de cada estilo. La selección se guarda y se aplica también en combate; por defecto se conserva la prioridad de Hermandad. **Estilo** sigue eligiendo qué aspecto editas y no cambia la prioridad.
-
-## Instalación
-
-Extrae la carpeta `TisteltiPlates` del ZIP publicado dentro de `_forever_/Interface/AddOns/`. Debe quedar `AddOns/TisteltiPlates/TisteltiPlates.toc`. Activa el addon y las placas amistosas en el juego.
-
-Usa `/tistelti` para acceder a los comandos del addon y `/tistelti vista` para la vista de ejemplo.
-
-Las alas de grupo tienen plumas turquesa y detalles violeta suave, inspirados en el chat de grupo. En banda cambian a naranja ámbar con detalles grafito/acero; hermandad conserva las principales azul y oro. La conversión entre grupo y banda actualiza también las alas y sus brillos durante el combate. En Opciones hay tres estilos independientes: **Grupo, Banda y Hermandad**, cada uno con su interruptor, borde e insignia. Sus vistas previas muestran siempre el estilo seleccionado, aunque estés en una banda. Al actualizar, Banda hereda inicialmente los ajustes anteriores de Grupo y después los guarda por separado. También acepta `/tistelti banda on/off`, `borde banda ...` y `color banda ...`. `/tistelti vista` muestra los dos ejemplos por separado. Las nuevas texturas transparentes se generaron con ImageGen integrado; cada variante incluye PNG fuente, TGA y descripción del prompt en `Media/Wings-Grupo-v1.*` y `Media/Wings-Banda-v1.*`.
-
-## Indicadores de control integrados
-
-Incluye la colocación de indicadores de ForeverCCPosition en las placas decoradas: quedan a la derecha del nivel de Tistelti, con una separación de 8 unidades. En las demás placas, incluidos enemigos y PvP, usa el nivel nativo o el contenedor de salud como referencia. Los beneficios y perjuicios normales quedan encima del ala izquierda.
-
-El ala derecha y su brillo se ocultan mientras haya un icono visible de control o pérdida de control, incluidos los stuns, y reaparecen cuando desaparece. Funciona también con la decoración de combate. Los contenedores vacíos no ocultan el ala y las vistas previas conservan ambas alas.
-
-En **Opciones → AddOns → TisteltiPlates**, la casilla **Ocultar ala derecha al mostrar controles** permite activar o desactivar este comportamiento. Está activada por defecto, se guarda entre sesiones y se aplica a las placas de grupo y hermandad sin recargar. Desmarcarla mantiene visibles el ala y su brillo; la posición de los indicadores no cambia.
-
-Usa `/tistelti cc` para consultar si están activadas las placas amistosas y los indicadores de control en amigos. El comando no cambia ninguna opción; Blizzard sigue gestionando los filtros, iconos y duraciones.
-
-No necesita ForeverCCPosition. Desactiva el addon original para evitar que dos addons cambien los mismos anclajes. Si tu copia de ForeverCCPosition contiene otras personalizaciones, consérvalas por separado antes de desactivarla.
-
-Los marcos protegidos no se recolocan durante el combate: se actualizan al terminar. Si el cliente restringe la lectura de visibilidad de un icono, el ala permanece visible.
-
-## Código y datos
-
-`Honor.lua`, `Prioridad.lua`, `NamesOnly.lua`, `PlayerStyle.lua`, `PvP.lua`, `CCPosition.lua`, `Options.lua` y `Core.lua` contienen el código; el manifiesto TOC define el orden de carga. Las texturas necesarias están en `Media/`.
-
-El addon se mantiene separado de TisteltiGuild y no lo requiere. La configuración se guarda en `TisteltiPlatesDB`. Este repositorio no incluye SavedVariables, datos de jugadores ni credenciales.
-
-## Estado
-
-Base importada del paquete `TisteltiPlates-0.7.8-para-compartir.zip`. Incluye la corrección de restauración de color cuando una placa se retira y su unidad ya no está disponible, también tras una limpieza aplazada durante el combate.
-
-Comprobado en Lua 5.1 con unidades ausentes, inexistentes, secretas y válidas, y con restauración aplazada tras el combate. Queda comprobar el resultado dentro del juego.
-
-## Pruebas de la integración
-
-Desde la raíz del repositorio, ejecuta `lua tests/test_cc.lua` (Lua 5.1 o posterior). La prueba usa marcos simulados y cubre la aparición y desaparición del icono, brillo, padres ocultos, transparencia, visibilidad restringida, combate, reutilización de placas, anclajes, diagnóstico y la corrección de placas sin unidad.
-
-Las pruebas simuladas no sustituyen la comprobación en WoW Forever: recarga la interfaz, revisa `/tistelti cc` y comprueba que el ala derecha desaparece al mostrarse un control sobre un aliado y vuelve al terminar.
-
-`lua tests/test_wings.lua` comprueba las tres opciones de estilo y sus vistas previas estando en banda, los ajustes independientes, la migración de configuración y la selección de grupo/banda.
-
-`lua tests/test_pvp.lua` comprueba la integración real de Core, CC y PvP, las opciones, los colores, cambios de modo, instancias y reciclaje. Incluye aparición/desaparición de controles en combate, contenedores vacíos/ocultos, visibilidad restringida y conservación de anclajes y temporizadores nativos de habilidades y lanzamientos. Pendiente validar el resultado visual en WoW Forever.
-
-La misma prueba cubre el tamaño y posición del icono de clase y la ampliación visual en combate, actualización inmediata de vida y restauración sin cambios de geometría nativa. `lua tests/test_priority.lua` comprueba consenso de grupo, calavera existente, estabilidad, retirada de candidatos inválidos y datos restringidos.
+Las pruebas simuladas no sustituyen la comprobación dentro de WoW Forever. Quedan por validar visualmente el panel a las escalas de interfaz reales, los adornos con nombres largos, los controles en combate y la convivencia con la versión instalada de EllesmereUI.

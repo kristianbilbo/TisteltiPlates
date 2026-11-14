@@ -18,7 +18,9 @@ local textures = {
     group = "Interface\\AddOns\\TisteltiPlates\\Media\\Wings-Grupo-v1.tga",
     raid = "Interface\\AddOns\\TisteltiPlates\\Media\\Wings-Banda-v1.tga",
 }
-function Names.Paint(parent, name, style)
+function Names.Paint(parent, name, style, db)
+    local settings=TisteltiPlatesConfig.Get(db or TisteltiPlatesDB,"mini")
+    if settings[style]==false then Names.Remove(parent); return end
     if not name or Read(name.IsForbidden, name) or Read(name.IsShown, name) ~= true then
         Names.Remove(parent); return
     end
@@ -46,19 +48,19 @@ function Names.Paint(parent, name, style)
     end
     art:ClearAllPoints()
     art:SetPoint("CENTER", name, "CENTER", center, 0)
-    art:SetSize(visibleWidth, 16)
+    art:SetSize(visibleWidth, settings.size)
     for _, wing in ipairs({art.left, art.right}) do
-        wing:SetTexture(textures[style]); wing:SetSize(16, 16)
+        wing:SetTexture(textures[style]); wing:SetSize(settings.size, settings.size)
         wing:ClearAllPoints()
     end
-    art.left:SetPoint("RIGHT", art, "LEFT", -4, 0)
-    art.right:SetPoint("LEFT", art, "RIGHT", 4, 0)
+    art.left:SetPoint("RIGHT", art, "LEFT", -settings.gap, 0)
+    art.right:SetPoint("LEFT", art, "RIGHT", settings.gap, 0)
     art:Show()
     return art
 end
 function Names.Update(uf, style, db)
-    if not db.enabled or not db.namesOnlyWings or not style or not Names.IsActive(uf) then
+    if not TisteltiPlatesConfig.Allowed(db) or not db.namesOnlyWings or not style or not Names.IsActive(uf) then
         Names.Remove(uf); return
     end
-    Names.Paint(uf, uf.name, style)
+    Names.Paint(uf, uf.name, style, db)
 end

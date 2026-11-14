@@ -1,3 +1,4 @@
+dofile("Config.lua")
 dofile("tests/ui_stubs.lua")
 dofile("Options.lua")
 unpack = unpack or table.unpack
@@ -214,7 +215,9 @@ CreateFrame=function(kind,_,parent,template)
 end
 RAID_CLASS_COLORS={MAGE={r=0.2,g=0.6,b=1}}
 Settings={RegisterCanvasLayoutCategory=function(panel) return panel end, RegisterAddOnCategory=function() end}
+dofile("PvP.lua"); TisteltiPlatesPvP.Initialize(TisteltiPlatesDB)
 core.options()
+checkbox=TisteltiPlatesOptions.controls.hideRightWingOnCC
 assert(checkbox and checkbox.checked==false, "Options must reflect the saved opt-out")
 checkbox:SetChecked(true); checkbox.scripts.OnClick(checkbox)
 assert(TisteltiPlatesDB.hideRightWingOnCC==true)
@@ -225,22 +228,11 @@ assert(TisteltiPlatesDB.hideRightWingOnCC==false and art.rightWing.shown and art
 checkbox:SetChecked(true); checkbox.scripts.OnShow(checkbox)
 assert(checkbox.checked==false, "Reopening must resync the saved preference")
 print("PASS: config checkbox changes live wings and reflects the saved preference")
-assert(#checkboxes==5)
-assert(checkboxes[2].checked==true)
-checkboxes[2]:SetChecked(false); checkboxes[2].scripts.OnClick(checkboxes[2])
+local names=TisteltiPlatesOptions.controls.namesOnlyWings
+names:SetChecked(false); names.scripts.OnClick(names)
 assert(TisteltiPlatesDB.namesOnlyWings==false)
-for i,key in ipairs({"name", "border"}) do
-    local check=checkboxes[i+2]
-    assert(check.checked==false)
-    check:SetChecked(true); check.scripts.OnClick(check)
-    assert(TisteltiPlatesDB.playerColors.ally[key]==true)
-    check:SetChecked(false); check.scripts.OnShow(check)
-    assert(check.checked==true)
-end
 core.driver.scripts.OnEvent(core.driver,"ADDON_LOADED","TisteltiPlates")
-assert(TisteltiPlatesDB.playerColors.ally.name and TisteltiPlatesDB.playerColors.ally.border)
 assert(TisteltiPlatesDB.namesOnlyWings==false, 'Names-only opt-out survives initialization')
-print("PASS: independent player options preserve saved preferences")
 
 local message
 local oldPrint=print

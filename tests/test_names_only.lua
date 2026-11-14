@@ -1,3 +1,4 @@
+dofile("Config.lua")
 unpack=unpack or table.unpack
 local secret={}
 issecretvalue=function(v) return v==secret end

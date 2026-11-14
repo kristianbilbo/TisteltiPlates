@@ -14,7 +14,7 @@ local managed = setmetatable({}, {__mode = "k"})
 local suspended = setmetatable({}, {__mode = "k"})
 local observing = setmetatable({}, {__mode = "k"})
 local writing = setmetatable({}, {__mode = "k"})
-local function Enabled() return not TisteltiPlatesDB or TisteltiPlatesDB.enabled ~= false end
+local function Enabled() return not TisteltiPlatesDB or TisteltiPlatesConfig.Allowed(TisteltiPlatesDB) end
 local auraKeys = {"BuffListFrame", "DebuffListFrame", "CrowdControlListFrame", "LossOfControlFrame"}
 local rectUnreadable = setmetatable({}, {__mode = "k"})
 
@@ -136,16 +136,18 @@ local function AuraObstacles(uf)
 end
 
 function CC.UpdatePvPArt(art, uf)
+    local settings=TisteltiPlatesConfig.Get(TisteltiPlatesDB,"auras")
     local obstacles,unknown=AuraObstacles(uf)
     local function blocked(frame)
+        if not settings.enabled then return false end
         if unknown then return true end
         if #obstacles==0 then return false end
         -- Test hidden ornaments too, so they can reappear without moving auras.
         local rect=Rect(frame)
         if not rect then return true end
         for _,other in ipairs(obstacles) do
-            if rect[1]<other[3]+4 and rect[3]>other[1]-4
-                and rect[2]<other[4]+4 and rect[4]>other[2]-4 then return true end
+            if rect[1]<other[3]+settings.margin and rect[3]>other[1]-settings.margin
+                and rect[2]<other[4]+settings.margin and rect[4]>other[2]-settings.margin then return true end
         end
         return false
     end
@@ -176,8 +178,8 @@ end
 local function UpdateWing(art, uf)
     local enabled = Enabled() and (not TisteltiPlatesDB or TisteltiPlatesDB.hideRightWingOnCC ~= false)
     local hide = not art.groupCompact and enabled and HasControlIcon(uf)
-    art.rightWing:SetShown(not hide)
-    art.rightWingLight:SetShown(not hide)
+    art.rightWing:SetShown(art.classicWings~=false and not hide)
+    art.rightWingLight:SetShown(art.classicWings~=false and not hide)
 end
 
 -- Moving a control within its plate does not require measuring its old anchor.
@@ -218,10 +220,11 @@ local function ObserveControl(frame)
     end)
 end
 
-function CC.Restore(uf)
+function CC.Restore(uf, subset)
     for frame in pairs(managed[uf] or {}) do
         local points = originalPoints[frame]
-        if points and CanMoveControl(frame) then
+        local isBuff=movedBuffs[uf] and movedBuffs[uf][frame]
+        if (not subset or (subset=="buffs" and isBuff) or (subset=="controls" and not isBuff)) and points and CanMoveControl(frame) then
             writing[frame] = true
             frame:ClearAllPoints()
             for _, point in ipairs(points) do frame:SetPoint(unpack(point)) end
@@ -255,6 +258,7 @@ function CC.Position(uf)
     if not uf or Read(uf.IsForbidden, uf) then return end
     if not Enabled() or suspended[uf] then CC.Restore(uf); return end
     if TisteltiPlatesNamesOnly and TisteltiPlatesNamesOnly.IsActive(uf) then CC.Restore(uf); return end
+    local options=TisteltiPlatesConfig.Get(TisteltiPlatesDB,"controls")
     local auras = uf.AurasFrame
     if not auras or Read(auras.IsForbidden, auras) then return end
     local art = Visible(uf.TisteltiArt) and uf.TisteltiArt
@@ -263,17 +267,8 @@ function CC.Position(uf)
 
     -- 0.8.7: normal aura rows clear the wings and restore their native layout
     -- when the decoration disappears. CC below retains ForeverCCPosition.
-    if not art then
-        for frame in pairs(movedBuffs[uf] or {}) do
-            if originalPoints[frame] and CC.CanPosition(frame) then
-                frame:ClearAllPoints()
-                for _, point in ipairs(originalPoints[frame]) do frame:SetPoint(unpack(point)) end
-                if originalLevels[frame] then frame:SetFrameLevel(originalLevels[frame]) end
-                originalPoints[frame], originalLevels[frame] = nil, nil
-                movedBuffs[uf][frame] = nil
-                if managed[uf] then managed[uf][frame] = nil end
-            end
-        end
+    if not art or not options.buffs then
+        CC.Restore(uf,"buffs")
     else
         local previous
         for _, key in ipairs(buffKeys) do
@@ -287,7 +282,7 @@ function CC.Position(uf)
                     movedBuffs[uf][frame] = true
                     Manage(uf, frame)
                     frame:ClearAllPoints()
-                    frame:SetPoint("BOTTOMLEFT", previous or art.ccAnchor, "TOPLEFT", 0, previous and 6 or 0)
+                    frame:SetPoint("BOTTOMLEFT", previous or art.ccAnchor, "TOPLEFT", 0, previous and options.buffGap or 0)
                     frame:SetFrameLevel(art.badge:GetFrameLevel() + 10)
                     if Visible(frame) then previous = frame end
                 end
@@ -296,7 +291,11 @@ function CC.Position(uf)
     end
 
     -- Keep controls to the right on enemies and undecorated/compact plates too.
-    local anchor = art and art.badge
+    local relation=TisteltiPlatesPlayers and TisteltiPlatesPlayers.Kind(uf.unit)
+    if not options.enabled or (relation=="ally" and not options.allies) or (relation=="enemy" and not options.enemies) then
+        CC.Restore(uf,"controls"); return
+    end
+    local anchor = options.anchor=="health" and (uf.HealthBarsContainer or uf.healthBar) or art and art.badge
         or Visible(uf.PlayerLevelDiffFrame) and uf.PlayerLevelDiffFrame
         or uf.HealthBarsContainer or uf.healthBar
     if not anchor then return end
@@ -315,7 +314,7 @@ function CC.Position(uf)
             Manage(uf, frame)
             writing[frame] = true
             frame:ClearAllPoints()
-            frame:SetPoint("LEFT", anchor, "RIGHT", 8, 0)
+            frame:SetPoint("LEFT", anchor, "RIGHT", options.x, options.y)
             if art then
                 if originalLevels[frame] == nil then originalLevels[frame] = Read(frame.GetFrameLevel, frame) end
                 local level = Read(art.badge.GetFrameLevel, art.badge)

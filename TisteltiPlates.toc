@@ -1,9 +1,10 @@
 ## Interface: 16001
 ## Title: Tistelti - Alas de grupo
-## Notes: Placas de grupo y modo PvP compacto con neón, facción e iconos de clase.
+## Notes: Placas de grupo y PvP con ámbitos, componentes y ajustes avanzados configurables.
 ## Author: Kristian
-## Version: 0.8.10.2
+## Version: 0.8.11-dev
 ## SavedVariables: TisteltiPlatesDB
+Config.lua
 Honor.lua
 Prioridad.lua
 NamesOnly.lua

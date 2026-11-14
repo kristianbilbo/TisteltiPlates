@@ -1,3 +1,4 @@
+dofile("Config.lua")
 -- Event-level regression: selection must not start an asynchronous comparison.
 local frames, queued = {}, {}
 CreateFrame=function()

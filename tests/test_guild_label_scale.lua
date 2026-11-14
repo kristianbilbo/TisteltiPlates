@@ -1,3 +1,4 @@
+dofile("Config.lua")
 -- Regression: tiny native plate scales must not leave huge guild text in combat.
 local combat=false
 InCombatLockdown=function() return combat end

@@ -1,3 +1,4 @@
+dofile("Config.lua")
 dofile("tests/ui_stubs.lua")
 dofile("Options.lua")
 -- Lua 5.1 behavioral checks: actual PvP module, Core events and option callbacks.
@@ -59,6 +60,8 @@ local function Frame(parent)
     function f:SetTexture(v) self.texture=v end
     function f:SetRotation(v) self.rotation=v end
     function f:SetText(v) self.text=v end
+    function f:GetText() return self.text end
+    function f:ClearFocus() end
     function f:SetTextColor(...) self.textColor={...} end
     function f:GetTextColor() return unpack(self.textColor or {1,1,1,1}) end
     function f:SetChecked(v) self.checked=v end
@@ -134,7 +137,7 @@ local db=TisteltiPlatesDB
 assert(not db.pvp.enabled and not pvp.IsActive(),'PvP desactivado por defecto')
 assert(db.pvp.enemyColor=='class' and db.pvp.classIcon)
 assert(db.priority=='group' and db.scale==1.4 and db.appearance.group.border=='cobre')
-assert(panels['Modo PvP'],'PvP subcategory must be registered')
+assert(TisteltiPlatesOptions.category and TisteltiPlatesOptions.controls['pvp.enabled'],'PvP tab must be registered')
 SlashCmdList.TISTELTIPLATES('pvp on')
 assert(db.pvp.enabled and pvp.IsActive(),'activación explícita')
 local function add(unit)
@@ -211,13 +214,17 @@ assert(wing.texture.vertex[1]==.55+.45*pvp.WingColor(8).r)
 assert(wing.points[1][2]==guild.TisteltiPvPArt.classFrame,'Wing and class tile form one silhouette')
 local ally=add('ally'); assert(not ally.TisteltiPvPArt.wings[1].shown)
 local npc=add('npc'); assert(not npc.TisteltiPvPArt,'NPCs must be untouched')
-local function clickText(prefix)
+local function choose(id,value)
+    local button=TisteltiPlatesOptions.controls[id]; assert(button,id); button.scripts.OnClick()
     for _,f in ipairs(frames) do
-        if type(f.text)=="string" and f.text:sub(1,#prefix)==prefix and f.scripts.OnClick then f.scripts.OnClick(f); return end
+        if f.parent and f.parent.owner==button and f.text==value and f.shown then f.scripts.OnClick(); return end
     end
-    error('Missing control: '..prefix)
+    error('Missing choice '..value)
 end
-clickText('Enemigos · barra:')
+local function number(id,value)
+    local input=TisteltiPlatesOptions.controls[id]; input:SetText(tostring(value)); input.scripts.OnEnterPressed()
+end
+choose('pvp.enemyColor','Rojo')
 assert(db.pvp.enemyColor=='red' and enemy.healthBar.color[1]==1 and enemy.healthBar.color[2]==.08)
 assert(art.edges[1].texture.vertex[2]==.12,'Border setting remains independent of the bar color')
 assert(art.classFrame.edges[1].texture.vertex[1]==RAID_CLASS_COLORS.WARLOCK.r,'Class icon neon stays class-colored on red plate')
@@ -229,18 +236,18 @@ local function toggle(caption,value)
     end
     error('Missing checkbox: '..caption)
 end
-toggle('Icono de clase con neón de clase',false)
+toggle('Icono de clase',false)
 assert(not art.classFrame.shown)
 controls.AuraItemFrame:Show(); tickControls()
 controls.AuraItemFrame:Hide(); tickControls()
 assert(not guild.TisteltiPvPArt.classFrame.shown,'CC ending must respect disabled class icons')
-toggle('Icono de clase con neón de clase',true)
+toggle('Icono de clase',true)
 assert(art.classFrame.shown)
-clickText('Alas · mérito 5–9:')
+choose('pvp.middle','Oro')
 assert(db.pvp.middle=='oro' and guild.TisteltiPvPArt.wings[1].texture.vertex[2]==.55+.45*.86)
-clickText('Brillo (0.6 / 1 / 1.4):')
+number('pvp.intensity',1.4)
 assert(db.pvp.intensity==1.4)
-clickText('Tamaño de icono de clase:')
+number('pvp.classIconSize',26)
 assert(db.pvp.classIconSize==26 and art.classFrame.width==26,'Size option updates real plates')
 -- Keep class icons outside the left guild wing, independent of the right level.
 guild.PlayerLevelDiffFrame=Frame(guild); core.refresh()
@@ -331,8 +338,8 @@ assert(not enlarged.shown,'Enlargement disappears when priority disappears')
 target='enemy' pvp.Update('enemy',enemy2) assert(enlarged.shown)
 assert(enlarged.reason.text=='' and not enlarged.reason.shown and not enlarged.marker.shown,
     'A selected target needs no detached TU OBJETIVO label or skull')
-db.pvp.emphasizeTargets=false pvp.Update('enemy',enemy2) assert(not enlarged.shown)
-db.pvp.emphasizeTargets=true pvp.Update('enemy',enemy2)
+db.pvp.selected=false; db.pvp.recommended=false pvp.Update('enemy',enemy2) assert(not enlarged.shown)
+db.pvp.selected=true; db.pvp.recommended=true pvp.Update('enemy',enemy2)
 pvp.Remove(enemy2) assert(not enlarged.shown,'Recycled plates hide the enlarged bar')
 combat=false
 db.pvp.enabled=false; db.pvp.high='violeta'; pvp.Initialize(db)
@@ -423,6 +430,12 @@ tickControls()
 assert(not guildArt.classFrame.shown and not guildArt.factionFrame.shown
     and guildArt.wings[1].shown and guildArt.wings[2].shown,'Only overlapping ornaments yield')
 assert(buffIcon.points[1]==buffPoint and buffIcon.Cooldown.duration==12,'Aura anchors and timers stay untouched in combat')
+db.auras.enabled=false; tickControls()
+assert(guildArt.classFrame.shown and guildArt.factionFrame.shown,'Aura priority is independent and reversible')
+db.auras.enabled=true; tickControls(); assert(not guildArt.classFrame.shown)
+buffIcon.rect={52,0,18,18}; db.auras.margin=0; tickControls(); assert(guildArt.classFrame.shown)
+db.auras.margin=4; tickControls(); assert(not guildArt.classFrame.shown,'Configured collision margin is used')
+
 buffIcon.rect={0,0,18,18}; tickControls()
 assert(not guildArt.wings[1].shown and guildArt.classFrame.shown,'Moving a buff restores class and hides the affected wing')
 buffIcon.rect={400,80,18,18}; tickControls()

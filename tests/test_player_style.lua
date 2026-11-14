@@ -1,3 +1,4 @@
+dofile("Config.lua")
 unpack = unpack or table.unpack
 local frames = {}
 local function Frame()
