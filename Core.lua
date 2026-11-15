@@ -2,9 +2,14 @@
 local ADDON = ...
 local driver = CreateFrame("Frame")
 local tracked, active = {}, {}
+local trackedFrames = {}
+local pendingPlateCleanup = setmetatable({}, {__mode="k"})
+local leavingWorld = false
+local lastRefreshError, lastWorldEvent, lastRefreshTime
+local refreshCount=0
 local guildLabels = {}
 local combatArt = {}
-local db, preview
+local db
 local GOLD = {1, .73, .22}
 local WHITE = "Interface\\Buttons\\WHITE8X8"
 local WINGS = "Interface\\AddOns\\TisteltiPlates\\Media\\Wings.tga"
@@ -14,7 +19,7 @@ local ASSASSIN = "Interface\\AddOns\\TisteltiPlates\\Media\\Assassin.tga"
 local SILVER = {.78, .85, .94}
 local BLUE = {.12, .36, .82}
 local Refresh
-local groupCombatUntil
+local groupCombatUntil, groupWasInCombat, groupCombatEnded
 
 local metals = {cobre={.96,.48,.27}, bronce={.78,.54,.28}, platino={.87,.96,1},
     zafiro={.22,.55,1}, esmeralda={.18,.88,.59}, amatista={.76,.43,1}, rubi={1,.25,.37}}
@@ -49,9 +54,7 @@ local function Message(text)
 end
 
 local function Allowed()
-    if not db or not db.enabled then return false end
-    local inside, kind = IsInInstance()
-    return not inside or (TisteltiPlatesPvP and TisteltiPlatesPvP.IsActive() and (kind == "pvp" or kind == "arena"))
+    return TisteltiPlatesConfig.Allowed(db)
 end
 
 local function Color(unit)
@@ -189,9 +192,9 @@ local function Ornament(parent)
     o.badgeGlow:SetPoint("TOPLEFT", o.badge, "TOPLEFT", -1, 1)
     o.badgeGlow:SetPoint("BOTTOMRIGHT", o.badge, "BOTTOMRIGHT", 1, -1)
     o.badgeGlow:SetAlpha(.8)
-    o.honor = o.badge:CreateTexture(nil, "OVERLAY", nil, 6)
+    o.honor = o:CreateTexture(nil, "OVERLAY", nil, 6)
     o.honor:SetPoint("TOP", o.badge, "BOTTOM", 0, 2)
-    o.lionEmblem = o.badge:CreateTexture(nil, "OVERLAY", nil, 7)
+    o.lionEmblem = o:CreateTexture(nil, "OVERLAY", nil, 7)
     -- Use the user's actual attachment, not a regenerated or older lion atlas.
     o.lionEmblem:SetTexture("Interface\\AddOns\\TisteltiPlates\\Media\\LeonElegido-v5.tga")
     o.lionEmblem:SetTexCoord(0, .25, 0, .5)
@@ -261,12 +264,14 @@ local function SetGuildName(label, guild)
 end
 
 local function GroupCompact(unit)
-    if not db or not db.enabled or type(unit) ~= "string" then return false end
+    if not Allowed() or type(unit) ~= "string" then return false end
+    local compact=TisteltiPlatesConfig.Get(db,"compact")
+    if not compact.enabled then return false end
     if Safe(UnitIsPlayer,unit) ~= true or Safe(UnitIsFriend,"player",unit) ~= true
         or Safe(UnitIsUnit,unit,"player") then return false end
     local member
-    if Safe(IsInRaid) then member = db.raid and Safe(UnitInRaid,unit)
-    else member = db.group and Safe(UnitInParty,unit) end
+    if Safe(IsInRaid) then member = db.raid and compact.raid and Safe(UnitInRaid,unit)
+    else member = db.group and compact.group and Safe(UnitInParty,unit) end
     if not member then return false end
     return InCombatLockdown() or (groupCombatUntil and (Safe(GetTime) or 0) < groupCombatUntil) or false
 end
@@ -287,16 +292,26 @@ local function RestoreOldTargetSetting()
     db.nativeTargetScale,db.nativeTargetApplied,db.enlargeEnemies = nil,nil,nil
 end
 
-local function Paint(o, anchor, style, color, level, rank, scale, guildName)
+local function Paint(o, anchor, style, color, level, rank, scale, guildName, context)
+    local height=Safe(anchor.GetHeight,anchor)
+    local anchorLevel=Safe(anchor.GetFrameLevel,anchor)
+    if type(height)~="number" or height~=height or height<=0 or height==math.huge
+        or type(anchorLevel)~="number" then o:Hide(); return false end
+    local cfg=TisteltiPlatesConfig
+    local compact=cfg.Get(db,"compact")
+    local text=cfg.Get(db,"text")
+    local owner = Safe(o.GetParent,o)
+    o.classicWings=cfg.Part(db,style,"showWings") and (context~=nil or cfg.WingsAllowed(db,owner and owner.unit))
     o.groupCompact = false
     o.guildRole:Show()
     PaintWings(o, style)
+    for _,wing in ipairs({o.wings,o.rightWing,o.leftWingLight,o.rightWingLight}) do wing:Show() end
+    if context then o.guildRole:SetText("Oficial") end
     local tier = Tier(rank)
     local border = BorderColor(style, color, tier)
     local icon = "ninguno" -- One heraldic merit emblem below the level.
     -- Nameplate children have different frame levels; the base UnitFrame level
     -- is not high enough to draw a border over HealthBarsContainer.
-    local anchorLevel = anchor.GetFrameLevel and anchor:GetFrameLevel() or 0
     o:SetFrameLevel(anchorLevel + 10)
     o.halo:SetFrameLevel(anchorLevel + 10)
     o.halo:SetBackdropBorderColor(.20+.80*border[1],.20+.80*border[2],.20+.80*border[3],1)
@@ -319,7 +334,7 @@ local function Paint(o, anchor, style, color, level, rank, scale, guildName)
     end
     o.inner:SetShown(true)
     o.badge:ClearAllPoints()
-    local frameHeight = anchor:GetHeight() + 10
+    local frameHeight = height + 10
     o.badge:SetSize(math.max(20,frameHeight), frameHeight)
     o.badge:SetBackdropBorderColor(.25+.75*border[1], .25+.75*border[2], .25+.75*border[3], 1)
     o.badgeGlow:SetBackdropBorderColor(1, .86, .48, 1)
@@ -339,7 +354,10 @@ local function Paint(o, anchor, style, color, level, rank, scale, guildName)
     o.rightWing:SetPoint("LEFT", o.badge, "RIGHT", -3, 1)
     o.shade:SetColorTexture(.40 * border[1], .40 * border[2], .40 * border[3], 1)
     o.lustre:SetColorTexture(.4 + .6 * border[1], .4 + .6 * border[2], .4 + .6 * border[3], .95)
-    SetGuildName(o.guildName, guildName)
+    o.guildName:SetFont(STANDARD_TEXT_FONT,text.size,"OUTLINE")
+    o.guildName:ClearAllPoints()
+    o.guildName:SetPoint("TOP",o.body,"BOTTOM",0,text.offset)
+    SetGuildName(o.guildName, cfg.Part(db,style,"showGuild") and guildName or nil)
     o.gem:SetVertexColor(color.r, color.g, color.b)
     -- The honor badge replaces the class diamond, including its gold rim.
     o.gemGold:Hide()
@@ -407,18 +425,29 @@ local function Paint(o, anchor, style, color, level, rank, scale, guildName)
     -- Buffs start above the left wing, including its full scaled height.
     o.ccAnchor:ClearAllPoints()
     o.ccAnchor:SetPoint("BOTTOMLEFT", o.wings, "TOPLEFT", 0, 6 * scale)
-    local owner = Safe(o.GetParent,o)
-    if GroupCompact(owner and owner.unit) then
+    local compactPreview=context and context.compact and compact.enabled and compact[style]
+    if compactPreview or (not context and GroupCompact(owner and owner.unit)) then
         o.groupCompact = true
         for _, wing in ipairs({o.wings,o.rightWing}) do
-            wing:SetSize(frameHeight*.85,frameHeight*.95)
+            wing:SetSize(frameHeight*.85*compact.size,frameHeight*.95*compact.size)
             wing:Show()
         end
         o.leftWingLight:Show(); o.rightWingLight:Show()
-        o.guildName:Hide(); o.guildRole:Hide()
-        o.honor:Hide(); o.lionEmblem:Hide()
+        if compact.hideGuild then o.guildName:Hide(); o.guildRole:Hide() end
+        if compact.hideMerit then o.honor:Hide(); o.lionEmblem:Hide() end
+    end
+    if not o.classicWings then
+        o.wings:Hide(); o.rightWing:Hide(); o.leftWingLight:Hide(); o.rightWingLight:Hide()
+    end
+    for _,frame in ipairs({o.body,o.inner,o.halo}) do frame:SetShown(cfg.Part(db,style,"showBorder")) end
+    o.badge:SetShown(cfg.Part(db,style,"showLevel"))
+    if not cfg.Part(db,style,"showRole") then o.guildRole:Hide() end
+    if not cfg.Part(db,style,"showMerit") then o.honor:Hide(); o.lionEmblem:Hide() end
+    if context and context.control and not o.groupCompact and db.hideRightWingOnCC then
+        o.rightWing:Hide(); o.rightWingLight:Hide()
     end
     o:Show()
+    return true
 end
 
 local function RememberLevel(state, frame)
@@ -429,13 +458,14 @@ end
 
 local function Layout(state)
     if not Allowed() or InCombatLockdown() then return end
-    for _, entry in ipairs(state.levels) do entry.frame:SetAlpha(0) end
+    for _, entry in ipairs(state.levels) do entry.frame:SetAlpha(state.showLevel==false and entry.alpha or 0) end
     TisteltiPlatesCC.Position(state.art:GetParent())
 end
 
 local function Remove(uf)
+    if TisteltiPlatesNamesOnly then TisteltiPlatesNamesOnly.Remove(uf) end
     if TisteltiPlatesPvP then TisteltiPlatesPvP.Remove(uf) end
-    if active[uf] or combatArt[uf] then TisteltiPlatesHover.Release(uf) end
+    if TisteltiPlatesHover and (active[uf] or combatArt[uf]) then TisteltiPlatesHover.Release(uf) end
     if combatArt[uf] then combatArt[uf]:Hide(); combatArt[uf] = nil end
     if guildLabels[uf] then guildLabels[uf]:Hide() end
     local state = active[uf]
@@ -464,7 +494,11 @@ local function Remove(uf)
 end
 
 local function PlainGuildName(uf, unit)
-    if not Allowed() or not Safe(UnitIsPlayer, unit) or Safe(UnitIsUnit, unit, "player") then return end
+    if not Allowed() or db.guild==false or not TisteltiPlatesConfig.Part(db,"guild","showGuild")
+        or not Safe(UnitIsPlayer, unit) or Safe(UnitIsUnit, unit, "player") then
+        if guildLabels[uf] then guildLabels[uf]:Hide() end
+        return
+    end
     local guild = Safe(GetGuildInfo, unit)
     if type(guild) ~= "string" or guild == "" then return end
     local label = guildLabels[uf]
@@ -474,8 +508,10 @@ local function PlainGuildName(uf, unit)
         label:SetTextColor(.83, .88, 1)
         guildLabels[uf] = label
     end
+    local text=TisteltiPlatesConfig.Get(db,"text")
+    label:SetFont(STANDARD_TEXT_FONT,text.size,"OUTLINE")
     label:ClearAllPoints()
-    label:SetPoint("TOP", uf.HealthBarsContainer or uf.healthBar or uf, "BOTTOM", 0, -3)
+    label:SetPoint("TOP", uf.HealthBarsContainer or uf.healthBar or uf, "BOTTOM", 0, text.offset)
     SetGuildName(label, guild)
 end
 
@@ -488,17 +524,7 @@ local function Tint(uf)
     end
 end
 
-local function Update(unit, plate)
-    local uf = plate and plate.UnitFrame
-    if not uf or Safe(uf.IsForbidden, uf) then return end
-    if TisteltiPlatesPvP and TisteltiPlatesPvP.IsActive() then
-        if active[uf] or combatArt[uf] then Remove(uf) end
-        if guildLabels[uf] then guildLabels[uf]:Hide() end
-        TisteltiPlatesCC.Position(uf)
-        if Allowed() then TisteltiPlatesPvP.Update(unit, uf) else TisteltiPlatesPvP.Remove(uf) end
-        return
-    end
-    if TisteltiPlatesPvP then TisteltiPlatesPvP.Remove(uf) end
+local function ResolveStyle(unit)
     -- A party token and a nameplate token can refer to the same character.
     -- Use the roster identity when Forever exposes more data through it.
     local roster
@@ -514,7 +540,34 @@ local function Update(unit, plate)
             end
         end
     end
-    local style = Allowed() and RosterMembership(unit, roster, db[rosterStyle] and rosterStyle)
+    return Allowed() and RosterMembership(unit, roster, db[rosterStyle] and rosterStyle), roster
+end
+
+local function NamesOnly(unit, uf)
+    local names = TisteltiPlatesNamesOnly
+    if not names then return false end
+    if not names.IsActive(uf) then names.Remove(uf); return false end
+    -- Names-only takes precedence over both decorated and compact PvP plates.
+    Remove(uf)
+    local style = ResolveStyle(unit)
+    if not TisteltiPlatesConfig.WingsAllowed(db,unit) then style=nil end
+    names.Update(uf, style, db)
+    return true
+end
+
+local function Update(unit, plate)
+    local uf = plate and plate.UnitFrame
+    if not uf or Safe(uf.IsForbidden, uf) then return end
+    if NamesOnly(unit, uf) then return end
+    if TisteltiPlatesPvP and TisteltiPlatesPvP.IsActive() then
+        if active[uf] or combatArt[uf] then Remove(uf) end
+        if guildLabels[uf] then guildLabels[uf]:Hide() end
+        TisteltiPlatesCC.Position(uf)
+        if Allowed() then TisteltiPlatesPvP.Update(unit, uf) else TisteltiPlatesPvP.Remove(uf) end
+        return
+    end
+    if TisteltiPlatesPvP then TisteltiPlatesPvP.Remove(uf) end
+    local style, roster = ResolveStyle(unit)
     if not style then
         Remove(uf)
         PlainGuildName(uf, unit)
@@ -531,7 +584,7 @@ local function Update(unit, plate)
     if not state then
         local art = uf.TisteltiArt or Ornament(uf)
         uf.TisteltiArt = art
-        state = {art = art, bar = bar, baseScale = uf:GetScale(), baseWidth = TisteltiPlatesHover.GetBaseWidth(uf), originalColor = {bar:GetStatusBarColor()},
+        state = {art = art, bar = bar, baseScale = uf:GetScale(), baseWidth = uf:GetWidth(), originalColor = {bar:GetStatusBarColor()},
             levels = {}, levelSeen = {}}
         -- Both exist in Forever. PlayerLevelDiffFrame is the extra native box
         -- visible beside the custom badge in the reported screenshot.
@@ -555,9 +608,9 @@ local function Update(unit, plate)
     -- EllesmereUI can host the name outside this UnitFrame. Enlarging only
     -- the native rectangle then makes that name look smaller than the bar.
     -- Leave geometry and text sizing to its nameplate module.
-    local externalGeometry = ExternalGeometry()
+    local geometry=TisteltiPlatesConfig.Get(db,"geometry")
+    local externalGeometry = ExternalGeometry() or not geometry.enabled
     if externalGeometry then
-        TisteltiPlatesHover.Release(uf)
         if state.geometryChanged then
             uf:SetScale(state.baseScale)
             uf:SetWidth(state.baseWidth)
@@ -565,19 +618,21 @@ local function Update(unit, plate)
         end
     else
         if not state.geometryChanged then
-            state.baseScale, state.baseWidth = uf:GetScale(), TisteltiPlatesHover.GetBaseWidth(uf)
+            state.baseScale, state.baseWidth = uf:GetScale(), uf:GetWidth()
             state.geometryChanged = true
         end
-        local desiredScale = state.baseScale * 1.25
+        local desiredScale = state.baseScale * geometry.scale
         if math.abs(uf:GetScale()-desiredScale) > .001 then uf:SetScale(desiredScale) end
-        TisteltiPlatesHover.Track(uf, state.baseWidth * 1.22, state.baseWidth)
+        local desiredWidth = state.baseWidth * geometry.width
+        if math.abs(uf:GetWidth()-desiredWidth) > .001 then uf:SetWidth(desiredWidth) end
     end
     state.color = color
+    state.showLevel=TisteltiPlatesConfig.Part(db,style,"showLevel")
     -- Enclose the whole native name/health rectangle, not just its colored fill.
     local guildName = Safe(GetGuildInfo, roster or unit) or Safe(GetGuildInfo, unit)
     if not guildName and Safe(UnitIsInMyGuild, roster or unit) then guildName = Safe(GetGuildInfo, "player") end
     if type(guildName) ~= "string" or guildName == "" then guildName = nil end
-    Paint(state.art, uf.HealthBarsContainer or bar, style, color, level, Rank(roster or unit), db.scale, guildName)
+    if not Paint(state.art, uf.HealthBarsContainer or bar, style, color, level, Rank(roster or unit), db.scale, guildName) then Remove(uf); return end
     -- Rank zero is the guild master. Other rank numbers are guild-defined;
     -- never assume that rank one or two necessarily means officer.
     local ok, guild, guildRank, guildIndex = pcall(GetGuildInfo, roster or unit)
@@ -594,6 +649,7 @@ end
 local function UpdateCombat(unit, plate)
     local uf = plate and plate.UnitFrame
     if not uf or Safe(uf.IsForbidden, uf) then return end
+    if NamesOnly(unit, uf) then return end
     if TisteltiPlatesPvP and TisteltiPlatesPvP.IsActive() then
         if active[uf] or combatArt[uf] then Remove(uf) end
         if guildLabels[uf] then guildLabels[uf]:Hide() end
@@ -609,18 +665,15 @@ local function UpdateCombat(unit, plate)
         return
     end
     -- Existing decorated plates retain their layout. New plates get only
-    -- addon-owned artwork; hover expansion stays disabled during combat.
+    -- addon-owned artwork without changing native geometry during combat.
     local state = active[uf]
     if state and not state.pendingRemoval then
-        PaintWings(state.art, style)
-        if GroupCompact(unit) or state.art.groupCompact then
-            local color = Color(unit)
-            local level = Safe(UnitLevel,unit)
-            if type(level) ~= "number" or level < 1 then level = "?" end
-            local guild = Safe(GetGuildInfo,unit)
-            if type(guild) ~= "string" or guild == "" then guild = nil end
-            if color then Paint(state.art,uf.HealthBarsContainer or state.bar,style,color,level,Rank(unit),db.scale,guild) end
-        end
+        local color = Color(unit)
+        local level = Safe(UnitLevel,unit)
+        if type(level) ~= "number" or level < 1 then level = "?" end
+        local guild = Safe(GetGuildInfo,unit)
+        if type(guild) ~= "string" or guild == "" then guild = nil end
+        if color then Paint(state.art,uf.HealthBarsContainer or state.bar,style,color,level,Rank(unit),db.scale,guild) end
         return
     end
     if guildLabels[uf] then guildLabels[uf]:Hide() end
@@ -629,10 +682,6 @@ local function UpdateCombat(unit, plate)
     if not bar or Safe(bar.IsForbidden, bar) or not bar:IsShown() or not color then return end
     local art = uf.TisteltiCombatArt or Ornament(uf)
     uf.TisteltiCombatArt = art
-    if not combatArt[uf] and not ExternalGeometry() then
-        local baseWidth = state and state.baseWidth or TisteltiPlatesHover.GetBaseWidth(uf)
-        TisteltiPlatesHover.Track(uf, baseWidth, baseWidth)
-    end
     combatArt[uf] = art
     local level = Safe(UnitLevel, unit)
     if type(level) ~= "number" or level < 1 then level = "?" end
@@ -642,48 +691,112 @@ local function UpdateCombat(unit, plate)
     art.guildRole:SetText("")
 end
 
-local function RefreshHover()
-    local allowHover=db.enabled and not ExternalGeometry()
-    for _, plate in pairs(tracked) do
+local function ReleasePlateFrame(uf)
+    if uf then
+        if Safe(uf.IsForbidden,uf) then pendingPlateCleanup[uf]=true; return end
+        if TisteltiPlatesCC.Release then TisteltiPlatesCC.Release(uf) end
+        if TisteltiPlatesHover then TisteltiPlatesHover.Release(uf) end
+        Remove(uf)
+        if TisteltiPlatesPlayers then TisteltiPlatesPlayers.Remove(uf) end
+        pendingPlateCleanup[uf]=nil
+    end
+end
+
+local function ForgetPlate(unit)
+    local plate=tracked[unit]
+    ReleasePlateFrame(trackedFrames[unit] or (plate and plate.UnitFrame))
+    tracked[unit],trackedFrames[unit]=nil,nil
+end
+
+local function TrackPlate(unit,plate)
+    local uf=plate and plate.UnitFrame
+    if tracked[unit]~=plate or trackedFrames[unit]~=uf then
+        ForgetPlate(unit)
+        tracked[unit],trackedFrames[unit]=plate,uf
+        if plate and TisteltiPlatesCC.Attach then TisteltiPlatesCC.Attach(plate) end
+    end
+end
+
+local function RecoverPlates()
+    local plates=Safe(C_NamePlate and C_NamePlate.GetNamePlates)
+    if type(plates)~="table" then return end
+    local present={}
+    for _,plate in pairs(plates) do
+        if not Safe(plate.IsForbidden,plate) then
+            local uf=plate.UnitFrame
+            if uf and not Safe(uf.IsForbidden,uf) then
+                local unit=Safe(plate.GetUnit,plate)
+                if not unit and Public(plate.namePlateUnitToken) then unit=plate.namePlateUnitToken end
+                if not unit then unit=uf.unit end
+                if Public(unit) and type(unit)=="string" and Safe(C_NamePlate.GetNamePlateForUnit,unit)==plate then
+                    present[unit]=plate
+                end
+            end
+        end
+    end
+    -- Keep the original UnitFrame reference: Blizzard can replace it on the
+    -- same base plate while loading or recycling a nameplate unit token.
+    for unit in pairs(tracked) do
+        if not present[unit] or tracked[unit]~=present[unit]
+            or trackedFrames[unit]~=present[unit].UnitFrame then ForgetPlate(unit) end
+    end
+    for unit,plate in pairs(present) do TrackPlate(unit,plate) end
+end
+
+local function RefreshOverlays()
+    local allowHover=db and db.enabled~=false and not ExternalGeometry()
+    for unit, plate in pairs(tracked) do
         local uf = plate and plate.UnitFrame
-        if uf then
+        if TisteltiPlatesHover then
             if allowHover then TisteltiPlatesHover.TrackPlayer(uf)
             else TisteltiPlatesHover.Release(uf) end
+        end
+        TisteltiPlatesCC.Position(uf)
+        if TisteltiPlatesPlayers then
+            local decorated = uf and ((active[uf] and not active[uf].pendingRemoval) or combatArt[uf])
+            decorated = decorated or (uf and uf.TisteltiNameWings and Safe(uf.TisteltiNameWings.IsShown, uf.TisteltiNameWings))
+            local pvpArt = uf and uf.TisteltiPvPArt
+            TisteltiPlatesPlayers.Update(uf, unit, db, decorated, pvpArt and Safe(pvpArt.IsShown, pvpArt))
         end
     end
 end
 
-Refresh = function()
+local function RefreshPlates()
     if not db then return end
-    if InCombatLockdown() then groupCombatUntil = (Safe(GetTime) or 0) + 30 end
+    if TisteltiPlatesCC.Sync then TisteltiPlatesCC.Sync() end
+    if TisteltiPlatesPlayers then TisteltiPlatesPlayers.Sync() end
+    for uf in pairs(pendingPlateCleanup) do ReleasePlateFrame(uf) end
+    if leavingWorld then return end
+    RecoverPlates()
+    if InCombatLockdown() then
+        groupWasInCombat=true
+    else
+        if groupWasInCombat then groupCombatEnded=Safe(GetTime) or 0; groupWasInCombat=false end
+        if groupCombatEnded then groupCombatUntil=groupCombatEnded+TisteltiPlatesConfig.Get(db,"compact").delay end
+    end
     RestoreOldTargetSetting()
     if TisteltiPlatesPvP then TisteltiPlatesPvP.Sync() end
     if TisteltiPlatesPriority then
-        TisteltiPlatesPriority.Update(tracked,Allowed() and TisteltiPlatesPvP and TisteltiPlatesPvP.IsActive())
+        TisteltiPlatesPriority.Update(tracked,Allowed() and TisteltiPlatesPvP and TisteltiPlatesPvP.IsActive() and db.pvp.recommended~=false, TisteltiPlatesConfig.Get(db,"recommendation"))
     end
     if InCombatLockdown() then
         for unit, plate in pairs(tracked) do
             local ok, err = pcall(UpdateCombat, unit, plate)
+            if not ok then lastRefreshError=tostring(err) end
             if not ok and not driver.combatReported then
                 driver.combatReported = true
                 Message("Error al dibujar en combate: " .. tostring(err))
             end
         end
-        RefreshHover()
+        RefreshOverlays()
         return
     end
     for uf, art in pairs(combatArt) do
-        TisteltiPlatesHover.Release(uf)
         art:Hide()
         combatArt[uf] = nil
     end
     for uf, state in pairs(active) do
         if state.pendingRemoval then Remove(uf) end
-    end
-    if preview and preview.samples then
-        for _, sample in ipairs(preview.samples) do
-            Paint(sample.art, sample.bar, sample.style, sample.color, 60, sample.rank, db.scale * 1.3, Safe(GetGuildInfo, "player"))
-        end
     end
     if not Allowed() then
         for _, plate in pairs(tracked) do
@@ -691,186 +804,92 @@ Refresh = function()
         end
         for uf in pairs(active) do Remove(uf) end
         for _, label in pairs(guildLabels) do label:Hide() end
-        RefreshHover()
+        RefreshOverlays()
         return
     end
     for unit, plate in pairs(tracked) do
         local ok, err = pcall(Update, unit, plate)
+        if not ok then lastRefreshError=tostring(err) end
         if not ok and not driver.reported then
             driver.reported = true
             Message("Error al dibujar la placa: " .. tostring(err))
         end
     end
-    RefreshHover()
+    RefreshOverlays()
+end
+
+Refresh = function()
+    refreshCount=refreshCount+1; lastRefreshTime=Safe(GetTime)
+    local ok,err=pcall(RefreshPlates)
+    if not ok then
+        lastRefreshError=tostring(err)
+        if not driver.refreshReported then
+            driver.refreshReported=true
+            Message("Error al actualizar las placas: "..lastRefreshError)
+        end
+    end
+end
+
+local function WingDiagnostic()
+    local function value(v)
+        if not Public(v) or v==nil then return "no disponible" end
+        if type(v)=="boolean" then return v and "sí" or "no" end
+        if type(v)=="number" then return string.format("%.2f",v) end
+        return tostring(v)
+    end
+    local version=Safe(C_AddOns and C_AddOns.GetAddOnMetadata or GetAddOnMetadata,ADDON,"Version")
+    local list=Safe(C_NamePlate and C_NamePlate.GetNamePlates)
+    local candidates,seen={},{}
+    local function include(plate)
+        if plate and not seen[plate] then seen[plate]=true; candidates[#candidates+1]=plate end
+    end
+    if type(list)=="table" then for _,plate in pairs(list) do include(plate) end end
+    local count=0; for _,plate in pairs(tracked) do count=count+1; include(plate) end
+    local cvar=C_CVar and C_CVar.GetCVarBool or GetCVarBool
+    local lines={"TisteltiPlates "..value(version),
+        "Lugar: "..value(TisteltiPlatesConfig.Scope()).." | Permitido: "..value(Allowed()),
+        "Último evento: "..value(lastWorldEvent).." | Esperando carga: "..value(leavingWorld),
+        "Placas entregadas: "..(type(list)=="table" and #list or "no disponible").." | Seguidas: "..count,
+        "Placas amistosas en WoW: "..value(Safe(cvar,"nameplateShowFriendlyPlayers")),
+        "Alitas activadas: "..value(db.namesOnlyWings).." | Prioridad: "..value(db.priority),
+        "Actualizaciones: "..refreshCount.." | Última/ahora: "..value(lastRefreshTime).."/"..value(Safe(GetTime)),
+        "Último error: "..string.sub(lastRefreshError or "ninguno",1,500)}
+    for i=1,math.min(#candidates,6) do
+        local plate=candidates[i]
+        local uf=not Safe(plate.IsForbidden,plate) and plate.UnitFrame
+        if not uf or Safe(uf.IsForbidden,uf) then
+            lines[#lines+1]="Placa "..i..": marco no disponible/restringido"
+        else
+            local unit=Safe(plate.GetUnit,plate)
+            if not unit and Public(plate.namePlateUnitToken) then unit=plate.namePlateUnitToken end
+            if not unit and Public(uf.unit) then unit=uf.unit end
+            local ok,style,roster=pcall(ResolveStyle,unit)
+            local name=uf.name
+            local mini=uf.TisteltiNameWings
+            lines[#lines+1]="Placa "..i..": estilo="..(ok and value(style) or "error")
+                .." | hermandad="..value(Safe(UnitIsInMyGuild,roster or unit))
+                .." | filtro permite="..value(TisteltiPlatesConfig.WingsAllowed(db,unit))
+            lines[#lines+1]="Solo nombres="..value(TisteltiPlatesNamesOnly.IsActive(uf))
+                .." | nombre mostrado="..value(name and Safe(name.IsShown,name))
+                .." | ancho="..value(name and Safe(name.GetWidth,name)).."/"..value(name and Safe(name.GetStringWidth,name))
+            lines[#lines+1]="Marco visible="..value(Safe(uf.IsVisible,uf))
+                .." | alitas mostradas/visibles="..value(mini and Safe(mini.IsShown,mini)).."/"..value(mini and Safe(mini.IsVisible,mini))
+                .." | alfa="..value(mini and Safe(mini.GetEffectiveAlpha,mini))
+        end
+    end
+    if #candidates==0 then lines[#lines+1]="No hay placas disponibles para adornar. Los nombres del mundo pueden existir sin placa." end
+    lines[#lines+1]="Sin nombres ni identificadores de jugadores. Muestra hasta seis placas."
+    return table.concat(lines,"\n")
 end
 
 local function Preview()
-    if preview then preview:SetShown(not preview:IsShown()); return end
-    preview = FrameBorder(UIParent, 16, true)
-    preview:SetSize(720, 543)
-    preview:SetPoint("CENTER")
-    preview:SetFrameStrata("DIALOG")
-    preview:EnableMouse(true)
-    preview:SetMovable(true)
-    preview:RegisterForDrag("LeftButton")
-    preview:SetScript("OnDragStart", preview.StartMoving)
-    preview:SetScript("OnDragStop", preview.StopMovingOrSizing)
-    local title = preview:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    title:SetPoint("TOP", 0, -20)
-    title:SetText("TISTELTI - Alas de grupo")
-    local close = CreateFrame("Button", nil, preview, "UIPanelCloseButton")
-    close:SetPoint("TOPRIGHT", -3, -3)
-    local samples = {
-        {"GRUPO · Turquesa y violeta suave · Mago", "group", "MAGE", 0},
-        {"BANDA · Naranja y grafito · Mago", "raid", "MAGE", 0},
-        {"HERMANDAD · Sacerdote · sin rango", "guild", "PRIEST", 0},
-        {"HERMANDAD · Druida · rango 8", "guild", "DRUID", 8},
-        {"HERMANDAD · Guerrero · rango 14", "guild", "WARRIOR", 14},
-    }
-    preview.samples = {}
-    for i, data in ipairs(samples) do
-        local label = preview:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-        label:SetPoint("TOPLEFT", 30, -45 - (i - 1) * 73)
-        label:SetText(data[1])
-        local bar = CreateFrame("StatusBar", nil, preview)
-        bar:SetSize(290, 18)
-        bar:SetPoint("TOPLEFT", 30, -68 - (i - 1) * 73)
-        bar:SetStatusBarTexture(WHITE)
-        bar:SetMinMaxValues(0, 100)
-        bar:SetValue(73)
-        local color = RAID_CLASS_COLORS[data[3]]
-        bar:SetStatusBarColor(color.r, color.g, color.b)
-        local bg = bar:CreateTexture(nil, "BACKGROUND")
-        bg:SetAllPoints(); bg:SetColorTexture(.025, .035, .07, 1)
-        local name = bar:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-        name:SetPoint("LEFT", 5, 0); name:SetText("Tistelti · " .. data[3])
-        local art = Ornament(bar)
-        Paint(art, bar, data[2], color, 60, data[4], db.scale * 1.3, Safe(GetGuildInfo, "player"))
-        preview.samples[#preview.samples + 1] = {art=art, bar=bar, style=data[2], color=color, rank=data[4]}
-    end
-    local function Cycle(current, options)
-        for i, v in ipairs(options) do if v == current then return options[i % #options + 1] end end
-        return options[1]
-    end
-    local borders = {"oroazul", "oro", "plata", "clase", "rango"}
-    local icons = {"animales"}
-    for i, style in ipairs({"group", "raid", "guild"}) do
-        local key = style
-        for j, field in ipairs({"border", "icon"}) do
-            local property = field
-            local button = CreateFrame("Button", nil, preview, "UIPanelButtonTemplate")
-            button:SetSize(220, 24)
-            button:SetPoint("BOTTOMLEFT", 15 + (i - 1) * 235, 46 + (2 - j) * 28)
-            local function Label()
-                button:SetText(({group="Grupo", raid="Banda", guild="Hermandad"})[key] ..
-                    (property == "border" and " · borde: " or " · icono: ") .. db.appearance[key][property])
-            end
-            button:SetScript("OnClick", function()
-                db.appearance[key][property] = Cycle(db.appearance[key][property], property == "border" and borders or icons)
-                Label(); Refresh()
-            end)
-            button:SetScript("OnShow", Label)
-            Label()
-        end
-    end
-    local note = preview:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-    note:SetPoint("BOTTOM", 0, 14)
-    note:SetText("Vista de diseño: los rangos mostrados son ejemplos. Arrastra para mover.")
-    preview:Show()
+    TisteltiPlatesOptions.Open("appearance")
 end
 
 local function RegisterOptions()
-    if not Settings or not Settings.RegisterCanvasLayoutCategory then return end
-    local panel = CreateFrame("Frame")
-    local title = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    title:SetPoint("TOPLEFT", 20, -20)
-    title:SetText("TisteltiPlates")
-    local style, rank = "group", 0
-    local color = RAID_CLASS_COLORS.MAGE
-    local bar = CreateFrame("StatusBar", nil, panel)
-    bar:SetPoint("TOPLEFT", 56, -315)
-    bar:SetSize(180, 19)
-    bar:SetStatusBarTexture(WHITE)
-    bar:SetMinMaxValues(0, 100)
-    bar:SetValue(78)
-    bar:SetStatusBarColor(color.r, color.g, color.b)
-    local bg = bar:CreateTexture(nil, "BACKGROUND")
-    bg:SetAllPoints(); bg:SetColorTexture(.025,.035,.07,1)
-    local name = bar:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    name:SetPoint("LEFT", 5, 0); name:SetText("Mago de muestra")
-    local art = Ornament(bar)
-    local labels = {group="Grupo", groupFirst="Grupo/Banda", raid="Banda", guild="Hermandad", oroazul="Oro y azul", oro="Oro", plata="Plata",
-        clase="Clase", rango="Por rango", color="RGB personalizado", cobre="Cobre", bronce="Bronce",
-        platino="Platino", zafiro="Zafiro", esmeralda="Esmeralda", amatista="Amatista", rubi="Rubí",
-        alianza="León de la Alianza", animales="Animales de la Alianza", asesino="Capucha de Tistelti", rombos="Rombos", estrella="Estrellas", ninguno="Ninguno",
-        on="Activado", off="Desactivado", [0]="Sin rango", [4]="Rango 4", [8]="Rango 8", [14]="Rango 14"}
-    for i=1,14 do labels[i]='Rango '..i end
-    local menus = {}
-    local function redraw()
-        bar:SetShown(db[style])
-        Paint(art, bar, style, color, 60, rank, db.scale, Safe(GetGuildInfo,"player") or "Hermandad de muestra")
-        for _, menu in ipairs(menus) do menu:SetText(menu.caption .. ": " .. labels[menu.read()]) end
-    end
-    local popup = CreateFrame("Frame", nil, panel, "BackdropTemplate")
-    popup:SetFrameStrata("TOOLTIP")
-    popup:EnableMouse(true)
-    popup:SetBackdrop({bgFile=WHITE}); popup:SetBackdropColor(.035,.045,.07,1)
-    popup:Hide()
-    local rows = {}
-    local function dropdown(x,y,label,choices,get,set)
-        local button = CreateFrame("Button",nil,panel,"UIPanelButtonTemplate")
-        button:SetSize(220,26); button:SetPoint("TOPLEFT",x,y)
-        button.caption, button.read = label,get
-        menus[#menus+1] = button
-        button:SetScript("OnClick", function()
-            if popup:IsShown() and popup.owner == button then popup:Hide(); return end
-            popup.owner=button; popup:ClearAllPoints(); popup:SetPoint("TOPLEFT",button,"BOTTOMLEFT")
-            popup:SetSize(220,#choices*22+4)
-            for _, row in ipairs(rows) do row:Hide() end
-            for i,value in ipairs(choices) do
-                local choice=value
-                local row=rows[i] or CreateFrame("Button",nil,popup,"UIPanelButtonTemplate")
-                rows[i]=row; row:SetSize(216,22); row:SetPoint("TOPLEFT",2,-2-(i-1)*22)
-                row:SetText(labels[choice]); row:SetScript("OnClick",function()
-                    set(choice); popup:Hide(); Refresh(); redraw()
-                end); row:Show()
-            end
-            popup:Show()
-        end)
-    end
-    dropdown(20,-60,"Estilo",{"group","raid","guild"},function() return style end,function(v) style=v end)
-    dropdown(250,-60,"Mostrar",{"on","off"},function() return db[style] and "on" or "off" end,function(v) db[style]=v=="on" end)
-    dropdown(20,-100,"Borde",{"oroazul","oro","plata","cobre","bronce","platino","zafiro","esmeralda","amatista","rubi","clase","rango","color"},
-        function() return db.appearance[style].border end,function(v) db.appearance[style].border=v end)
-    dropdown(250,-100,"Insignia",{"animales"},
-        function() return db.appearance[style].icon end,function(v) db.appearance[style].icon=v end)
-    dropdown(20,-145,"Ejemplo mérito",{0,1,2,3,4,5,6,7,8,9,10,11,12,13,14},function() return rank end,function(v) rank=v; style="guild" end)
-    dropdown(250,-145,"Prioridad",{"groupFirst","guild"},
-        function() return db.priority == "group" and "groupFirst" or "guild" end,
-        function(v) db.priority = v == "groupFirst" and "group" or "guild" end)
-    local hideWing = CreateFrame("CheckButton", nil, panel, "UICheckButtonTemplate")
-    hideWing:SetSize(26, 26)
-    hideWing:SetPoint("TOPLEFT", 20, -185)
-    local hideWingLabel = hideWing:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    hideWingLabel:SetPoint("LEFT", hideWing, "RIGHT", 4, 0)
-    hideWingLabel:SetText("Ocultar ala derecha al mostrar controles")
-    hideWing:SetChecked(db.hideRightWingOnCC ~= false)
-    hideWing:SetScript("OnShow", function(self)
-        self:SetChecked(db.hideRightWingOnCC ~= false)
-    end)
-    hideWing:SetScript("OnClick", function(self)
-        db.hideRightWingOnCC = self:GetChecked() and true or false
-    end)
-    local caption=panel:CreateFontString(nil,"OVERLAY","GameFontNormal")
-    local priorityNote=panel:CreateFontString(nil,"OVERLAY","GameFontDisableSmall")
-    priorityNote:SetPoint("TOPLEFT",20,-220)
-    priorityNote:SetText("Estilo configura el aspecto; Prioridad decide cuál se aplica si coinciden.")
-    caption:SetPoint("TOPLEFT",20,-235); caption:SetText("Vista previa")
-    panel:SetScript("OnShow",redraw)
-    panel:SetScript("OnHide",function() popup:Hide() end)
-    local category = Settings.RegisterCanvasLayoutCategory(panel, "TisteltiPlates")
-    Settings.RegisterAddOnCategory(category)
-    if TisteltiPlatesPvP then TisteltiPlatesPvP.RegisterOptions(category, Refresh) end
+    TisteltiPlatesOptions.Register(db, {Refresh=Refresh, FrameBorder=FrameBorder, Ornament=Ornament,
+        Paint=Paint, Safe=Safe, WHITE=WHITE, SILVER=SILVER,
+        WingDiagnostic=function() db.lastWingDiagnostic=WingDiagnostic(); return db.lastWingDiagnostic end})
 end
 
 SLASH_TISTELTIPLATES1 = "/tistelti"
@@ -878,13 +897,14 @@ SlashCmdList.TISTELTIPLATES = function(text)
     if not db then return end
     local cmd, value = text:match("^%s*(%S*)%s*(.-)%s*$")
     cmd = cmd:lower()
+    if cmd == "" or cmd == "opciones" then TisteltiPlatesOptions.Open("general"); return end
     if cmd == "pvp" then
         if value == "on" or value == "off" then
             db.pvp.enabled = value == "on"
             if InCombatLockdown() then Message("El cambio de modo se aplicará al terminar el combate.") end
             Refresh()
         elseif TisteltiPlatesPvP.category and Settings and Settings.OpenToCategory then
-            Settings.OpenToCategory(TisteltiPlatesPvP.category:GetID())
+            TisteltiPlatesOptions.Open("pvp")
         else
             Message("Opciones > AddOns > TisteltiPlates > Modo PvP. /tistelti pvp on/off")
         end
@@ -909,8 +929,9 @@ SlashCmdList.TISTELTIPLATES = function(text)
             end
             config.border = choice
         elseif cmd == "icono" then
-            config.icon = "animales"
-            Message("Insignia de mérito: animales con espadas y reborde bronce, plata u oro.")
+            if choice~="on" and choice~="off" and choice~="animales" then Message("Usa icono grupo/banda/guild on/off."); return end
+            config.showMerit = choice ~= "off"
+            Message(config.showMerit and "Insignia de mérito activada." or "Insignia de mérito desactivada.")
         else
             local r, g, b = choice:match("^(%S+)%s+(%S+)%s+(%S+)$")
             r, g, b = tonumber(r), tonumber(g), tonumber(b)
@@ -933,9 +954,9 @@ SlashCmdList.TISTELTIPLATES = function(text)
         Message("/tistelti cc | vista | on/off | grupo/banda/guild on/off | tamano 0.8–1.8")
         Message("/tistelti pvp: opciones compactas | pvp on/off | enemigos rojo/clase")
         Message("/tistelti merito: consulta el mérito del objetivo o de tu personaje")
-        Message("borde grupo/banda/guild oroazul/oro/plata/clase/rango | Insignia: animales por mérito")
+        Message("borde grupo/banda/guild oroazul/oro/plata/clase/rango | icono grupo/banda/guild on/off")
         Message("color grupo/banda/guild R G B (valores de 0 a 1). Vista incluye botones de personalización.")
-        Message("PvP: mundo abierto y campos de batalla/arenas. Mérito automático; no es rango oficial.")
+        Message("Ámbitos configurables en General. /tistelti abre las opciones. El mérito usa los datos conocidos.")
         return
     end
     Refresh()
@@ -950,9 +971,25 @@ driver:SetScript("OnEvent", function(_, event, unit)
         if db.group == nil then db.group = true end
         if db.raid == nil then db.raid = db.group end
         if db.guild == nil then db.guild = true end
+        if type(db.playerColors) ~= "table" then db.playerColors = {} end
+        for _, kind in ipairs({"ally", "enemy"}) do
+            if type(db.playerColors[kind]) ~= "table" then db.playerColors[kind] = {} end
+            local config = db.playerColors[kind]
+            if type(config.name) ~= "boolean" then config.name = kind == "enemy" and db.hordeRedName ~= false end
+            if type(config.border) ~= "boolean" then config.border = kind == "enemy" and db.hordeRedBorder ~= false end
+            local default = kind == "enemy" and {1,.12,.12} or {.2,.65,1}
+            for _, key in ipairs({"nameColor", "borderColor"}) do
+                if type(config[key]) ~= "table" then config[key] = {} end
+                for i=1,3 do
+                    local v = config[key][i]
+                    if type(v) ~= "number" or v ~= v or v < 0 or v > 1 then config[key][i] = default[i] end
+                end
+            end
+        end
         if db.priority ~= "group" and db.priority ~= "guild" then db.priority = "guild" end
         if type(db.hideRightWingOnCC) ~= "boolean" then db.hideRightWingOnCC = true end
-        if type(db.scale) ~= "number" or db.scale < .8 or db.scale > 1.8 then db.scale = 1 end
+        if type(db.namesOnlyWings) ~= "boolean" then db.namesOnlyWings = true end
+        if type(db.scale) ~= "number" or db.scale~=db.scale or db.scale < .8 or db.scale > 1.8 then db.scale = 1 end
         if type(db.ranks) ~= "table" then db.ranks = {} end
         if type(db.appearance) ~= "table" then db.appearance = {} end
         if type(db.appearance.raid) ~= "table" then
@@ -976,24 +1013,28 @@ driver:SetScript("OnEvent", function(_, event, unit)
         end
         db.compactIconDefault = true
         db.frameFixVersion = 1
+        TisteltiPlatesConfig.Initialize(db)
         if TisteltiPlatesPvP then TisteltiPlatesPvP.Initialize(db) end
         RegisterOptions()
         if CompactUnitFrame_UpdateHealthColor then hooksecurefunc("CompactUnitFrame_UpdateHealthColor", Tint) end
+    elseif event == "PLAYER_LEAVING_WORLD" then
+        lastWorldEvent=event
+        leavingWorld=true
+        for token in pairs(tracked) do ForgetPlate(token) end
+        return
+    elseif event == "PLAYER_ENTERING_WORLD" then
+        lastWorldEvent=event
+        leavingWorld=false
     elseif event == "NAME_PLATE_UNIT_ADDED" then
-        tracked[unit] = C_NamePlate.GetNamePlateForUnit(unit)
+        TrackPlate(unit,Safe(C_NamePlate.GetNamePlateForUnit,unit))
     elseif event == "NAME_PLATE_UNIT_REMOVED" then
-        local plate = tracked[unit]
-        if plate and plate.UnitFrame then
-            Remove(plate.UnitFrame)
-            TisteltiPlatesHover.Release(plate.UnitFrame)
-        end
-        tracked[unit] = nil
+        ForgetPlate(unit)
     end
     Refresh()
 end)
 for _, event in ipairs({"ADDON_LOADED", "NAME_PLATE_UNIT_ADDED", "NAME_PLATE_UNIT_REMOVED",
-    "GROUP_ROSTER_UPDATE", "PLAYER_GUILD_UPDATE", "PLAYER_ENTERING_WORLD",
-    "PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "UNIT_FACTION", "PLAYER_TARGET_CHANGED", "RAID_TARGET_UPDATE"}) do driver:RegisterEvent(event) end
+    "GROUP_ROSTER_UPDATE", "PLAYER_GUILD_UPDATE", "PLAYER_ENTERING_WORLD", "PLAYER_LEAVING_WORLD",
+    "PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "UNIT_FACTION", "PLAYER_TARGET_CHANGED", "RAID_TARGET_UPDATE", "CVAR_UPDATE"}) do driver:RegisterEvent(event) end
 local elapsed = 0
 driver:SetScript("OnUpdate", function(_, dt)
     if InCombatLockdown() then

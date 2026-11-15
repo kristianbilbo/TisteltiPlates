@@ -34,9 +34,9 @@ art.scripts.OnUpdate(art,.1)
 assert(art.rightWing.shown and art.rightWingLight.shown)
 combat=false; now=110; core.refresh()
 assert(art.groupCompact,'A short pause does not undo the compact appearance')
-now=131; core.refresh()
+now=141; core.refresh()
 assert(not art.groupCompact and art.wings.width==fullWidth and art.guildName.shown)
-combat=true; now=140; core.refresh(); assert(art.groupCompact)
+combat=true; now=150; core.refresh(); assert(art.groupCompact)
 UnitInParty=function() return false end
 core.refresh(); assert(not art.groupCompact,'Guild-only allies are never compacted')
 IsInRaid=function() return true end

@@ -1,6 +1,6 @@
 -- Automatic addon merit. Never treats honor level or a manual rank as official.
 local f=CreateFrame("Frame")
-local pending, ids
+local ids
 local names={
  ["total honorable kills"]="hk", ["total de muertes con honor"]="hk", ["muertes con honor totales"]="hk",
  ["honorable kills"]="hk", ["muertes con honor"]="hk",
@@ -66,33 +66,10 @@ local function findStats()
     ids=found
     return found
 end
-local function readTarget()
-    pending=nil
-    if InCombatLockdown() or IsInInstance() or not UnitIsPlayer("target") or not UnitIsFriend("player","target") then return end
-    if not SetAchievementComparisonUnit or not GetComparisonStatistic or not GetStatisticsCategoryList then return end
-    if AchievementFrame and AchievementFrame:IsShown() then return end
-    local guid=UnitGUID("target")
-    if not public(guid) or not guid then return end
-    local old=TisteltiPlatesDB and TisteltiPlatesDB.combatStats and TisteltiPlatesDB.combatStats[guid]
-    if old and time()-old.at<300 then return end
-    pending=guid
-    SetAchievementComparisonUnit("target")
-end
-local function receive(guid)
-    if not public(guid) or not guid or guid~=pending then return end
-    local target=UnitGUID("target")
-    if not public(target) or target~=guid then return end
-    pending=nil
-    local stats={}
-    for key,id in pairs(findStats()) do
-        stats[key]=number(call(GetComparisonStatistic,id))
-    end
-    if next(stats) and TisteltiPlatesDB then
-        stats.at=time()
-        TisteltiPlatesDB.combatStats=TisteltiPlatesDB.combatStats or {}
-        TisteltiPlatesDB.combatStats[guid]=stats
-    end
-end
+-- Do not request achievement comparisons in the background. Their asynchronous
+-- INSPECT_ACHIEVEMENT_READY event also reaches Blizzard's comparison panel while
+-- hidden, where the normal "summary" category is not a numeric comparison ID.
+-- Existing cached merit and directly available official ranks remain usable.
 function TisteltiHonorTexto(unit)
     local tier,score,rank,partial=TisteltiMerito(unit)
     if not score then return "Mérito: sin datos" end
@@ -111,13 +88,9 @@ local function readSelf()
     TisteltiPlatesDB.combatStats=TisteltiPlatesDB.combatStats or {}
     TisteltiPlatesDB.combatStats[guid]=s
 end
-f:RegisterEvent("PLAYER_TARGET_CHANGED")
 f:RegisterEvent("PLAYER_ENTERING_WORLD")
 pcall(f.RegisterEvent,f,"PLAYER_PVP_KILLS_CHANGED")
 pcall(f.RegisterEvent,f,"ACHIEVEMENT_EARNED")
-pcall(f.RegisterEvent,f,"INSPECT_ACHIEVEMENT_READY")
-f:SetScript("OnEvent",function(_,event,guid)
-    if event=="PLAYER_TARGET_CHANGED" then pcall(readTarget)
-    elseif event=="INSPECT_ACHIEVEMENT_READY" then pcall(receive,guid)
-    else pcall(readSelf) end
+f:SetScript("OnEvent",function()
+    pcall(readSelf)
 end)

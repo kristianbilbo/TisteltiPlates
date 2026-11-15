@@ -7,7 +7,8 @@ local function read(fn,...)
     local ok,value=pcall(fn,...)
     if ok and not (issecretvalue and issecretvalue(value)) then return value end
 end
-function P.Update(plates,enabled)
+function P.Update(plates,enabled,options)
+    options=options or TisteltiPlatesConfig.Get(nil,"recommendation")
     if not enabled then chosen,chosenGUID,reason=nil,nil,nil return end
     local raid=read(IsInRaid)
     local count=read(raid and GetNumGroupMembers or GetNumSubgroupMembers) or 0
@@ -22,8 +23,8 @@ function P.Update(plates,enabled)
                 if read(UnitExists,member) and not read(UnitIsUnit,member,"player")
                     and read(UnitIsUnit,unit,member.."target") then votes=votes+1 end
             end
-            local marked=read(GetRaidTargetIndex,unit)==8
-            if marked or votes>=2 then
+            local marked=options.marked and read(GetRaidTargetIndex,unit)==8
+            if marked or (options.consensus and votes>=options.votes) then
                 candidates[unit]={votes=votes,marked=marked,guid=read(UnitGUID,unit),reason=marked and "MARCA DEL GRUPO" or "FOCO DEL GRUPO"}
             end
         end
@@ -37,7 +38,7 @@ function P.Update(plates,enabled)
         if not old or (c.marked and not old.marked) or (c.marked==old.marked and
             (c.votes>old.votes or (c.votes==old.votes and not current and unit<best))) then best=unit end
     end
-    if current and best~=chosen and now-(since or 0)<2 and not candidates[best].marked then best=chosen end
+    if current and best~=chosen and now-(since or 0)<options.hold and not candidates[best].marked then best=chosen end
     if best~=chosen then since=now end
     chosen=best
     chosenGUID=best and candidates[best].guid

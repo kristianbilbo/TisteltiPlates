@@ -288,12 +288,16 @@ print("PASS: failed second anchor restores partial changes")
 
 -- Test enrollment through Core's real events and all refresh return paths.
 SlashCmdList={}
+TisteltiPlatesCC={Position=function() end, Attach=function() end, Release=function() end}
 local f=assert(io.open("Core.lua","rb"))
 local source=f:read("*a"); f:close()
 local core=assert((loadstring or load)(source .. [[
 return {refresh=Refresh, driver=driver, setDB=function(value) db=value end}
 ]]))("TisteltiPlates")
-local config={enabled=true,group=false,guild=false}
+assert(loadfile("Config.lua"))()
+local config={enabled=true,group=false,guild=false,
+    appearance={group={},raid={},guild={}},playerColors={ally={},enemy={}}}
+TisteltiPlatesConfig.Initialize(config)
 core.setDB(config)
 local instance=false
 IsInInstance=function() return instance end
