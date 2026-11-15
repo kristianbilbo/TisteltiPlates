@@ -8,8 +8,14 @@ local originalLevels = setmetatable({}, {__mode = "k"})
 local originalPoints = setmetatable({}, {__mode = "k"})
 local unreadable = setmetatable({}, {__mode = "k"})
 local keys = {"CrowdControlListFrame", "LossOfControlFrame"}
+local buffKeys = {"BuffListFrame", "DebuffListFrame"}
+local movedBuffs = setmetatable({}, {__mode = "k"})
+local managed = setmetatable({}, {__mode = "k"})
+local suspended = setmetatable({}, {__mode = "k"})
+local observing = setmetatable({}, {__mode = "k"})
+local writing = setmetatable({}, {__mode = "k"})
+local function Enabled() return not TisteltiPlatesDB or TisteltiPlatesConfig.Allowed(TisteltiPlatesDB) end
 local auraKeys = {"BuffListFrame", "DebuffListFrame", "CrowdControlListFrame", "LossOfControlFrame"}
-local moved = setmetatable({}, {__mode = "k"})
 local rectUnreadable = setmetatable({}, {__mode = "k"})
 
 function CC.OriginalPlacement(frame)
@@ -130,21 +136,24 @@ local function AuraObstacles(uf)
 end
 
 function CC.UpdatePvPArt(art, uf)
+    local settings=TisteltiPlatesConfig.Get(TisteltiPlatesDB,"auras")
     local obstacles,unknown=AuraObstacles(uf)
     local function blocked(frame)
+        if not settings.enabled then return false end
         if unknown then return true end
         if #obstacles==0 then return false end
         -- Test hidden ornaments too, so they can reappear without moving auras.
         local rect=Rect(frame)
         if not rect then return true end
         for _,other in ipairs(obstacles) do
-            if rect[1]<other[3]+4 and rect[3]>other[1]-4
-                and rect[2]<other[4]+4 and rect[4]>other[2]-4 then return true end
+            if rect[1]<other[3]+settings.margin and rect[3]>other[1]-settings.margin
+                and rect[2]<other[4]+settings.margin and rect[4]>other[2]-settings.margin then return true end
         end
         return false
     end
     art.wings[1]:SetShown(art.pvpShowLeftWing and not blocked(art.wings[1]) or false)
-    art.wings[2]:SetShown(art.pvpShowRightWing and not HasControlIcon(uf) and not blocked(art.wings[2]) or false)
+    local hideControl = Enabled() and (not TisteltiPlatesDB or TisteltiPlatesDB.hideRightWingOnCC ~= false) and HasControlIcon(uf)
+    art.wings[2]:SetShown(art.pvpShowRightWing and not hideControl and not blocked(art.wings[2]) or false)
     local showClass=art.pvpShowClassIcon and not blocked(art.classFrame)
     art.classFrame:SetShown(showClass and true or false)
     if art.factionFrame then
@@ -167,55 +176,153 @@ function CC.AttachPvPArt(art, uf)
 end
 
 local function UpdateWing(art, uf)
-    local enabled = not TisteltiPlatesDB or TisteltiPlatesDB.hideRightWingOnCC ~= false
+    local enabled = Enabled() and (not TisteltiPlatesDB or TisteltiPlatesDB.hideRightWingOnCC ~= false)
     local hide = not art.groupCompact and enabled and HasControlIcon(uf)
-    art.rightWing:SetShown(not hide)
-    art.rightWingLight:SetShown(not hide)
+    art.rightWing:SetShown(art.classicWings~=false and not hide)
+    art.rightWingLight:SetShown(art.classicWings~=false and not hide)
+end
+
+-- Moving a control within its plate does not require measuring its old anchor.
+-- Keep CapturePlacement conservative for restoration of other native regions.
+local function CanMoveControl(frame)
+    if not frame or Read(frame.IsForbidden, frame) ~= false then return false end
+    if type(frame.CanBeAccessedInContext) == "function" then
+        if Read(frame.CanBeAccessedInContext, frame) ~= true then return false end
+    elseif type(frame.HasAccessConstraints) == "function"
+        and Read(frame.HasAccessConstraints, frame) ~= false then
+        return false
+    end
+    if type(frame.CanChangeProtectedState) == "function"
+        and Read(frame.CanChangeProtectedState, frame) ~= true then return false end
+    return not InCombatLockdown() or Read(frame.IsProtected, frame) == false
+end
+
+-- Remember native/other-addon layout writes without measuring restricted regions.
+local function ObserveControl(frame)
+    if observing[frame] then return end
+    observing[frame] = true
+    hooksecurefunc(frame, "ClearAllPoints", function()
+        if not writing[frame] then originalPoints[frame] = {} end
+    end)
+    hooksecurefunc(frame, "SetPoint", function(_, ...)
+        if writing[frame] then return end
+        local point = {...}
+        for i=1,select("#", ...) do
+            local value = select(i, ...)
+            if issecretvalue and issecretvalue(value) then return end
+        end
+        local points = originalPoints[frame] or {}
+        for i, existing in ipairs(points) do
+            if existing[1] == point[1] then points[i] = point; originalPoints[frame] = points; return end
+        end
+        points[#points+1] = point
+        originalPoints[frame] = points
+    end)
+end
+
+function CC.Restore(uf, subset)
+    for frame in pairs(managed[uf] or {}) do
+        local points = originalPoints[frame]
+        local isBuff=movedBuffs[uf] and movedBuffs[uf][frame]
+        if (not subset or (subset=="buffs" and isBuff) or (subset=="controls" and not isBuff)) and points and CanMoveControl(frame) then
+            writing[frame] = true
+            frame:ClearAllPoints()
+            for _, point in ipairs(points) do frame:SetPoint(unpack(point)) end
+            if originalLevels[frame] then frame:SetFrameLevel(originalLevels[frame]) end
+            writing[frame] = nil
+            originalPoints[frame], originalLevels[frame] = nil, nil
+            if movedBuffs[uf] then movedBuffs[uf][frame] = nil end
+            managed[uf][frame] = nil
+        end
+    end
+    if managed[uf] and not next(managed[uf]) then managed[uf] = nil end
+end
+
+function CC.Release(uf)
+    suspended[uf] = true
+    CC.Restore(uf)
+end
+
+function CC.Sync()
+    for uf in pairs(managed) do
+        if not Enabled() or suspended[uf] then CC.Restore(uf) end
+    end
+end
+
+local function Manage(uf, frame)
+    managed[uf] = managed[uf] or {}
+    managed[uf][frame] = true
 end
 
 function CC.Position(uf)
     if not uf or Read(uf.IsForbidden, uf) then return end
+    if not Enabled() or suspended[uf] then CC.Restore(uf); return end
+    if TisteltiPlatesNamesOnly and TisteltiPlatesNamesOnly.IsActive(uf) then CC.Restore(uf); return end
+    local options=TisteltiPlatesConfig.Get(TisteltiPlatesDB,"controls")
     local auras = uf.AurasFrame
     if not auras or Read(auras.IsForbidden, auras) then return end
     local art = Visible(uf.TisteltiArt) and uf.TisteltiArt
         or Visible(uf.TisteltiCombatArt) and uf.TisteltiCombatArt
-    if not art or (TisteltiPlatesPvP and TisteltiPlatesPvP.IsActive()) then
-        for frame in pairs(moved[uf] or {}) do
-            if originalPoints[frame] and CC.CanPosition(frame) then
-                frame:ClearAllPoints()
-                for _, point in ipairs(originalPoints[frame]) do frame:SetPoint(unpack(point)) end
-                if originalLevels[frame] then frame:SetFrameLevel(originalLevels[frame]) end
-                originalPoints[frame], originalLevels[frame] = nil, nil
-                moved[uf][frame] = nil
+    if TisteltiPlatesPvP and TisteltiPlatesPvP.IsActive() then art = nil end
+
+    -- 0.8.7: normal aura rows clear the wings and restore their native layout
+    -- when the decoration disappears. CC below retains ForeverCCPosition.
+    if not art or not options.buffs then
+        CC.Restore(uf,"buffs")
+    else
+        local previous
+        for _, key in ipairs(buffKeys) do
+            local frame = auras[key]
+            if frame and CC.CanPosition(frame) then
+                if not originalPoints[frame] then
+                    originalPoints[frame], originalLevels[frame] = CC.CapturePlacement(frame)
+                end
+                if originalPoints[frame] then
+                    movedBuffs[uf] = movedBuffs[uf] or setmetatable({}, {__mode = "k"})
+                    movedBuffs[uf][frame] = true
+                    Manage(uf, frame)
+                    frame:ClearAllPoints()
+                    frame:SetPoint("BOTTOMLEFT", previous or art.ccAnchor, "TOPLEFT", 0, previous and options.buffGap or 0)
+                    frame:SetFrameLevel(art.badge:GetFrameLevel() + 10)
+                    if Visible(frame) then previous = frame end
+                end
             end
         end
-        return -- Undecorated plates and compact mode keep their own layout.
     end
-    local anchor = art.badge
+
+    -- Keep controls to the right on enemies and undecorated/compact plates too.
+    local relation=TisteltiPlatesPlayers and TisteltiPlatesPlayers.Kind(uf.unit)
+    if not options.enabled or (relation=="ally" and not options.allies) or (relation=="enemy" and not options.enemies) then
+        CC.Restore(uf,"controls"); return
+    end
+    local anchor = options.anchor=="health" and (uf.HealthBarsContainer or uf.healthBar) or art and art.badge
+        or Visible(uf.PlayerLevelDiffFrame) and uf.PlayerLevelDiffFrame
+        or uf.HealthBarsContainer or uf.healthBar
     if not anchor then return end
-    local previous
-    for index, key in ipairs(auraKeys) do
+    for _, key in ipairs(keys) do
         local frame = auras[key]
-        -- Preserve the old positioner's combat behavior for unprotected lists.
-        -- Protected lists wait for PLAYER_REGEN_ENABLED; wings still update.
-        if frame and CC.CanPosition(frame) then
+        if CanMoveControl(frame) then
+            ObserveControl(frame)
             if not originalPoints[frame] then
-                local points, level=CC.CapturePlacement(frame)
-                originalPoints[frame] = points
-                originalLevels[frame] = level
+                local points = CC.CapturePlacement(frame)
+                -- Blizzard's XML anchors both control lists five units right of
+                -- HealthBarsContainer. Use that only until an actual layout is observed.
+                local nativeAnchor = uf.HealthBarsContainer or uf.healthBar
+                originalPoints[frame] = points or (nativeAnchor and {{"LEFT",nativeAnchor,"RIGHT",5,0}})
             end
-            if originalPoints[frame] then
-                moved[uf] = moved[uf] or setmetatable({}, {__mode = "k"})
-                moved[uf][frame] = true
-                frame:ClearAllPoints()
-                if index <= 2 then
-                    frame:SetPoint("BOTTOMLEFT", previous or art.ccAnchor, "TOPLEFT", 0, previous and 6 or 0)
-                    if Visible(frame) then previous = frame end
-                else
-                    frame:SetPoint("LEFT", anchor, "RIGHT", 8, 0)
-                end
-                frame:SetFrameLevel(art.badge:GetFrameLevel() + 10)
+            if originalLevels[frame] == nil then originalLevels[frame] = Read(frame.GetFrameLevel, frame) end
+            Manage(uf, frame)
+            writing[frame] = true
+            frame:ClearAllPoints()
+            frame:SetPoint("LEFT", anchor, "RIGHT", options.x, options.y)
+            if art then
+                if originalLevels[frame] == nil then originalLevels[frame] = Read(frame.GetFrameLevel, frame) end
+                local level = Read(art.badge.GetFrameLevel, art.badge)
+                if type(level) == "number" then frame:SetFrameLevel(level + 10) end
+            elseif originalLevels[frame] then
+                frame:SetFrameLevel(originalLevels[frame])
             end
+            writing[frame] = nil
         end
     end
 end
@@ -242,9 +349,10 @@ function CC.AttachArt(art, uf)
     end)
 end
 
-local function Attach(plate)
+function CC.Attach(plate)
     local uf = plate and plate.UnitFrame
     if not uf or Read(uf.IsForbidden, uf) then return end
+    suspended[uf] = nil
     if not hooked[uf] and type(uf.UpdateAnchors) == "function" then
         hooked[uf] = true
         hooksecurefunc(uf, "UpdateAnchors", CC.Position)
@@ -257,10 +365,11 @@ events:RegisterEvent("NAME_PLATE_UNIT_ADDED")
 events:RegisterEvent("PLAYER_ENTERING_WORLD")
 events:RegisterEvent("PLAYER_REGEN_ENABLED")
 events:SetScript("OnEvent", function(_, event, unit)
+    CC.Sync()
     if event == "NAME_PLATE_UNIT_ADDED" then
-        Attach(C_NamePlate.GetNamePlateForUnit(unit))
+        CC.Attach(C_NamePlate.GetNamePlateForUnit(unit))
     else
-        for _, plate in ipairs(C_NamePlate.GetNamePlates()) do Attach(plate) end
+        for _, plate in ipairs(C_NamePlate.GetNamePlates()) do CC.Attach(plate) end
     end
 end)
 
