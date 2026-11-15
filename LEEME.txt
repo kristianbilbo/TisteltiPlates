@@ -1,17 +1,18 @@
-TISTELTIPLATES 0.9.0-beta.3 — BETA CON CAMBIOS INCOMPATIBLES
+TISTELTIPLATES 0.9.0 — VERSIÓN ESTABLE CON CAMBIOS INCOMPATIBLES
 
-DIAGNÓSTICO EN BETA.3 — FALLO DE SALIDA PENDIENTE
-Sigue reportada la desaparición de alitas al salir de una mazmorra:
-los nombres siguen visibles y recargar la interfaz devuelve las alitas.
-La recuperación añadida en beta.2 no resuelve ese caso en el cliente.
+RECUPERACIÓN DE ALITAS Y DIAGNÓSTICO
+La recuperación tras transiciones de zona reconstruye el seguimiento de
+placas al volver al mundo y durante las actualizaciones periódicas. Incluye
+pruebas de regresión para mazmorras, bandas, campos de batalla y arenas.
+La comprobación visual dentro de WoW Forever queda pendiente.
 En Opciones > AddOns > TisteltiPlates > Alitas y mazmorras, pulsa
-«Capturar diagnóstico de alitas» cuando falle, antes de recargar.
+«Capturar diagnóstico de alitas» si necesitas guardar el estado antes de
+recargar.
 El informe se puede copiar y queda guardado al recargar o cerrar sesión.
 Incluye estado de placas, nombres, alitas, filtros y último error.
-Las pruebas simuladas no confirman la resolución de este fallo real.
+La captura no refresca las placas ni cambia los ajustes.
 
 BREAKING CHANGE respecto a 0.8.x
-- Se elimina por completo la ampliación de placas al pasar el cursor.
 - La configuración pasa al panel unificado de Opciones > AddOns.
 - Los ámbitos se comparten entre estilos, colores, alitas y controles.
   Mundo abierto, campos de batalla y arenas se activan inicialmente;
@@ -23,17 +24,16 @@ BREAKING CHANGE respecto a 0.8.x
 
 MIGRACIÓN DESDE 0.8.x
 Haz una copia de TisteltiPlates y de sus SavedVariables antes de actualizar.
-Instala la carpeta completa: se añaden módulos y se elimina HoverWidth.lua.
+Instala la carpeta completa: se añaden módulos y se conserva la ampliación
+de placas al pasar el cursor.
 Conserva TisteltiPlatesDB; no es necesario borrar tus preferencias.
 Las opciones existentes se migran y las nuevas reciben valores iniciales.
 Revisa General, Alitas y mazmorras y Apariencia después de reiniciar WoW.
 Para volver a 0.8.x, restaura tanto el addon como la copia de SavedVariables.
 
-PUBLICACIÓN
-Candidato: 0.9.0-beta.3; tag previsto: v0.9.0-beta.3 (Beta en CurseForge).
-Tras validar la beta, actualizar TOC y notas a 0.9.0 antes del tag v0.9.0.
+VERSIÓN
+Versión estable: 0.9.0; tag correspondiente: v0.9.0.
 No reutilizar ni mover los tags publicados de la serie 0.8.x.
-El marcado BREAKING CHANGE no crea tags ni publica archivos por sí solo.
 
 Abre Opciones > AddOns > TisteltiPlates. No necesitas comandos.
 La entrada Alitas y mazmorras contiene directamente los ámbitos y alitas.
@@ -67,8 +67,8 @@ La prioridad entre modos y los valores iniciales se documentan en README.md.
 La muestra utiliza los colores guardados y permite elegir escenas y mérito.
 No representa restricciones del cliente ni colisiones reales de auras.
 
-La ampliación al pasar el cursor está eliminada. La escala fija clásica
-es independiente, configurable y se respeta la geometría de EllesmereUI.
+La ampliación al pasar el cursor se conserva. La escala fija clásica es
+independiente, configurable y respeta la geometría de EllesmereUI.
 
 INSTALAR
 Extrae la carpeta TisteltiPlates en _forever_/Interface/AddOns/.
@@ -77,6 +77,6 @@ Activa las placas deseadas en WoW; el addon no cambia esa opción.
 ForeverCCPosition ya está integrado: desactiva su copia independiente.
 
 VALIDACIÓN
-Catorce suites simuladas y sintaxis comprobadas con Lua 5.4.
+Catorce suites de integración y regresión más la suite de ampliación al pasar
+el cursor; sintaxis comprobable con Lua 5.4.
 Pendiente validación visual dentro de WoW Forever y con EllesmereUI.
-Candidato en revisión mediante PR; todavía sin tag ni release de esta versión.

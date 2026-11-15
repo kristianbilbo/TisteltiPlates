@@ -465,6 +465,7 @@ end
 local function Remove(uf)
     if TisteltiPlatesNamesOnly then TisteltiPlatesNamesOnly.Remove(uf) end
     if TisteltiPlatesPvP then TisteltiPlatesPvP.Remove(uf) end
+    if TisteltiPlatesHover and (active[uf] or combatArt[uf]) then TisteltiPlatesHover.Release(uf) end
     if combatArt[uf] then combatArt[uf]:Hide(); combatArt[uf] = nil end
     if guildLabels[uf] then guildLabels[uf]:Hide() end
     local state = active[uf]
@@ -694,6 +695,7 @@ local function ReleasePlateFrame(uf)
     if uf then
         if Safe(uf.IsForbidden,uf) then pendingPlateCleanup[uf]=true; return end
         if TisteltiPlatesCC.Release then TisteltiPlatesCC.Release(uf) end
+        if TisteltiPlatesHover then TisteltiPlatesHover.Release(uf) end
         Remove(uf)
         if TisteltiPlatesPlayers then TisteltiPlatesPlayers.Remove(uf) end
         pendingPlateCleanup[uf]=nil
@@ -742,8 +744,13 @@ local function RecoverPlates()
 end
 
 local function RefreshOverlays()
+    local allowHover=db and db.enabled~=false and not ExternalGeometry()
     for unit, plate in pairs(tracked) do
         local uf = plate and plate.UnitFrame
+        if TisteltiPlatesHover then
+            if allowHover then TisteltiPlatesHover.TrackPlayer(uf)
+            else TisteltiPlatesHover.Release(uf) end
+        end
         TisteltiPlatesCC.Position(uf)
         if TisteltiPlatesPlayers then
             local decorated = uf and ((active[uf] and not active[uf].pendingRemoval) or combatArt[uf])

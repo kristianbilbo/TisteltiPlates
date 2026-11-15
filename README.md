@@ -1,31 +1,30 @@
 # TisteltiPlates
 
-Addon para WoW Forever (interfaz 16001). Esta rama integra la base remota **0.8.10.2**, los cambios de colores, controles y solo nombres, y la configuración funcional completa. **0.9.0-beta.3** es una versión candidata, pendiente de publicación estable.
+Addon para WoW Forever (interfaz 16001). La versión **0.9.0** integra la base **0.8.10.2**, los cambios de colores, controles y solo nombres, y la configuración unificada.
 
 Abre **Opciones → AddOns → TisteltiPlates**. Allí están las pestañas General, Apariencia, Comportamiento, PvP y Avanzado, con desplazamiento vertical. La entrada **TisteltiPlates → Alitas y mazmorras** ofrece acceso directo a los ámbitos, los estilos y sus alitas. No requiere escribir comandos.
 
 En **Alitas y mazmorras**, «En mazmorras, alitas solo para mi hermandad» está activado por defecto. Filtra las alitas por pertenencia real a tu hermandad, tanto con barras como en solo nombres, sin cambiar el estilo elegido ni los demás lugares. Puedes desactivarlo desde esa misma pantalla.
 
-**Incidencia pendiente en el cliente:** las alitas todavía pueden desaparecer al salir de una mazmorra aunque los nombres sigan visibles; recargar la interfaz las recupera. La recuperación de beta.2 pasa las simulaciones, pero no resuelve el caso reportado. Beta.3 añade **Capturar diagnóstico de alitas** al final de General y de Alitas y mazmorras. Captura cuando ocurra, antes de recargar, y copia el informe; también se conserva en las preferencias al recargar o cerrar sesión. Incluye las placas disponibles, el estado visual, los filtros y el último error. Esta beta no se presenta como corrección confirmada.
+La versión incluye recuperación de alitas tras las transiciones de zona, con pruebas de regresión para salida y entrada en mazmorras, bandas, campos de batalla y arenas. También incluye **Capturar diagnóstico de alitas** en General y en Alitas y mazmorras. La captura copia el estado de las placas, nombres, alitas, filtros y último error, y se conserva en las preferencias al recargar o cerrar sesión. Las pruebas simuladas no sustituyen la comprobación visual dentro del cliente.
 
 Los comandos de acceso siguen disponibles como atajos opcionales.
 
-## BREAKING CHANGE y publicación 0.9
+## Cambios incompatibles y versión 0.9.0
 
-Esta versión cambia comportamientos de 0.8.x: retira la ampliación al pasar el cursor, sustituye los paneles anteriores por opciones unificadas, comparte ámbitos entre módulos, limita por defecto las alitas de mazmorra a la hermandad y deja de solicitar comparaciones de logros al seleccionar jugadores. Se conservan y migran las preferencias existentes; no es un borrado de configuración.
+Esta versión cambia comportamientos de 0.8.x: sustituye los paneles anteriores por opciones unificadas, comparte ámbitos entre módulos, limita por defecto las alitas de mazmorra a la hermandad y deja de solicitar comparaciones de logros al seleccionar jugadores. Se conserva la ampliación de placas al pasar el cursor y se migran las preferencias existentes.
 
 Antes de actualizar, guarda una copia de la carpeta del addon y de `WTF/Account/<cuenta>/SavedVariables/TisteltiPlates.lua`. Sustituye la carpeta completa por el nuevo paquete, conserva las SavedVariables y reinicia WoW. Revisa **General → ámbitos**, **Alitas y mazmorras → solo mi hermandad** y **Apariencia → estilos y colores**. Para volver a 0.8.x, restaura ambas copias.
 
-La serie 0.x continúa en desarrollo; este cambio de comportamiento pasa a **0.9.0-beta.3**, con **0.9.0** como objetivo estable. No debe publicarse como otro parche 0.8.x.
+La serie 0.x continúa en desarrollo; este cambio de comportamiento se publica como **0.9.0**. No debe publicarse como otro parche 0.8.x.
 
 | Publicación prevista | Versión del TOC y notas | Tag nuevo | Tipo de archivo |
 | --- | --- | --- | --- |
-| Prueba de esta integración | `0.9.0-beta.3` | `v0.9.0-beta.3` | Beta |
-| Estable, tras validar la beta | `0.9.0` | `v0.9.0` | Release |
+| Versión estable | `0.9.0` | `v0.9.0` | Release |
 
-El repositorio usa `.pkgmeta`, con `LEEME.txt` como changelog, y no contiene un workflow de GitHub Actions que genere versiones automáticamente. Según el [empaquetado oficial de CurseForge](https://support.curseforge.com/support/solutions/articles/9000197281-automatic-packaging), los tags con `beta` se clasifican como Beta; no usar `dev` o `rc` como sustitutos suponiendo que tendrán esa clasificación. El título del PR o un commit `BREAKING CHANGE` no controla ese tipo de archivo.
+El repositorio usa `.pkgmeta`, con `LEEME.txt` como changelog, y no contiene un workflow de GitHub Actions que genere versiones automáticamente.
 
-Al publicar, deben coincidir el commit elegido, la versión del TOC, las notas y el tag. Crear un tag nuevo sobre el commit aprobado; no mover ni reutilizar `v0.8.10.1` o `v0.8.10.2`. Si se crea una release de GitHub para la beta, marcarla como pre-release. La conexión y los disparadores configurados en CurseForge deben comprobarse allí: no están definidos completamente en este repositorio. Este PR prepara los metadatos; no publica tags ni releases.
+Al publicar, deben coincidir el commit elegido, la versión del TOC, las notas y el tag. Crear un tag nuevo sobre el commit aprobado; no mover ni reutilizar `v0.8.10.1` o `v0.8.10.2`. La conexión y los disparadores configurados en CurseForge deben comprobarse allí: no están definidos completamente en este repositorio.
 
 ## Configuración
 
@@ -53,7 +52,7 @@ Las preferencias se guardan en `TisteltiPlatesDB`. La actualización conserva lo
 
 **Nativo** conserva o restaura el color que tenía WoW. **Personalizado** aplica el RGB guardado. **Heredado** mantiene el comportamiento anterior: usa el color personalizado si estaba activado; en PvP, sin él, usa el nombre por facción y el marco de reacción/clase. Elegir explícitamente Nativo evita ese color de respaldo. Un solo módulo controla cada nombre/borde y conserva su alfa.
 
-La ampliación al pasar el cursor está retirada: no hay módulo, opción, controlador ni prueba de esa función en el paquete. La escala fija clásica es otra opción, independiente y configurable.
+La ampliación al pasar el cursor se conserva junto con la escala fija clásica, que es otra opción independiente y configurable. EllesmereUI mantiene el control de su tamaño de placas y nombres externos.
 
 ## Valores iniciales y reglas
 
@@ -105,7 +104,7 @@ El arte y los originales están en `Media/`. Las variantes de alas de grupo/band
 
 ## Validación
 
-Catorce suites de marcos simulados comprueban carga y orden de los nueve módulos, migración, configuración y callbacks reales de UI, ámbitos, restauración de colores/alfa/anclajes, exclusión de instancias, combate, datos restringidos, reciclaje, componentes, compacto, recomendación, auras, solo nombres y Honor. Incluyen el filtro de alitas de hermandad en mazmorras, los cambios de pertenencia y la recuperación de alitas al salir. La suite de transiciones cubre pantallas de carga, placas tardías/reutilizadas/reemplazadas, eventos ausentes o repetidos, 16 ciclos con barras o solo nombres dentro y fuera de combate, todos los ámbitos activados/desactivados, datos de hermandad y nombres tardíos, marcos restringidos, ajustes desde la UI y convivencia con PvP.
+Quince suites comprueban carga y orden de los diez módulos, migración, configuración y callbacks de UI, ámbitos, restauración de colores/alfa/anclajes, exclusión de instancias, combate, datos restringidos, reciclaje, componentes, compacto, recomendación, auras, solo nombres, Honor y ampliación al pasar el cursor. Incluyen el filtro de alitas de hermandad en mazmorras, los cambios de pertenencia y la recuperación de alitas al salir. La suite de transiciones cubre pantallas de carga, placas tardías/reutilizadas/reemplazadas, eventos ausentes o repetidos, 16 ciclos con barras o solo nombres dentro y fuera de combate, todos los ámbitos activados/desactivados, datos de hermandad y nombres tardíos, marcos restringidos, ajustes desde la UI y convivencia con PvP.
 
 Desde la raíz, con Python y la biblioteca compartida de Lua 5.4 instalada:
 

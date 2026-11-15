@@ -302,7 +302,7 @@ function O.Register(db,api)
             num("pvp","wingSize","Tamaño de alas PvP",.6,1.2,.1)
             num("pvp","classIconSize","Tamaño del icono de clase PvP",16,32,1)
             for _,pair in ipairs({{"low","Mérito 1–4"},{"middle","Mérito 5–9"},{"high","Mérito 10–14"}}) do select("pvp",pair[1],pair[2],{"bronce","plata","oro","violeta","azul","verde"}) end
-            note("Los ajustes protegidos se restauran al salir de combate. Las comprobaciones de acceso y datos restringidos siempre están activas. No hay ampliación al pasar el cursor.")
+            note("Los ajustes protegidos se restauran al salir de combate. Las comprobaciones de acceso y datos restringidos siempre están activas.")
         end
         content:SetHeight(-y+30); content:Hide()
     end
