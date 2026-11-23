@@ -1,0 +1,36 @@
+name: Package CC test release
+
+on:
+  push:
+    branches:
+      - fix/enemy-player-cc-visibility-20261123
+    paths:
+      - .github/workflows/package-cc-test.yml
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout tested branch
+        uses: actions/checkout@v4
+      - name: Build install-ready addon archive
+        run: |
+          mkdir -p dist/TisteltiPlates
+          cp ./*.lua ./*.toc ./LICENSE-ForeverCCPosition.txt dist/TisteltiPlates/
+          cp -R Media dist/TisteltiPlates/
+          (cd dist && zip -qr ../TisteltiPlates-v0.9.0-cc-test.1.zip TisteltiPlates)
+          unzip -Z1 TisteltiPlates-v0.9.0-cc-test.1.zip | grep -Fx 'TisteltiPlates/TisteltiPlates.toc'
+          unzip -Z1 TisteltiPlates-v0.9.0-cc-test.1.zip | grep -Fx 'TisteltiPlates/Media/Wings.tga'
+          unzip -t TisteltiPlates-v0.9.0-cc-test.1.zip
+      - name: Publish test prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create v0.9.0-cc-test.1 ./TisteltiPlates-v0.9.0-cc-test.1.zip \
+            --repo "${{ github.repository }}" --target "${{ github.sha }}" \
+            --title "TisteltiPlates 0.9.0 - CC test 1" \
+            --notes "Test build from PR #5. Install-ready archive: unzip into Interface/AddOns so that TisteltiPlates/TisteltiPlates.toc exists. Unverified in game; please report Gouge and Cheap Shot visibility on enemy-player nameplates." \
+            --prerelease
