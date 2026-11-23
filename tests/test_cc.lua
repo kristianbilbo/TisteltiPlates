@@ -130,7 +130,7 @@ combat=false
 events.scripts.OnEvent(events,"PLAYER_REGEN_ENABLED")
 assert(loss.points[1][2]==combatArt.badge)
 combatArt:Hide()
-assert(loss.points[1][2]==uf.PlayerLevelDiffFrame and loss.level==2)
+assert(loss.points[1][2]==uf.PlayerLevelDiffFrame and loss.level>uf.PlayerLevelDiffFrame.level)
 uf.PlayerLevelDiffFrame.alpha=0
 CC.Position(uf)
 assert(loss.points[1][2]==uf.HealthBarsContainer)
@@ -266,7 +266,7 @@ assert(saved[1][1]=='BOTTOM' and saved[1][5]==4)
 compact=true; combat=true; native.protected=true
 CC.Position(fresh); assert(native.points[1][1]=='LEFT')
 combat=false; CC.Position(fresh)
-assert(native.points[1][1]=='LEFT' and native.points[1][4]==8 and native:GetFrameLevel()==nativeLevel)
+assert(native.points[1][1]=='LEFT' and native.points[1][4]==8 and native:GetFrameLevel()>nativeLevel)
 print('PASS: compact PvP retains right-side controls and defers protected changes in combat')
 
 -- Measurement restrictions must prevent reads, not otherwise permitted moves.
@@ -380,3 +380,41 @@ blindCC:ClearAllPoints(); blindCC:SetPoint('BOTTOM',blind.HealthBarsContainer,'T
 CC.Position(blind); TisteltiPlatesDB.enabled=false; CC.Sync()
 assert(blindCC.points[1][1]=='BOTTOM' and blindCC.points[1][5]==13)
 print('PASS: full disable, combat-deferred restoration, native layout changes, removal/reuse and unmeasurable control cleanup')
+ 
+-- Regression: native enemy-player CC in open world, without the PvP style.
+local enemy=Frame(); enemy.unit="nameplate42"
+enemy.HealthBarsContainer=Frame(enemy)
+enemy.LevelFrame=Frame(enemy); enemy.LevelFrame.level=26
+enemy.TisteltiPlayerBorder=Frame(enemy); enemy.TisteltiPlayerBorder.level=45
+enemy.AurasFrame=Frame(enemy)
+local enemyCrowd=Frame(enemy.AurasFrame)
+local enemyLoss=Frame(enemy.AurasFrame)
+enemy.AurasFrame.CrowdControlListFrame=enemyCrowd
+enemy.AurasFrame.LossOfControlFrame=enemyLoss
+enemyCrowd:Hide()
+TisteltiPlatesPlayers={Kind=function(unit) if unit=="nameplate42" then return "enemy" end end}
+UnitIsPlayer=function(unit) return unit=="nameplate42" end
+IsInInstance=function() return false, "none" end
+TisteltiPlatesDB={enabled=true, hideRightWingOnCC=true}
+CC.Position(enemy)
+assert(enemyCrowd:IsShown(), "Enemy-player native crowd list must be visible in world PvP")
+assert(enemyCrowd.points[1][2]==enemy.LevelFrame and enemyCrowd.points[1][4]==8,
+    "CC must anchor beyond the native LevelFrame when PlayerLevelDiffFrame is absent")
+assert(enemyLoss.points[1][2]==enemy.LevelFrame)
+assert(enemyCrowd.level>enemy.TisteltiPlayerBorder.level and enemyLoss.level>enemy.TisteltiPlayerBorder.level,
+    "CC must render above the native level and player border")
+TisteltiPlatesDB.enabled=false; CC.Sync()
+assert(not enemyCrowd:IsShown() and enemyLoss.level==2, "Disable restores native visibility and frame level")
+TisteltiPlatesDB.enabled=true
+IsInInstance=function() return true, "pvp" end
+CC.Position(enemy)
+assert(not enemyCrowd:IsShown(), "Battlegrounds retain native LossOfControl rendering")
+IsInInstance=function() return false, "none" end
+CC.Position(enemy)
+assert(enemyCrowd:IsShown(), "Returning to open world reenables native enemy-player crowd list")
+enemyCrowd.protected=true; combat=true
+CC.Release(enemy)
+assert(enemyCrowd:IsShown(), "Protected crowd restoration defers until combat ends")
+combat=false; CC.Sync()
+assert(not enemyCrowd:IsShown(), "Release restores native crowd visibility after combat")
+print("PASS: native enemy-player CC, level clearance, combat deferral and cleanup")
