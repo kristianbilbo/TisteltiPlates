@@ -17,6 +17,7 @@ local writing = setmetatable({}, {__mode = "k"})
 local function Enabled() return not TisteltiPlatesDB or TisteltiPlatesConfig.Allowed(TisteltiPlatesDB) end
 local auraKeys = {"BuffListFrame", "DebuffListFrame", "CrowdControlListFrame", "LossOfControlFrame"}
 local rectUnreadable = setmetatable({}, {__mode = "k"})
+local forcedEnemyCrowd = setmetatable({}, {__mode = "k"})
 
 function CC.OriginalPlacement(frame)
     return originalPoints[frame], originalLevels[frame]
@@ -197,6 +198,72 @@ local function CanMoveControl(frame)
     return not InCombatLockdown() or Read(frame.IsProtected, frame) == false
 end
 
+-- Player plates do not always use PlayerLevelDiffFrame. Resolve the native
+-- level badge actually shown instead of falling back directly to the bar.
+local function LevelAnchor(uf)
+    if Visible(uf.PlayerLevelDiffFrame) then return uf.PlayerLevelDiffFrame end
+    if Visible(uf.LevelFrame) then return uf.LevelFrame end
+    local container = uf.HealthBarsContainer
+    if container and Visible(container.LevelFrame) then return container.LevelFrame end
+    local bar = uf.healthBar or (container and container.healthBar)
+    if bar and Visible(bar.LevelFrame) then return bar.LevelFrame end
+end
+
+local function AbovePlateLevel(uf, frame, anchor, art)
+    local highest = originalLevels[frame]
+    local function include(other)
+        if not other or not Visible(other) then return end
+        local level = Read(other.GetFrameLevel, other)
+        if type(level)=="number" and (not highest or level>highest) then highest=level end
+    end
+    include(anchor)
+    include(uf.HealthBarsContainer)
+    include(uf.LevelFrame)
+    include(uf.PlayerLevelDiffFrame)
+    include(uf.TisteltiPlayerBorder)
+    local pvp = uf.TisteltiPvPArt
+    include(pvp)
+    if pvp and Visible(pvp) then include(pvp.levelFrame) end
+    if art then include(art.badge) end
+    return highest and highest + 10
+end
+
+-- Blizzard hides CrowdControlListFrame for enemy players, even though its
+-- native aura list is populated. In world PvP, LossOfControl may have no data.
+-- Reuse Blizzard's existing list; never inspect private aura contents.
+local function CanUseEnemyCrowd(uf)
+    if Read(UnitIsPlayer, uf.unit) ~= true then return false end
+    if type(IsInInstance)=="function" then
+        local ok, inside, kind = pcall(IsInInstance)
+        if not ok or (issecretvalue and (issecretvalue(inside) or issecretvalue(kind))) then return false end
+        if kind=="pvp" or kind=="arena" then return false end
+    end
+    local e = Enum and Enum.NamePlateEnemyPlayerAuraDisplay
+    local index = e and e.LossOfControl
+    if index ~= nil then
+        local enabled = Read(C_CVar and C_CVar.GetCVarBitfield or GetCVarBitfield,
+            "nameplateEnemyPlayerAuraDisplay", index)
+        if enabled == false then return false end
+    end
+    return true
+end
+
+local function StopForcingEnemyCrowd(uf)
+    local frame = forcedEnemyCrowd[uf]
+    if frame and CanMoveControl(frame) then
+        if Read(frame.IsShown, frame) == true then pcall(frame.Hide, frame) end
+        forcedEnemyCrowd[uf] = nil
+    end
+end
+
+local function ShowEnemyCrowd(uf)
+    local frame = uf.AurasFrame and uf.AurasFrame.CrowdControlListFrame
+    if not frame or not CanMoveControl(frame) then return end
+    if Read(frame.IsShown, frame) == false then
+        if pcall(frame.Show, frame) then forcedEnemyCrowd[uf] = frame end
+    end
+end
+
 -- Remember native/other-addon layout writes without measuring restricted regions.
 local function ObserveControl(frame)
     if observing[frame] then return end
@@ -235,6 +302,7 @@ function CC.Restore(uf, subset)
             managed[uf][frame] = nil
         end
     end
+    if not subset or subset=="controls" then StopForcingEnemyCrowd(uf) end
     if managed[uf] and not next(managed[uf]) then managed[uf] = nil end
 end
 
@@ -295,9 +363,13 @@ function CC.Position(uf)
     if not options.enabled or (relation=="ally" and not options.allies) or (relation=="enemy" and not options.enemies) then
         CC.Restore(uf,"controls"); return
     end
+    if relation=="enemy" and CanUseEnemyCrowd(uf) then
+        ShowEnemyCrowd(uf)
+    else
+        StopForcingEnemyCrowd(uf)
+    end
     local anchor = options.anchor=="health" and (uf.HealthBarsContainer or uf.healthBar) or art and art.badge
-        or Visible(uf.PlayerLevelDiffFrame) and uf.PlayerLevelDiffFrame
-        or uf.HealthBarsContainer or uf.healthBar
+        or LevelAnchor(uf) or uf.HealthBarsContainer or uf.healthBar
     if not anchor then return end
     for _, key in ipairs(keys) do
         local frame = auras[key]
@@ -315,13 +387,8 @@ function CC.Position(uf)
             writing[frame] = true
             frame:ClearAllPoints()
             frame:SetPoint("LEFT", anchor, "RIGHT", options.x, options.y)
-            if art then
-                if originalLevels[frame] == nil then originalLevels[frame] = Read(frame.GetFrameLevel, frame) end
-                local level = Read(art.badge.GetFrameLevel, art.badge)
-                if type(level) == "number" then frame:SetFrameLevel(level + 10) end
-            elseif originalLevels[frame] then
-                frame:SetFrameLevel(originalLevels[frame])
-            end
+            local level = AbovePlateLevel(uf, frame, anchor, art)
+            if type(level)=="number" then frame:SetFrameLevel(level) end
             writing[frame] = nil
         end
     end
